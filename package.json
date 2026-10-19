@@ -1,6 +1,6 @@
 {
   "name": "@vlln/dsh-motion",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "description": "Motion render kernel as a dsh plugin: timeline + text slots + palette + comments -> frame-accurate MP4",
@@ -20,7 +20,8 @@
     "gate:plugin": "node scripts/gate-plugin.mjs",
     "link": "node scripts/dev-link.mjs",
     "build:client": "node scripts/build-client.mjs",
-    "gate:client": "node scripts/gate-client.mjs"
+    "gate:client": "node scripts/gate-client.mjs",
+    "check": "npm run validate && npm run gates && npm run gate:audio && npm run gate:ui && npm run gate:comments && npm run gate:client && npm run gate:plugin"
   },
   "devDependencies": {
     "esbuild": "^0.28.2",
@@ -51,6 +52,11 @@
     "timeline.json",
     "src",
     "scripts",
-    "README.md"
-  ]
+    "README.md",
+    "LICENSE"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  }
 }

@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { list, reply, resolve } from '../src/comments.mjs';
 import { startServer } from './serve.mjs';
+import { findChromium } from './lib/chromium.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
@@ -21,19 +22,6 @@ const opt = (k, d) => {
 };
 const has = (k) => argv.includes(`--${k}`);
 
-function findChromium() {
-  if (process.env.CHROMIUM) return process.env.CHROMIUM;
-  const base = path.join(os.homedir(), 'Library/Caches/ms-playwright');
-  for (const dir of fs.existsSync(base) ? fs.readdirSync(base).filter((d) => d.startsWith('chromium-')) : []) {
-    for (const arch of ['chrome-mac', 'chrome-mac-arm64']) {
-      for (const app of ['Chromium', 'Google Chrome for Testing']) {
-        const p = path.join(base, dir, arch, `${app}.app`, 'Contents', 'MacOS', app);
-        if (fs.existsSync(p)) return p;
-      }
-    }
-  }
-  return undefined;
-}
 
 async function makeCrops(threads) {
   const timeline = JSON.parse(fs.readFileSync(path.join(ROOT, 'timeline.json'), 'utf8'));

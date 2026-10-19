@@ -8,27 +8,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { startServer } from './serve.mjs';
+import { findChromium } from './lib/chromium.mjs';
+import { createGate } from './lib/gate.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const results = [];
-const check = (name, pass, detail = '') => {
-  results.push(pass);
-  console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}${detail ? `  — ${detail}` : ''}`);
-};
+const { check, finish } = createGate();
 
-function findChromium() {
-  if (process.env.CHROMIUM) return process.env.CHROMIUM;
-  const base = path.join(os.homedir(), 'Library/Caches/ms-playwright');
-  for (const dir of fs.existsSync(base) ? fs.readdirSync(base).filter((d) => d.startsWith('chromium-')) : []) {
-    for (const arch of ['chrome-mac', 'chrome-mac-arm64']) {
-      for (const app of ['Chromium', 'Google Chrome for Testing']) {
-        const p = path.join(base, dir, arch, `${app}.app`, 'Contents', 'MacOS', app);
-        if (fs.existsSync(p)) return p;
-      }
-    }
-  }
-  return undefined;
-}
 
 const { origin, close } = await startServer();
 const browser = await chromium.launch({ executablePath: findChromium(), args: ['--hide-scrollbars'] });
@@ -112,6 +97,4 @@ await page.screenshot({ path: path.join(ROOT, 'out/ui-panel.png') });
 await browser.close();
 close();
 
-const failed = results.filter((r) => !r).length;
-console.log(`\n${results.length - failed}/${results.length} passed`);
-process.exit(failed ? 1 : 0);
+finish();

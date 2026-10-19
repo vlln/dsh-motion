@@ -6,14 +6,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { createGate } from './lib/gate.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const file = path.join(ROOT, 'out/demo.mp4');
-const results = [];
-const check = (name, pass, detail = '') => {
-  results.push(pass);
-  console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}${detail ? `  — ${detail}` : ''}`);
-};
+const { check, finish } = createGate();
 
 const probe = JSON.parse(
   execFileSync('ffprobe', [
@@ -46,6 +43,4 @@ const expectedBeats = Math.round((beats.bpm / 60) * timeline.duration);
 check('beat count plausible', Math.abs(beats.beats.length - expectedBeats) <= 2, `${beats.beats.length} vs ~${expectedBeats}`);
 check('wave.png exists', fs.existsSync(path.join(ROOT, 'out/wave.png')));
 
-const failed = results.filter((r) => !r).length;
-console.log(`\n${results.length - failed}/${results.length} passed`);
-process.exit(failed ? 1 : 0);
+finish();

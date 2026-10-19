@@ -7,16 +7,13 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateTimeline } from '../src/validate.mjs';
 import { modules } from '../src/scenes/index.mjs';
+import { createGate } from './lib/gate.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const base = JSON.parse(fs.readFileSync(path.join(ROOT, 'timeline.json'), 'utf8'));
 const clone = () => JSON.parse(JSON.stringify(base));
 
-const results = [];
-const check = (name, pass, detail = '') => {
-  results.push(pass);
-  console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}${detail ? `  — ${detail}` : ''}`);
-};
+const { check, finish } = createGate();
 
 const expectError = (name, mutate, needle) => {
   const timeline = clone();
@@ -65,6 +62,4 @@ expectError(
 // 10. missing scene module
 expectError('missing scene module', (t) => (t.scenes[0].id = 'nope'), 'no scene module registered');
 
-const failed = results.filter((r) => !r).length;
-console.log(`\n${results.length - failed}/${results.length} passed`);
-process.exit(failed ? 1 : 0);
+finish();

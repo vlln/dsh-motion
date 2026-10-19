@@ -1,58 +1,43 @@
 #!/usr/bin/env node
-// Plugin gate (M4): the package installs into a throwaway DSH_HOME, appears in the
-// composed profile, and the web profile boots without load errors.
-// A clean log is only evidence after a negative control — see gate-plugin-negative.mjs.
+// Plugin gate (M4): install into a throwaway DSH_HOME, appear in the composed
+// profile, and boot the web profile without load errors.
+// A clean log is only evidence after the negative control in gate-tools.
 
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
-import { execFileSync, spawn } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { install, linkSdk, seedHome, bootWeb } from './lib/dsh.mjs';
+import { createGate } from './lib/gate.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const results = [];
-const check = (name, pass, detail = '') => {
-  results.push(pass);
-  console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}${detail ? `  — ${detail}` : ''}`);
-};
+const { check, finish } = createGate();
 
-const home = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-motion-home-'));
-const env = { ...process.env, DSH_HOME: home };
-
+const home = seedHome();
 try {
-  execFileSync('node', ['scripts/dev-link.mjs'], { cwd: ROOT, encoding: 'utf8' });
-  const add = execFileSync('dsh', ['plugin', '--profile', 'web', 'add', ROOT], { env, encoding: 'utf8' });
+  linkSdk(ROOT);
+  const add = install('web', ROOT, home);
   check('installs into a throwaway profile', add.includes('@vlln/dsh-motion'), add.trim().split('\n').at(-1));
 
-  const dump = execFileSync('dsh', ['--profile', 'web', '--dump-config'], { env, encoding: 'utf8' });
+  const dump = execFileSync('dsh', ['--profile', 'web', '--dump-config'], {
+    env: { ...process.env, DSH_HOME: home },
+    encoding: 'utf8',
+  });
   check('composed profile contains the bundle row', dump.includes("name: '@vlln/dsh-motion'"));
 
-  const boot = await new Promise((resolve) => {
-    const child = spawn('dsh', ['--profile', 'web', '--no-open', '--port', '0'], { env });
-    let out = '';
-    const onData = (d) => {
-      out += d.toString();
-      if (/http:\/\/127\.0\.0\.1:\d+/.test(out)) {
-        setTimeout(() => {
-          child.kill();
-          resolve(out);
-        }, 1200);
-      }
-    };
-    child.stdout.on('data', onData);
-    child.stderr.on('data', onData);
-    setTimeout(() => {
-      child.kill();
-      resolve(out);
-    }, 20000);
-  });
-
-  check('web profile boots', /http:\/\/127\.0\.0\.1:\d+/.test(boot));
-  check('no load errors', !/plugin tree failed|did not activate|skipping profile bundle|Error:/i.test(boot), boot.split('\n').filter(Boolean).slice(-1)[0] ?? '');
+  const boot = await bootWeb(home).catch((err) => ({ error: err.message }));
+  check('web profile boots', Boolean(boot.origin), boot.error ?? boot.origin);
+  if (boot.origin) {
+    const log = boot.log();
+    check(
+      'no load errors',
+      !/plugin tree failed|did not activate|skipping profile bundle|Error:/i.test(log),
+      log.split('\n').filter(Boolean).slice(-1)[0] ?? '',
+    );
+    boot.stop();
+  }
 } finally {
   fs.rmSync(home, { recursive: true, force: true });
 }
 
-const failed = results.filter((r) => !r).length;
-console.log(`\n${results.length - failed}/${results.length} passed`);
-process.exit(failed ? 1 : 0);
+finish();

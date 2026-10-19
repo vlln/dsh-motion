@@ -10,23 +10,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { startServer } from './serve.mjs';
+import { findChromium } from './lib/chromium.mjs';
 
 const sha = (buf) => crypto.createHash('sha256').update(buf).digest('hex');
 const eq = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
 
-function findChromium() {
-  if (process.env.CHROMIUM) return process.env.CHROMIUM;
-  const base = path.join(os.homedir(), 'Library/Caches/ms-playwright');
-  for (const dir of fs.existsSync(base) ? fs.readdirSync(base).filter((d) => d.startsWith('chromium-')) : []) {
-    for (const arch of ['chrome-mac', 'chrome-mac-arm64']) {
-      for (const app of ['Chromium', 'Google Chrome for Testing']) {
-        const p = path.join(base, dir, arch, `${app}.app`, 'Contents', 'MacOS', app);
-        if (fs.existsSync(p)) return p;
-      }
-    }
-  }
-  return undefined;
-}
 
 const results = [];
 const check = (name, pass, detail = '') => {

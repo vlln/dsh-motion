@@ -12,6 +12,7 @@ npm run audio        # 合成音床 + 节拍分析 + 波形图
 npm run video        # 15 秒片子（含音频）→ out/demo.mp4
 npm run gate:audio   # 音频门禁，8 项断言
 npm run gate:ui      # 预览界面门禁，11 项断言
+npm run gate:comments # 批注回路门禁，13 项断言
 npm run preview      # 本地预览 → http://127.0.0.1:4173/preview.html
 ```
 
@@ -27,6 +28,7 @@ npm run preview      # 本地预览 → http://127.0.0.1:4173/preview.html
 | 捕获速度 | 570 帧 **约 11 秒**（含 WebGL 段） |
 | 拼图 | 8 帧 4 列 → `out/sheet.png`｜波形 → `out/wave.png` |
 | 界面门禁 | **11/11**（场景条 / 播放头 / 选中 / 播放） |
+| 批注门禁 | **13/13**（框选 → 批注 → 工具 → 改字 → 回复 → 解决） |
 
 ## 三个接口
 
@@ -84,6 +86,29 @@ npm run preview   # http://127.0.0.1:4173/preview.html
 ![选中元素](docs/ui-selection.png)
 
 检视器里的 `x / y`、`w × h` 与场景实际绘制用的是**同一份布局函数**，不是估出来的。
+
+## 批注回路
+
+在暂停帧上拖出一个框 → 写一句 → `Send to Claude`，批注以三要素锚定入库：
+
+```jsonc
+{ "anchor": { "t": 3.2, "rect": {"x":150,"y":235,"w":570,"h":100}, "elementId": "pin-…" },
+  "text": "把标题改成更短的说法", "activated": true, "status": "open" }
+```
+
+![批注列表](docs/ui-comments.png)
+
+工具契约（当前是 CLI，插件里会变成 `motion_comments`）：
+
+```bash
+node scripts/comments.mjs list --json --crops   # 列出线程，并为每个线程生成裁剪图
+node scripts/comments.mjs reply --id th_x --text "改好了"
+node scripts/comments.mjs resolve --id th_x
+```
+
+`--crops` 会按锚点打开对应时刻，把 `rect` 外扩 20% 截一张图（`out/comments/<id>.png`）——模型看图比读坐标准。
+
+改文本走 `node scripts/texts.mjs set --scene … --slot … --value …`：写 `timeline.json` → 校验 → 下一帧生效，**不重编译**。
 
 ## 已知限制
 

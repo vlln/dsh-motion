@@ -17,7 +17,11 @@
     }
   },
   "overrides": {},
-  "texts": {},
+  "texts": {
+    "first-peoples": {
+      "title": "The first peoples"
+    }
+  },
   "scenes": [
     {
       "id": "first-peoples",

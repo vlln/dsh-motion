@@ -216,3 +216,123 @@ canvas {
   flex: 1;
   accent-color: var(--accent);
 }
+
+/* --- comments --- */
+
+.selection.draft {
+  border-style: dashed;
+  background: rgb(224 176 64 / 8%);
+}
+
+.popover {
+  position: absolute;
+  width: 272px;
+  background: #0f1b30;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px;
+  box-shadow: 0 18px 50px rgb(0 0 0 / 55%);
+  z-index: 5;
+}
+
+.pop-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font: 11px/1 ui-monospace, "SF Mono", Menlo, monospace;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.popover .x {
+  background: none;
+  border: 0;
+  color: var(--muted);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.popover textarea {
+  width: 100%;
+  resize: vertical;
+  background: #0b1426;
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px;
+  font: 12px/1.5 Inter, sans-serif;
+}
+
+.send-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.send-btn {
+  width: 100%;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #14100a;
+  font-weight: 600;
+  border-radius: 8px;
+  padding: 7px 10px;
+  cursor: pointer;
+}
+
+.threads h2 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.thread {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  background: #0c1628;
+}
+
+.thread:hover {
+  border-color: #3b5175;
+}
+
+.thread .meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font: 11px/1.4 ui-monospace, "SF Mono", Menlo, monospace;
+  color: var(--muted);
+}
+
+.thread .text {
+  font-size: 12px;
+  margin-top: 4px;
+  color: var(--fg);
+}
+
+.badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.badge.open {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.badge.resolved {
+  border-color: #2f6f4f;
+  color: #6fbf94;
+}

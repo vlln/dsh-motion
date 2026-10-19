@@ -13,7 +13,10 @@
     "validate": "node scripts/validate-tests.mjs",
     "gate:validate": "node scripts/validate-tests.mjs",
     "preview": "node scripts/serve.mjs",
-    "gate:ui": "node scripts/gate-ui.mjs"
+    "gate:ui": "node scripts/gate-ui.mjs",
+    "gate:comments": "node scripts/gate-comments.mjs",
+    "comments": "node scripts/comments.mjs",
+    "texts": "node scripts/texts.mjs"
   },
   "devDependencies": {
     "playwright": "1.64.1"

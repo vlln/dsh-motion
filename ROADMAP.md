@@ -31,7 +31,7 @@
   - 一张“面板全貌”截图 + 一张“选中元素”截图
   - 已达成：`npm run gate:ui` **11/11**；截图在 `docs/ui-panel.png` / `docs/ui-selection.png`
 
-### M3 · 批注回路
+### M3 · 批注回路 ✅（2026-10-19）
 
 - `comments.json`：`{threadId, anchor:{t, rect, elementId}, text, activated, resolved}`
 - 浮层：在暂停帧上框选 → 写指令 → `Send to Claude`
@@ -41,6 +41,7 @@
   2. `motion_comments comments` 返回该 thread（含 `crop.png`）
   3. 脚本改 `texts` → 预览该帧像素变化
   4. `reply` + `resolve` 后 thread 状态正确
+  - 已达成：`npm run gate:comments` **13/13**；截图 `docs/ui-comments.png`；裁剪图 `out/comments/<id>.png`
 
 ### M4 · 插件形态（bundle + tools）
 

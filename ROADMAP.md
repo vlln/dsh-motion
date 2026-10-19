@@ -1,0 +1,90 @@
+# dsh-motion 路线图
+
+> 目标（goal-46e4ff3f）：把内核做成**可安装、可验证的 dsh 插件**。
+> 规则：**每个里程碑必须有可复现的退出证据**；门禁是累积的，后一个里程碑不许让前一个门禁变红。
+
+---
+
+## 里程碑
+
+### M0 · 渲染内核 ✅（已完成，2026-10-19）
+
+- timeline / 文本槽 / 调色板 / 音频 / WebGL 五条链路跑通
+- 退出证据：`npm run gates` **14/14**、`npm run gate:audio` **8/8**、19s 成片
+
+### M1 · 契约固化与仓库化
+
+- 契约文档 → 可直接执行的 `src/types.d.ts` + `src/validate.mjs`（运行时校验 timeline / slots / palettes）
+- git init、`.gitignore`、`package.json` 元数据（description / icon / license 占位）
+- 退出证据：
+  - 非法 timeline（缺 token、槽未声明、scene 重叠）**会被 validate 拒绝**，每条有单测
+  - `npm run gates` 仍 14/14
+
+### M2 · 预览面板（standalone，不依赖 dsh）
+
+- 播放器：播放 / 暂停 / 拖播放头 / 时间码 / 循环
+- 场景条：按时长比例分段、点击跳转、当前幕高亮
+- 元素检视：点选元素 → 显示 `t · x y · w×h`（只读）
+- 退出证据：
+  - Playwright 脚本驱动：点场景条 → 播放头落点正确（±1 帧）；拖播放头 → 时间码同步
+  - 一张“面板全貌”截图 + 一张“选中元素”截图
+
+### M3 · 批注回路
+
+- `comments.json`：`{threadId, anchor:{t, rect, elementId}, text, activated, resolved}`
+- 浮层：在暂停帧上框选 → 写指令 → `Send to Claude`
+- 工具契约：`motion_comments { action: comments|reply|resolve }`，返回锚点 + 裁剪图路径
+- 退出证据（端到端、可脚本复现）：
+  1. 在 t=3.2、框选标题区域、写“换掉这句”
+  2. `motion_comments comments` 返回该 thread（含 `crop.png`）
+  3. 脚本改 `texts` → 预览该帧像素变化
+  4. `reply` + `resolve` 后 thread 状态正确
+
+### M4 · 插件形态（bundle + tools）
+
+- `dsh.bundle.patch`（insert 自身）、`dsh.client`（platform web）、`icon.svg`
+- Node half 工具：
+  - `motion_init` / `motion_render` / `motion_export`
+  - `motion_texts`（读/写槽）
+  - `motion_palette`（改 token / 元素覆盖）
+  - `motion_comments`（comments / reply / resolve）
+- 退出证据：
+  - 打包产物在 `dsh plugin --profile web add` 下可解析
+  - 工具在真实会话里**真调一次**（不只是 boot 干净）
+
+### M5 · 安装验证（隔离环境）
+
+- 独立 `DSH_HOME` + `--port 0`，绝不碰共享 3080
+- 步骤：建临时 profile → add → 启动 → 会话里调 `motion_init` → 调 `motion_render --stills` → 看到面板
+- **负控**：故意写错一个 `inject` 服务名，确认日志响亮报错且条目 pending
+- 退出证据：
+  - 安装日志 + 工具调用结果 + 面板截图
+  - 负控日志（证明“干净日志”不是侥幸）
+
+### M6 · 文档与交付
+
+- README：这是什么 / 为什么 / 怎么装 / 用起来什么样 / 能力面表 / **兼容性** / **插件管理** / 已知限制
+- 至少一张功能图（面板截图）与一个可跑的示例 timeline
+- 退出证据：交付检查清单逐项打勾（依赖三字段为空、图标实际渲染、冒烟含真实调用）
+
+---
+
+## 门禁（累积，任何时候都要绿）
+
+| 门禁 | 命令 | 通过标准 |
+|---|---|---|
+| 内核 | `npm run gates` | 14/14 |
+| 音频 | `npm run gate:audio` | 8/8 |
+| 校验 | `node scripts/validate-tests.mjs` | 全部非法样例被拒 |
+| 交互 | `npm run gate:ui` | 播放头/场景条/选中 3 项 |
+| 批注 | `npm run gate:comments` | 4 步闭环 |
+| 插件 | `npm run gate:plugin` | 安装冒烟 + 负控 |
+
+---
+
+## 工作纪律
+
+1. **没有截图就没有 UI 结论**——每次改面板都必须看渲染图。
+2. **门禁先怀疑自己**——两次误报（P3 色偏、ebur128 首行）都出在测量方法上。
+3. **一个里程碑一次提交**——提交信息写清“改了什么 + 哪条门禁证明了它”。
+4. **不写死会过期的东西**——版本号一律现场取；实测记录必须带日期。

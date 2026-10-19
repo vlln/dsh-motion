@@ -126,6 +126,24 @@ dsh plugin --profile web add <repo 路径>   # 本地目录安装（先 npm run 
 场景条跳转、启动器挂载与 iframe 可用；`npm run gate:tools` 用真实会话调一次工具，并跑一次
 “写错 inject”的负控（需要本机凭据，缺失时跳过）。
 
+![Plugins 页](docs/plugins-page.png)
+
+## 能力面
+
+| 工具 | 说明 |
+|---|---|
+| `motion_info` | 时间轴、场景、调色板、节拍摘要 |
+| `motion_texts` | 读写文本槽（写前校验，非法拒绝） |
+| `motion_palette` | 改共享 token 或元素级 override |
+| `motion_comments` | 列出 / 回复 / 解决批注线程（带三要素锚点） |
+| `motion_render` | 接触表（stills）或 MP4（video） |
+| `motion_export` | 导出 `mp4` 或 `gif`（GIF 从成片转码，无音频） |
+
+| 界面 | 说明 |
+|---|---|
+| `◐ Motion` 启动器 | 右下角浮层，打开面板 |
+| 面板 | 播放器 / 场景条 / 元素检视 / 批注浮层（iframe 同源预览） |
+
 ## 兼容性
 
 | dsh 版本 | 状态 |

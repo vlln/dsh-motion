@@ -69,11 +69,15 @@
   - 负控日志（证明“干净日志”不是侥幸）
   - 已达成：`npm run gate:tools` **4/4**——真实会话调 `motion_info` 返回本仓库时间轴；故意写错 `inject` 后日志出现 `1 entry did not activate` + `waiting for service: noSuchService`
 
-### M6 · 文档与交付（进行中）
+### M6 · 文档与交付 ✅（2026-10-19）
 
 - README：这是什么 / 为什么 / 怎么装 / 用起来什么样 / 能力面表 / **兼容性** / **插件管理** / 已知限制
 - 至少一张功能图（面板截图）与一个可跑的示例 timeline
-- 退出证据：交付检查清单逐项打勾（依赖三字段为空、图标实际渲染、冒烟含真实调用）
+- 退出证据：
+  - README 含「兼容性」「插件管理」「已知限制」
+  - 图标在真实 Plugins 页渲染（`docs/plugins-page.png`）
+  - `dependencies` / `peerDependencies` 为空；`devDependencies` 仅本地工具链
+  - 冒烟含真实调用与负控（`gate:tools`）
 
 ---
 

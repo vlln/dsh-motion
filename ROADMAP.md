@@ -12,13 +12,14 @@
 - timeline / 文本槽 / 调色板 / 音频 / WebGL 五条链路跑通
 - 退出证据：`npm run gates` **14/14**、`npm run gate:audio` **8/8**、19s 成片
 
-### M1 · 契约固化与仓库化
+### M1 · 契约固化与仓库化 ✅（2026-10-19）
 
 - 契约文档 → 可直接执行的 `src/types.d.ts` + `src/validate.mjs`（运行时校验 timeline / slots / palettes）
 - git init、`.gitignore`、`package.json` 元数据（description / icon / license 占位）
 - 退出证据：
   - 非法 timeline（缺 token、槽未声明、scene 重叠）**会被 validate 拒绝**，每条有单测
   - `npm run gates` 仍 14/14
+  - 已达成：`npm run validate` **10/10**；运行时在 mount 前 `assertTimeline`；首次提交 `6d47ffe`
 
 ### M2 · 预览面板（standalone，不依赖 dsh）
 

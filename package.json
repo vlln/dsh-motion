@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "description": "Render kernel spike: timeline + text slots + palette -> frame-accurate MP4",
+  "description": "Motion render kernel as a dsh plugin: timeline + text slots + palette + comments -> frame-accurate MP4",
   "scripts": {
     "audio": "node scripts/synth.mjs && node scripts/beats.mjs && node scripts/wave.mjs",
     "sheet": "node scripts/capture.mjs --stills 0,2.5,5,7.5,10,12.5 --cols 3 --out out/sheet.png",
@@ -16,12 +16,33 @@
     "gate:ui": "node scripts/gate-ui.mjs",
     "gate:comments": "node scripts/gate-comments.mjs",
     "comments": "node scripts/comments.mjs",
-    "texts": "node scripts/texts.mjs"
+    "texts": "node scripts/texts.mjs",
+    "gate:plugin": "node scripts/gate-plugin.mjs"
   },
   "devDependencies": {
     "playwright": "1.64.1"
   },
   "dependencies": {
     "three": "^0.186.1"
-  }
+  },
+  "main": "./lib/index.mjs",
+  "exports": {
+    ".": "./lib/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "icon": "./icon.svg",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "icon.svg",
+    "timeline.json",
+    "src",
+    "scripts",
+    "README.md"
+  ]
 }

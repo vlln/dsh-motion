@@ -110,13 +110,26 @@ node scripts/comments.mjs resolve --id th_x
 
 改文本走 `node scripts/texts.mjs set --scene … --slot … --value …`：写 `timeline.json` → 校验 → 下一帧生效，**不重编译**。
 
+## 作为 dsh 插件（进行中）
+
+Node half 已可安装：
+
+```bash
+dsh plugin --profile web add <repo 路径>
+```
+
+工具：`motion_info`、`motion_texts`、`motion_palette`、`motion_comments`、`motion_render`。
+client half（面板）尚未接入。
+
+`npm run gate:plugin` 在临时 `DSH_HOME` 里安装、检查组合行、启动 web 验证无加载错误。
+
 ## 已知限制
 
 - 只有一条音轨，没有旁白轨与 ducking
 - 音频 fit 只实现 `trim`（loop / pad 未实现）
 
 - 没有 UI（预览/场景条/批注面板）
-- 没有 dsh 插件外壳
+- client half 尚未接入（Node 工具已可用）
 - 没有打包成单文件 HTML（开发用静态服务器）
 - 字体只用系统族，未入库
 - WebGL 确定性只在本机（Apple GPU + Chrome for Testing）验证过；换机器/驱动需重跑 G4

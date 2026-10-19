@@ -1,0 +1,4 @@
+# dsh-motion：向组合挂 Node half（工具）；client half 在后续里程碑加入。
+- insert:
+    - id: dsh-motion
+      name: '@vlln/dsh-motion'

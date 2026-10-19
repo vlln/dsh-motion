@@ -43,17 +43,20 @@
   4. `reply` + `resolve` 后 thread 状态正确
   - 已达成：`npm run gate:comments` **13/13**；截图 `docs/ui-comments.png`；裁剪图 `out/comments/<id>.png`
 
-### M4 · 插件形态（bundle + tools）
+### M4a · 插件骨架与 Node half ✅（2026-10-19）
 
-- `dsh.bundle.patch`（insert 自身）、`dsh.client`（platform web）、`icon.svg`
-- Node half 工具：
-  - `motion_init` / `motion_render` / `motion_export`
-  - `motion_texts`（读/写槽）
-  - `motion_palette`（改 token / 元素覆盖）
-  - `motion_comments`（comments / reply / resolve）
+- `dsh.bundle.patch` + `icon.svg` + `lib/index.mjs`
+- 工具：`motion_info` / `motion_texts` / `motion_palette` / `motion_comments` / `motion_render`
+- 退出证据：`npm run gate:plugin` **4/4**（临时 DSH_HOME 安装 → dump-config 含行 → web 启动无错误）
+
+### M4b · client half（预览播放器 + 场景条 + 元素检视 + 批注浮层）
+
+- 把 standalone 预览打包成自包含 bundle（esbuild + three 内联）
+- Node half 注册静态路由（app / app.js / timeline / comments）
+- client bundle 自渲染：`__ModuleLoader__.load` 注册浮动面板（iframe 或直接 DOM）
 - 退出证据：
-  - 打包产物在 `dsh plugin --profile web add` 下可解析
-  - 工具在真实会话里**真调一次**（不只是 boot 干净）
+  - `/plugins/dsh-motion/app` 200，面板能在真实会话里打开
+  - 面板里点场景条/元素/批注，与 standalone 行为一致
 
 ### M5 · 安装验证（隔离环境）
 

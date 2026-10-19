@@ -185,6 +185,12 @@ export function createKernel({ timeline, modules }) {
       const key = elementId ? `${sceneId}/${elementId}` : sceneId;
       timeline.overrides[key] = { ...(timeline.overrides[key] ?? {}), ...patch };
     },
+    pick(x, y, atT) {
+      const scene = sceneAt(atT);
+      const entry = mounted.get(scene.id);
+      if (!entry?.module.hitTest) return null;
+      return entry.module.hitTest(x, y, Math.max(0, atT - scene.start));
+    },
     textUsage(sceneId, atT) {
       const scene = sceneAt(atT);
       if (scene.id !== sceneId) throw new Error(`t=${atT} is in scene "${scene.id}", not "${sceneId}"`);

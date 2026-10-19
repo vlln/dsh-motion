@@ -33,6 +33,7 @@ window.__MOTION__ = {
   setOverride: (scene, el, patch) => kernel.setOverride(scene, el, patch),
   describe: () => kernel.describe(),
   textUsage: (scene, t) => kernel.textUsage(scene, t),
+  pick: (x, y, t) => kernel.pick(x, y, t),
   /** Sample a pixel in CSS coordinates (used by gates). */
   pixel(x, y) {
     const g = kernel.surface;

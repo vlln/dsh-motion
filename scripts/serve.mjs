@@ -19,7 +19,7 @@ const TYPES = {
   '.svg': 'image/svg+xml',
 };
 
-export function startServer() {
+export function startServer(port = 0) {
   return new Promise((resolve) => {
     const server = http.createServer((req, res) => {
       const url = decodeURIComponent((req.url ?? '/').split('?')[0]);
@@ -40,9 +40,15 @@ export function startServer() {
       });
     });
 
-    server.listen(0, '127.0.0.1', () => {
-      const { port } = server.address();
-      resolve({ server, origin: `http://127.0.0.1:${port}`, close: () => server.close() });
+    server.listen(port, '127.0.0.1', () => {
+      const { port: bindPort } = server.address();
+      resolve({ server, origin: `http://127.0.0.1:${bindPort}`, close: () => server.close() });
     });
   });
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const { origin } = await startServer(Number(process.env.PORT ?? 4173));
+  console.log(`preview → ${origin}/preview.html`);
+  console.log('ctrl-c to stop');
 }

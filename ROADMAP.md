@@ -21,7 +21,7 @@
   - `npm run gates` 仍 14/14
   - 已达成：`npm run validate` **10/10**；运行时在 mount 前 `assertTimeline`；首次提交 `6d47ffe`
 
-### M2 · 预览面板（standalone，不依赖 dsh）
+### M2 · 预览面板（standalone，不依赖 dsh）✅（2026-10-19）
 
 - 播放器：播放 / 暂停 / 拖播放头 / 时间码 / 循环
 - 场景条：按时长比例分段、点击跳转、当前幕高亮
@@ -29,6 +29,7 @@
 - 退出证据：
   - Playwright 脚本驱动：点场景条 → 播放头落点正确（±1 帧）；拖播放头 → 时间码同步
   - 一张“面板全貌”截图 + 一张“选中元素”截图
+  - 已达成：`npm run gate:ui` **11/11**；截图在 `docs/ui-panel.png` / `docs/ui-selection.png`
 
 ### M3 · 批注回路
 

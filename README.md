@@ -11,6 +11,8 @@ npm run gates        # 画面门禁，14 项断言（含 WebGL 确定性）
 npm run audio        # 合成音床 + 节拍分析 + 波形图
 npm run video        # 15 秒片子（含音频）→ out/demo.mp4
 npm run gate:audio   # 音频门禁，8 项断言
+npm run gate:ui      # 预览界面门禁，11 项断言
+npm run preview      # 本地预览 → http://127.0.0.1:4173/preview.html
 ```
 
 当前实测（2026-10-19，本机 M 系列 / node 22 / ffmpeg 8.1.2）：
@@ -24,6 +26,7 @@ npm run gate:audio   # 音频门禁，8 项断言
 | 节拍 | 检出 **119 BPM**（真值 120）、29 拍、drop **7.98s**（真值 8.0） |
 | 捕获速度 | 570 帧 **约 11 秒**（含 WebGL 段） |
 | 拼图 | 8 帧 4 列 → `out/sheet.png`｜波形 → `out/wave.png` |
+| 界面门禁 | **11/11**（场景条 / 播放头 / 选中 / 播放） |
 
 ## 三个接口
 
@@ -67,6 +70,20 @@ scripts/gate-audio.mjs     音频门禁（流 / 时长 / 响度 / 节拍）
 文字由 `overlay` 画在合成层上，左侧加了一层渐变遮罩保证可读性。
 
 G4 证明 **WebGL 在逐帧捕获下也满足「同一个 t 两次渲染字节级相同」**——这是 3D 能走同一条管线的前提。
+
+## 预览界面
+
+```bash
+npm run preview   # http://127.0.0.1:4173/preview.html
+```
+
+播放 / 暂停、拖播放头、点场景条跳转、点画面里的元素看它的几何（只读检视器）。
+
+![面板](docs/ui-panel.png)
+
+![选中元素](docs/ui-selection.png)
+
+检视器里的 `x / y`、`w × h` 与场景实际绘制用的是**同一份布局函数**，不是估出来的。
 
 ## 已知限制
 

@@ -68,9 +68,7 @@ export function makeHistoryScene(config) {
     g.globalAlpha = 1;
 
     // timeline axis
-    const axisY = H * 0.68;
-    const x0 = W * 0.08;
-    const x1 = W * 0.92;
+    const { axisY, x0, x1, cardW, cardH, placed } = layoutPins(W, H);
     const axisA = easeOut((t - 0.9) / 0.9);
     g.save();
     g.globalAlpha = axisA;
@@ -99,23 +97,6 @@ export function makeHistoryScene(config) {
 
     // pins — two lanes, collision-free cards
     const pinA = easeOut((t - 1.2) / 0.8);
-    const cardW = W * 0.30;
-    const cardH = H * 0.118;
-    const gap = 12;
-    const lanes = [[], []];            // occupied [x0,x1] per lane
-    const placed = [];
-
-    for (const pin of [...pins].sort((a, b) => a.at - b.at)) {
-      const px = x0 + (x1 - x0) * pin.at;
-      let cx = Math.min(Math.max(px - cardW / 2, x0), x1 - cardW);
-      let lane = 0;
-      for (let l = 0; l < lanes.length; l++) {
-        const clash = lanes[l].some(([a, b]) => cx < b + gap && cx + cardW > a - gap);
-        if (!clash) { lane = l; break; }
-      }
-      lanes[lane].push([cx, cx + cardW]);
-      placed.push({ ...pin, px, cx, lane });
-    }
 
     g.globalAlpha = pinA;
 
@@ -191,7 +172,53 @@ export function makeHistoryScene(config) {
     void _palette;
   }
 
-  return { id, kind: 'canvas2d', slots, textUsage, mount, render };
+  function layoutPins(W, H) {
+    const axisY = H * 0.68;
+    const x0 = W * 0.08;
+    const x1 = W * 0.92;
+    const cardW = W * 0.30;
+    const cardH = H * 0.118;
+    const gap = 12;
+    const lanes = [[], []];
+    const placed = [];
+
+    for (const pin of [...pins].sort((a, b) => a.at - b.at)) {
+      const px = x0 + (x1 - x0) * pin.at;
+      const cx = Math.min(Math.max(px - cardW / 2, x0), x1 - cardW);
+      let lane = 0;
+      for (let l = 0; l < lanes.length; l++) {
+        const clash = lanes[l].some(([a, b]) => cx < b + gap && cx + cardW > a - gap);
+        if (!clash) { lane = l; break; }
+      }
+      lanes[lane].push([cx, cx + cardW]);
+      placed.push({ ...pin, px, cx, lane });
+    }
+    return { axisY, x0, x1, cardW, cardH, placed };
+  }
+
+  // Read-only hit test for the preview inspector: geometry matches what is drawn.
+  function hitTest(x, y, t) {
+    const { axisY, cardW, cardH, placed } = layoutPins(ctx.width, ctx.height);
+    for (const pin of placed) {
+      if (t < pin.tIn) continue;
+      const cardY = axisY - ctx.height * (0.14 + pin.lane * 0.135);
+      if (x >= pin.cx && x <= pin.cx + cardW && y >= cardY && y <= cardY + cardH) {
+        return {
+          id: pin.elementId ? `pin-${pin.elementId}` : `pin-${pin.eraText}`,
+          kind: 'pin',
+          x: Math.round(pin.cx),
+          y: Math.round(cardY),
+          w: Math.round(cardW),
+          h: Math.round(cardH),
+          label: pin.eraText,
+          at: Number(t.toFixed(2)),
+        };
+      }
+    }
+    return null;
+  }
+
+  return { id, kind: 'canvas2d', slots, textUsage, mount, render, hitTest };
 }
 
 function roundRect(g, x, y, w, h, r) {

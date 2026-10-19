@@ -117,13 +117,26 @@ npm run build:client                      # 打包面板（three 内联，约 1.
 dsh plugin --profile web add <repo 路径>   # 本地目录安装（先 npm run link 供 SDK）
 ```
 
-- **工具**：`motion_info`、`motion_texts`、`motion_palette`、`motion_comments`、`motion_render`
+- **工具**：`motion_info`、`motion_texts`、`motion_palette`、`motion_comments`、`motion_render`、`motion_export`
 - **面板**：右下角 `◐ Motion` → iframe 打开 `/plugins/dsh-motion/app`，内容与 standalone 预览同源
 
 ![面板](docs/ui-launcher.png)
 
 `npm run gate:plugin` 验证安装与启动；`npm run gate:client` 在真实 dsh web 里验证面板路由、
-场景条跳转、启动器挂载与 iframe 可用。
+场景条跳转、启动器挂载与 iframe 可用；`npm run gate:tools` 用真实会话调一次工具，并跑一次
+“写错 inject”的负控（需要本机凭据，缺失时跳过）。
+
+## 兼容性
+
+| dsh 版本 | 状态 |
+|---|---|
+| `0.2.1-rc.1` | ✅ 已验证（2026-10-19）：安装、启动、面板、工具调用、负控 |
+| 其它版本 | ⚠️ 未验证——插件机制面（服务名 / 槽名 / manifest 字段）跨 rc 会改名；升级后若启动日志出现 `entry did not activate`，先核对 `webServer` 与 `tools` 两个服务名 |
+
+## 插件管理
+
+装/卸/启停用官方 CLI：`dsh plugin --profile web add|remove <包>`；已装插件在**侧边栏 Plugins 页**
+里查看与配置。卸载不会自动删除 `out/comments.json` 等运行数据，需要时手动清理。
 
 ## 已知限制
 

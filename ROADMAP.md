@@ -59,7 +59,7 @@
   - 面板里点场景条/元素/批注，与 standalone 行为一致
   - 已达成：`npm run gate:client` **8/8**（真实 dsh web + iframe）；截图 `docs/ui-launcher.png`
 
-### M5 · 安装验证（隔离环境）
+### M5 · 安装验证（隔离环境）✅（2026-10-19）
 
 - 独立 `DSH_HOME` + `--port 0`，绝不碰共享 3080
 - 步骤：建临时 profile → add → 启动 → 会话里调 `motion_init` → 调 `motion_render --stills` → 看到面板
@@ -67,8 +67,9 @@
 - 退出证据：
   - 安装日志 + 工具调用结果 + 面板截图
   - 负控日志（证明“干净日志”不是侥幸）
+  - 已达成：`npm run gate:tools` **4/4**——真实会话调 `motion_info` 返回本仓库时间轴；故意写错 `inject` 后日志出现 `1 entry did not activate` + `waiting for service: noSuchService`
 
-### M6 · 文档与交付
+### M6 · 文档与交付（进行中）
 
 - README：这是什么 / 为什么 / 怎么装 / 用起来什么样 / 能力面表 / **兼容性** / **插件管理** / 已知限制
 - 至少一张功能图（面板截图）与一个可跑的示例 timeline

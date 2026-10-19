@@ -28,9 +28,9 @@ const popClose = $('popClose');
 const threadsEl = $('threads');
 const threadCount = $('threadCount');
 
-const timeline = await (await fetch('../timeline.json')).json();
+const timeline = await (await fetch('./timeline.json')).json();
 try {
-  const res = await fetch('../out/beats.json');
+  const res = await fetch('./out/beats.json');
   if (res.ok) timeline.beats = await res.json();
 } catch {}
 
@@ -264,7 +264,7 @@ popSubmit.addEventListener('click', async () => {
     text,
     activated: popSend.checked,
   };
-  const res = await fetch('/api/comments', {
+  const res = await fetch('./api/comments', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
@@ -298,7 +298,7 @@ canvas.addEventListener('click', (e) => {
 
 async function refreshThreads() {
   try {
-    const data = await (await fetch('/api/comments')).json();
+    const data = await (await fetch('./api/comments')).json();
     const threads = data.threads ?? [];
     threadCount.textContent = String(threads.length);
     if (!threads.length) {
@@ -357,5 +357,11 @@ window.__PREVIEW__ = {
   scenes: timeline.scenes.map((s) => ({ id: s.id, start: s.start, length: s.length })),
   duration: total,
   boxRect: () => box.getBoundingClientRect(),
-  comments: async () => (await (await fetch('/api/comments')).json()).threads,
+  comments: async () => (await (await fetch('./api/comments')).json()).threads,
+  pixel: (x, y) => {
+    const g = kernel.surface;
+    const scale = g.canvas.width / timeline.width;
+    const d = g.getImageData(Math.round(x * scale), Math.round(y * scale), 1, 1).data;
+    return [d[0], d[1], d[2], d[3]];
+  },
 };

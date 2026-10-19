@@ -20,6 +20,7 @@ const home = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-motion-home-'));
 const env = { ...process.env, DSH_HOME: home };
 
 try {
+  execFileSync('node', ['scripts/dev-link.mjs'], { cwd: ROOT, encoding: 'utf8' });
   const add = execFileSync('dsh', ['plugin', '--profile', 'web', 'add', ROOT], { env, encoding: 'utf8' });
   check('installs into a throwaway profile', add.includes('@vlln/dsh-motion'), add.trim().split('\n').at(-1));
 

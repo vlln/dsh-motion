@@ -110,18 +110,20 @@ node scripts/comments.mjs resolve --id th_x
 
 改文本走 `node scripts/texts.mjs set --scene … --slot … --value …`：写 `timeline.json` → 校验 → 下一帧生效，**不重编译**。
 
-## 作为 dsh 插件（进行中）
-
-Node half 已可安装：
+## 作为 dsh 插件
 
 ```bash
-dsh plugin --profile web add <repo 路径>
+npm run build:client                      # 打包面板（three 内联，约 1.1 MiB）
+dsh plugin --profile web add <repo 路径>   # 本地目录安装（先 npm run link 供 SDK）
 ```
 
-工具：`motion_info`、`motion_texts`、`motion_palette`、`motion_comments`、`motion_render`。
-client half（面板）尚未接入。
+- **工具**：`motion_info`、`motion_texts`、`motion_palette`、`motion_comments`、`motion_render`
+- **面板**：右下角 `◐ Motion` → iframe 打开 `/plugins/dsh-motion/app`，内容与 standalone 预览同源
 
-`npm run gate:plugin` 在临时 `DSH_HOME` 里安装、检查组合行、启动 web 验证无加载错误。
+![面板](docs/ui-launcher.png)
+
+`npm run gate:plugin` 验证安装与启动；`npm run gate:client` 在真实 dsh web 里验证面板路由、
+场景条跳转、启动器挂载与 iframe 可用。
 
 ## 已知限制
 

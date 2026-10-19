@@ -17,9 +17,13 @@
     "gate:comments": "node scripts/gate-comments.mjs",
     "comments": "node scripts/comments.mjs",
     "texts": "node scripts/texts.mjs",
-    "gate:plugin": "node scripts/gate-plugin.mjs"
+    "gate:plugin": "node scripts/gate-plugin.mjs",
+    "link": "node scripts/dev-link.mjs",
+    "build:client": "node scripts/build-client.mjs",
+    "gate:client": "node scripts/gate-client.mjs"
   },
   "devDependencies": {
+    "esbuild": "^0.28.2",
     "playwright": "1.64.1"
   },
   "dependencies": {
@@ -28,12 +32,16 @@
   "main": "./lib/index.mjs",
   "exports": {
     ".": "./lib/index.mjs",
+    "./client": "./lib/client.js",
     "./package.json": "./package.json"
   },
   "icon": "./icon.svg",
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
     }
   },
   "files": [

@@ -49,7 +49,7 @@
 - 工具：`motion_info` / `motion_texts` / `motion_palette` / `motion_comments` / `motion_render`
 - 退出证据：`npm run gate:plugin` **4/4**（临时 DSH_HOME 安装 → dump-config 含行 → web 启动无错误）
 
-### M4b · client half（预览播放器 + 场景条 + 元素检视 + 批注浮层）
+### M4b · client half（预览播放器 + 场景条 + 元素检视 + 批注浮层）✅（2026-10-19）
 
 - 把 standalone 预览打包成自包含 bundle（esbuild + three 内联）
 - Node half 注册静态路由（app / app.js / timeline / comments）
@@ -57,6 +57,7 @@
 - 退出证据：
   - `/plugins/dsh-motion/app` 200，面板能在真实会话里打开
   - 面板里点场景条/元素/批注，与 standalone 行为一致
+  - 已达成：`npm run gate:client` **8/8**（真实 dsh web + iframe）；截图 `docs/ui-launcher.png`
 
 ### M5 · 安装验证（隔离环境）
 

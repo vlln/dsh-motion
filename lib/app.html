@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>dsh-motion · preview</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="./app.css" />
+  </head>
+  <body>
+    <div class="app">
+      <main class="stage-wrap">
+        <div class="canvas-box" id="canvasBox">
+          <canvas id="stage"></canvas>
+          <div class="selection" id="selection" hidden></div>
+
+          <div class="popover" id="popover" hidden>
+            <div class="pop-head">
+              <span id="popT">—</span>
+              <button id="popClose" class="x" aria-label="close">×</button>
+            </div>
+            <textarea id="popText" rows="3" placeholder="@Claude 这里要改成什么？"></textarea>
+            <label class="send-row">
+              <input type="checkbox" id="popSend" checked />
+              <span>Send to Claude</span>
+            </label>
+            <button id="popSubmit" class="send-btn">发送批注</button>
+          </div>
+        </div>
+      </main>
+
+      <aside class="panel">
+        <header>
+          <h1>dsh-motion</h1>
+          <p class="sub">preview · <span id="mode">paused</span></p>
+        </header>
+
+        <section class="readout">
+          <span id="tc" class="tc">0:00.00</span>
+          <span class="dim">/ <span id="dur">0:19.00</span></span>
+        </section>
+
+        <section class="threads">
+          <h2>批注 <span id="threadCount" class="dim">0</span></h2>
+          <div id="threads" class="thread-list"><p class="hint">在画面上拖出一个框，写下要改什么。</p></div>
+        </section>
+
+        <section class="inspector" id="inspector">
+          <p class="hint">点击画面里的元素，查看它在当前时刻的几何。</p>
+        </section>
+
+        <footer class="panel-foot">
+          <span id="sceneName" class="dim">—</span>
+        </footer>
+      </aside>
+    </div>
+
+    <div class="timeline">
+      <div class="scenes" id="scenes">
+        <div class="playhead" id="playhead"></div>
+      </div>
+      <div class="transport">
+        <button id="play" class="btn" aria-label="play">▶</button>
+        <button id="loop" class="btn ghost" aria-pressed="false">循环</button>
+        <input id="scrub" class="scrub" type="range" min="0" max="19" step="0.01" value="0" />
+      </div>
+    </div>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

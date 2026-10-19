@@ -41,8 +41,9 @@ export function makeHistoryScene(config) {
     }
     g.globalAlpha = 1;
 
-    // caption
-    const capA = easeOut(t / 0.8);
+    // frame 0 must be a real image (it is the thumbnail), so the header is
+    // visible immediately; only the axis and pins animate in.
+    const capA = 1;
     g.globalAlpha = capA;
     g.fillStyle = muted;
     g.font = `600 ${Math.round(H * 0.018)}px ${ctx.font('sans')}`;
@@ -50,7 +51,7 @@ export function makeHistoryScene(config) {
     g.globalAlpha = 1;
 
     // title
-    const titleA = easeOut((t - 0.15) / 1.1);
+    const titleA = 1;
     g.save();
     g.globalAlpha = titleA;
     g.translate(0, (1 - titleA) * H * 0.03);
@@ -60,7 +61,7 @@ export function makeHistoryScene(config) {
     g.restore();
 
     // subtitle
-    const subA = easeOut((t - 0.5) / 1.0);
+    const subA = 1;
     g.globalAlpha = subA;
     g.fillStyle = muted;
     g.font = `${Math.round(H * 0.026)}px ${ctx.font('sans')}`;

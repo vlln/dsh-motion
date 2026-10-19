@@ -42,6 +42,12 @@ const tc = () => page.textContent('#tc');
 const time = () => page.evaluate(() => window.__PREVIEW__.time());
 
 check('initial time is 0', (await time()) === 0, await tc());
+const frame0 = await page.screenshot();
+const sample = await page.evaluate(() => ({
+  title: window.__PREVIEW__.pixel(220, 250),
+  corner: window.__PREVIEW__.pixel(20, 20),
+}));
+check('frame 0 is not blank', JSON.stringify(sample.title) !== JSON.stringify(sample.corner), JSON.stringify(sample.title));
 
 // --- scene strip ---
 await page.click('[data-scene="cold-war"]');

@@ -45,6 +45,15 @@ try {
   const dur = await page.evaluate(() => window.__PREVIEW__.duration);
   check('panel knows the timeline duration', Math.abs(dur - 19) < 0.01, `${dur}s`);
 
+  // the write path the panel uses must exist on this origin too, not just in dev
+  const paramsRes = await page.request.get(`${boot.origin}/plugins/dsh-motion/api/params`);
+  const paramsJson = paramsRes.status() === 200 ? await paramsRes.json() : null;
+  check(
+    'params route served by the plugin',
+    paramsJson?.scenes?.length === 2 && paramsJson.scenes[0].knobs.length === 6,
+    `${paramsRes.status()} · ${paramsJson?.scenes?.length ?? 0} scenes`,
+  );
+
   await page.click('[data-scene="cold-war"]');
   await page.waitForTimeout(120);
   const t = await page.evaluate(() => window.__PREVIEW__.time());
@@ -90,6 +99,20 @@ try {
   await frame.locator('#tc').waitFor({ timeout: 20000 });
   const frameTc = await frame.locator('#tc').textContent();
   check('iframe preview is live', /^0:0\d\.\d\d$/.test(frameTc ?? ''), frameTc ?? '');
+
+  // relative URLs inside the iframe must land on /plugins/dsh-motion/*, not the host root
+  const inFrame = await frame
+    .locator('body')
+    .evaluate(async () => {
+      const res = await fetch('./api/history');
+      const body = await res.json().catch(() => ({}));
+      return { status: res.status, path: new URL('./api/history', location.href).pathname, ok: Array.isArray(body.snapshots) };
+    });
+  check(
+    'panel API resolves inside the iframe',
+    inFrame.status === 200 && inFrame.ok && inFrame.path === '/plugins/dsh-motion/api/history',
+    `${inFrame.status} ${inFrame.path}`,
+  );
   await page.screenshot({ path: path.join(ROOT, 'out/ui-launcher.png') });
 } finally {
   await browser?.close();

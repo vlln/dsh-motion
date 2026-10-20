@@ -118,9 +118,17 @@ await render(16.5);
 const w2 = await shot(16.5);
 check('G4 webgl same t twice => identical frame', sha(w1) === sha(w2), `sha=${sha(w1).slice(0, 12)}`);
 
-const center = await page.evaluate(() => window.__MOTION__.pixel(640, 360));
-const bg = await page.evaluate(() => window.__MOTION__.pixel(30, 660));
-check('G4 webgl frame is not blank', !eq(center, bg), `${center} vs bg ${bg}`);
+// The camera moves fast, so any single point can be background: require that a
+// few sampled points differ from the background, not that the centre is subject.
+const sample = await page.evaluate(() => {
+  const m = window.__MOTION__;
+  return {
+    bg: m.pixel(30, 660),
+    points: [[640, 360], [960, 540], [400, 700], [1200, 300], [800, 800]].map(([x, y]) => m.pixel(x, y)),
+  };
+});
+const painted = sample.points.filter((p) => !eq(p, sample.bg)).length;
+check('G4 webgl frame is not blank', painted >= 2, `${painted}/5 points painted`);
 
 await browser.close();
 close();

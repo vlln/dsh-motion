@@ -2,6 +2,12 @@
 // Everything user-visible comes from ctx.text() / ctx.color(); nothing is hardcoded.
 
 const easeOut = (x) => 1 - Math.pow(1 - Math.min(1, Math.max(0, x)), 3);
+const easeOutBack = (x) => {
+  const c1 = 1.70158;
+  const c3 = c1 + 1;
+  const v = Math.min(1, Math.max(0, x));
+  return 1 + c3 * Math.pow(v - 1, 3) + c1 * Math.pow(v - 1, 2);
+};
 const clamp01 = (x) => Math.min(1, Math.max(0, x));
 
 export function makeHistoryScene(config) {
@@ -51,17 +57,17 @@ export function makeHistoryScene(config) {
     g.globalAlpha = 1;
 
     // title
-    const titleA = 1;
+    const titleA = 1; // frame 0 must be a real image
     g.save();
     g.globalAlpha = titleA;
-    g.translate(0, (1 - titleA) * H * 0.03);
+    g.translate(0, (1 - titleA) * H * 0.06);
     g.fillStyle = fg;
     g.font = `500 ${Math.round(H * 0.072)}px ${ctx.font('serif')}`;
     g.fillText(ctx.text('title'), W * 0.08, H * 0.26);
     g.restore();
 
     // subtitle
-    const subA = 1;
+    const subA = easeOut((t - 0.25) / 0.45);
     g.globalAlpha = subA;
     g.fillStyle = muted;
     g.font = `${Math.round(H * 0.026)}px ${ctx.font('sans')}`;
@@ -105,7 +111,7 @@ export function makeHistoryScene(config) {
 
     // pass 1: stems + dots (behind every card)
     for (const pin of placed) {
-      const appear = easeOut((t - pin.tIn) / 0.55);
+      const appear = easeOutBack((t - pin.tIn) / 0.32);
       if (appear <= 0) continue;
       const pinColor = ctx.color('accent', pin.elementId);
       g.save();
@@ -125,7 +131,7 @@ export function makeHistoryScene(config) {
 
     // pass 2: cards on top of every stem
     for (const pin of placed) {
-      const appear = easeOut((t - pin.tIn) / 0.55);
+      const appear = easeOutBack((t - pin.tIn) / 0.32);
       if (appear <= 0) continue;
 
       const pinColor = ctx.color('accent', pin.elementId);
@@ -133,7 +139,7 @@ export function makeHistoryScene(config) {
 
       g.save();
       g.globalAlpha = appear * axisA;
-      g.translate(0, (1 - appear) * H * 0.02);
+      g.translate(0, (1 - appear) * H * 0.07);
 
       g.fillStyle = ctx.color('panel');
       g.strokeStyle = pinColor;

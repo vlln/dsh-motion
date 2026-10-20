@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
-const file = path.resolve(ROOT, args.find((a) => !a.startsWith('--')) ?? 'out/demo.mp4');
+const file = path.resolve(ROOT, args[0] && !args[0].startsWith('--') ? args[0] : 'out/demo.mp4');
 const asJson = args.includes('--json');
 const opt = (k, d) => {
   const i = args.indexOf(`--${k}`);
@@ -118,8 +118,14 @@ for (const f of frames) {
 if (blankRun && blankRun.to - blankRun.from >= 0.25) findings.blank.push(blankRun);
 
 let fast = 0;
-for (let i = 1; i < frames.length; i++) if (meanDiff(frames[i - 1], frames[i]) >= 9) fast++;
+const diffs = [];
+for (let i = 1; i < frames.length; i++) {
+  const d = meanDiff(frames[i - 1], frames[i]);
+  diffs.push({ t: frames[i].t, d });
+  if (d >= 9) fast++;
+}
 findings.motion = frames.length > 1 ? fast / (frames.length - 1) : 0;
+findings.top = [...diffs].sort((a, b) => b.d - a.d).slice(0, Number(opt('top', 0)) || 0);
 
 // ---- pass 2: 2 fps RGB, blue-purple ----
 let purpleFrames = 0;
@@ -164,6 +170,10 @@ else {
   console.log(`fast motion  ${findings.motion.toFixed(3)}  (red <0.035, warn <0.06)`);
   console.log(`blank runs   ${findings.blank.length ? findings.blank.map((b) => `${b.from.toFixed(2)}-${b.to.toFixed(2)}s`).join(', ') : 'none'}`);
   console.log(`blue-purple  ${(findings.purple * 100).toFixed(1)}%  (red >=30%, warn >=12%)`);
+  if (findings.top?.length) {
+    console.log('top frame diffs:');
+    for (const p of findings.top) console.log(`  ${p.t.toFixed(2)}s  ${p.d.toFixed(1)}`);
+  }
   for (const r of red) console.log(`RED   ${r}`);
   for (const w of warn) console.log(`WARN  ${w}`);
   console.log(red.length ? '\nFAIL' : warn.length ? '\nPASS (warnings)' : '\nPASS');

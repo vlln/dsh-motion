@@ -6,7 +6,11 @@ import { assertTimeline } from './validate.mjs';
 import { loadModules } from './scenes/index.mjs';
 
 export async function mountMotion({ canvas, width, height, dpr = window.devicePixelRatio || 1 }) {
-  const timeline = await (await fetch('./timeline.json')).json();
+  // Optional ?timeline= for tests/fixtures. Only same-origin relative paths are
+  // accepted: the panel is embedded in the host UI and must not become a fetcher.
+  const requested = new URLSearchParams(location.search).get('timeline');
+  const src = requested && /^(\.\/|\/plugins\/dsh-motion\/)/.test(requested) ? requested : './timeline.json';
+  const timeline = await (await fetch(src)).json();
 
   try {
     const res = await fetch('./out/beats.json');

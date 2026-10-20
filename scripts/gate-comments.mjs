@@ -13,6 +13,7 @@ import { chromium } from 'playwright';
 import { startServer } from './serve.mjs';
 import { findChromium } from './lib/chromium.mjs';
 import { createGate } from './lib/gate.mjs';
+import { listSnapshots } from '../src/snapshots.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const sha = (buf) => crypto.createHash('sha256').update(buf).digest('hex');
@@ -21,6 +22,8 @@ const { check, finish } = createGate();
 
 const timelinePath = path.join(ROOT, 'timeline.json');
 const timelineBefore = fs.readFileSync(timelinePath, 'utf8');
+const hadMeta = fs.existsSync(path.join(ROOT, '.motion'));
+const snapsBefore = new Set(listSnapshots(ROOT).map((s) => s.id));
 fs.rmSync(path.join(ROOT, 'out/comments.json'), { force: true });
 fs.rmSync(path.join(ROOT, 'out/comments'), { recursive: true, force: true });
 
@@ -109,5 +112,12 @@ check('thread resolved', stored.status === 'resolved');
 await browser.close();
 close();
 fs.writeFileSync(timelinePath, timelineBefore);  // the gate edits text; restore it
+
+// texts.mjs leaves a snapshot per write; the gate should not accumulate them
+for (const snap of listSnapshots(ROOT)) {
+  if (snapsBefore.has(snap.id)) continue;
+  fs.rmSync(path.join(ROOT, '.motion/snapshots', `${snap.id}.json`), { force: true });
+}
+if (!hadMeta) fs.rmSync(path.join(ROOT, '.motion'), { recursive: true, force: true });
 
 finish();

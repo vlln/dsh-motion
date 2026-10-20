@@ -8,7 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateTimeline } from '../src/validate.mjs';
-import { modules } from '../src/scenes/index.mjs';
+import { modules } from '../src/scenes/all.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const file = path.join(ROOT, 'timeline.json');

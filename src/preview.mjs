@@ -1,9 +1,7 @@
 // Standalone preview: player + scene strip + read-only element inspector.
 // Same kernel the capture script uses — if it looks right here, it exports right.
 
-import { createKernel } from './kernel.mjs';
-import { assertTimeline } from './validate.mjs';
-import { modules } from './scenes/index.mjs';
+import { mountMotion } from './mount.mjs';
 import { createComments } from './ui/comments.mjs';
 
 const $ = (id) => document.getElementById(id);
@@ -29,17 +27,8 @@ const popClose = $('popClose');
 const threadsEl = $('threads');
 const threadCount = $('threadCount');
 
-const timeline = await (await fetch('./timeline.json')).json();
-try {
-  const res = await fetch('./out/beats.json');
-  if (res.ok) timeline.beats = await res.json();
-} catch {}
-
-assertTimeline(timeline, modules);
-
 const dpr = Math.min(2, window.devicePixelRatio || 1);
-const kernel = createKernel({ timeline, modules });
-await kernel.mountAll(canvas, { width: timeline.width, height: timeline.height, dpr });
+const { timeline, kernel } = await mountMotion({ canvas, dpr });
 
 const total = timeline.duration;
 let t = 0;

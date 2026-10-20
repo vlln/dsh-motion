@@ -16,7 +16,10 @@ const result = await build({
   bundle: true,
   format: 'esm',
   target: 'es2022',
-  outfile: path.join(LIB, 'app.js'),
+  splitting: true,           // the WebGL scene becomes a lazy chunk
+  outdir: LIB,
+  entryNames: 'app',
+  chunkNames: 'chunks/[name]',
   legalComments: 'none',
   logLevel: 'warning',
 });
@@ -31,4 +34,10 @@ fs.writeFileSync(path.join(LIB, 'app.html'), html);
 fs.copyFileSync(path.join(ROOT, 'src/preview.css'), path.join(LIB, 'app.css'));
 
 const size = fs.statSync(path.join(LIB, 'app.js')).size;
-console.log(`client → lib/app.js ${(size / 1024).toFixed(0)} KiB, lib/app.html, lib/app.css`);
+const chunks = fs.existsSync(path.join(LIB, 'chunks'))
+  ? fs.readdirSync(path.join(LIB, 'chunks')).map((f) => {
+      const bytes = fs.statSync(path.join(LIB, 'chunks', f)).size;
+      return `${f} ${(bytes / 1024).toFixed(0)} KiB`;
+    })
+  : [];
+console.log(`client → app.js ${(size / 1024).toFixed(0)} KiB${chunks.length ? ` + ${chunks.join(', ')}` : ''}`);

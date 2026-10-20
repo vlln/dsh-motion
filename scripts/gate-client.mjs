@@ -32,6 +32,13 @@ try {
   const jsRes = await page.request.get(`${boot.origin}/plugins/dsh-motion/app.js`);
   check('panel bundle served', jsRes.status() === 200 && (jsRes.headers()['content-type'] ?? '').includes('javascript'));
 
+  // code splitting: three must live in the lazy chunk, not in the entry bundle
+  const appJs = await jsRes.text();
+  check('entry bundle excludes three', !appJs.includes('WebGLRenderer'), `${(appJs.length / 1024).toFixed(0)} KiB`);
+  const chunkRes = await page.request.get(`${boot.origin}/plugins/dsh-motion/chunks/orbit.js`);
+  const chunkJs = chunkRes.status() === 200 ? await chunkRes.text() : '';
+  check('3D chunk contains three', chunkJs.includes('WebGLRenderer'), `${(chunkJs.length / 1024).toFixed(0)} KiB`);
+
   await page.waitForFunction(() => window.__PREVIEW__?.ready === true, { timeout: 20000 });
   const chipCount = await page.locator('.chip').count();
   check('panel renders the scene strip', chipCount === 3, `${chipCount} chips`);

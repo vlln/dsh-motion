@@ -1,4 +1,21 @@
-import * as THREE from 'three';
+import {
+  ACESFilmicToneMapping,
+  Color,
+  DirectionalLight,
+  Fog,
+  GridHelper,
+  Group,
+  HemisphereLight,
+  Mesh,
+  MeshStandardMaterial,
+  PerspectiveCamera,
+  PointLight,
+  Scene,
+  SphereGeometry,
+  SRGBColorSpace,
+  TorusKnotGeometry,
+  WebGLRenderer,
+} from 'three';
 
 export const id = 'orbit';
 export const kind = 'webgl';
@@ -32,7 +49,7 @@ export function mount(context) {
   const grid = ctx.color('grid');
   const muted = ctx.color('muted');
 
-  renderer = new THREE.WebGLRenderer({
+  renderer = new WebGLRenderer({
     canvas: ctx.canvas,
     antialias: true,
     preserveDrawingBuffer: true,
@@ -40,52 +57,52 @@ export function mount(context) {
   });
   renderer.setPixelRatio(ctx.dpr);
   renderer.setSize(ctx.width, ctx.height, false);
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.outputColorSpace = SRGBColorSpace;
+  renderer.toneMapping = ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.05;
-  renderer.setClearColor(new THREE.Color(bg), 1);
+  renderer.setClearColor(new Color(bg), 1);
 
-  scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(new THREE.Color(bg), 7, 16);
+  scene = new Scene();
+  scene.fog = new Fog(new Color(bg), 7, 16);
 
-  camera = new THREE.PerspectiveCamera(38, ctx.width / ctx.height, 0.1, 100);
+  camera = new PerspectiveCamera(38, ctx.width / ctx.height, 0.1, 100);
   camera.position.set(0, 1.8, 6.4);
   camera.lookAt(-0.9, 0.1, 0);
 
-  scene.add(new THREE.HemisphereLight(0x9fc4ff, 0x0a1020, 0.7));
-  const key = new THREE.DirectionalLight(0xffffff, 2.2);
+  scene.add(new HemisphereLight(0x9fc4ff, 0x0a1020, 0.7));
+  const key = new DirectionalLight(0xffffff, 2.2);
   key.position.set(5, 8, 4);
   scene.add(key);
-  const rim = new THREE.PointLight(new THREE.Color(accent), 28, 22);
+  const rim = new PointLight(new Color(accent), 28, 22);
   rim.position.set(-2.5, 1.2, 2.5);
   scene.add(rim);
 
-  const geo = new THREE.TorusKnotGeometry(1.15, 0.3, 240, 32);
-  const mat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(accent),
+  const geo = new TorusKnotGeometry(1.15, 0.3, 240, 32);
+  const mat = new MeshStandardMaterial({
+    color: new Color(accent),
     metalness: 0.72,
     roughness: 0.24,
-    emissive: new THREE.Color(accent).multiplyScalar(0.14),
+    emissive: new Color(accent).multiplyScalar(0.14),
   });
-  knot = new THREE.Mesh(geo, mat);
+  knot = new Mesh(geo, mat);
   scene.add(knot);
 
-  ring = new THREE.Group();
-  const pinMat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(muted),
+  ring = new Group();
+  const pinMat = new MeshStandardMaterial({
+    color: new Color(muted),
     metalness: 0.4,
     roughness: 0.4,
-    emissive: new THREE.Color(accent).multiplyScalar(0.35),
+    emissive: new Color(accent).multiplyScalar(0.35),
   });
   for (let i = 0; i < 5; i++) {
     const a = (i / 5) * Math.PI * 2;
-    const pin = new THREE.Mesh(new THREE.SphereGeometry(0.1, 20, 20), pinMat);
+    const pin = new Mesh(new SphereGeometry(0.1, 20, 20), pinMat);
     pin.position.set(Math.cos(a) * 2.5, Math.sin(a) * 0.5, Math.sin(a) * 2.5);
     ring.add(pin);
   }
   scene.add(ring);
 
-  const gridHelper = new THREE.GridHelper(14, 14, new THREE.Color(grid), new THREE.Color(grid));
+  const gridHelper = new GridHelper(14, 14, new Color(grid), new Color(grid));
   gridHelper.position.y = -1.5;
   scene.add(gridHelper);
 }

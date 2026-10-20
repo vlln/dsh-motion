@@ -10,8 +10,8 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { execFileSync, spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { decode, probe } from './lib/decode.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -31,45 +31,16 @@ if (!fs.existsSync(file)) {
   process.exit(2);
 }
 
-const probe = JSON.parse(
-  execFileSync('ffprobe', ['-v', 'error', '-print_format', 'json', '-show_streams', '-show_format', file], {
-    encoding: 'utf8',
-  }),
-);
-const stream = probe.streams.find((s) => s.codec_type === 'video');
-const W = Number(stream.width);
-const H = Number(stream.height);
-const duration = Number(probe.format.duration);
-
-/** Decode raw frames at a given fps/width; calls onFrame(buffer, w, h) per frame. */
-function decode({ fps, width, pixFmt }, onFrame) {
-  return new Promise((resolve, reject) => {
-    const h = Math.max(2, Math.round((width * H) / W / 2) * 2);
-    const frameSize = width * h * (pixFmt === 'rgb24' ? 3 : 1);
-    const ff = spawn('ffmpeg', [
-      '-v', 'error', '-i', file,
-      '-vf', `fps=${fps},scale=${width}:${h},format=${pixFmt}`,
-      '-f', 'rawvideo', 'pipe:1',
-    ]);
-    let buf = Buffer.alloc(0);
-    let count = 0;
-    ff.stdout.on('data', (chunk) => {
-      buf = Buffer.concat([buf, chunk]);
-      while (buf.length >= frameSize) {
-        onFrame(buf.subarray(0, frameSize), width, h, count++);
-        buf = buf.subarray(frameSize);
-      }
-    });
-    ff.on('close', (code) => (code === 0 ? resolve(count) : reject(new Error(`ffmpeg exited ${code}`))));
-  });
-}
+const info = probe(file);
+const duration = info.duration;
+const frames_ = (opts, cb) => decode(file, { info, ...opts }, cb);
 
 const findings = { file: path.relative(ROOT, file), duration, motion: null, blank: [], purple: null };
 
 // ---- pass 1: 12 fps gray, blank + motion ----
 const GRAY_W = 320;
 const frames = [];
-await decode({ fps: 12, width: GRAY_W, pixFmt: 'gray' }, (buf, w, h) => {
+await frames_({ fps: 12, width: GRAY_W, pixFmt: 'gray' }, (buf, w, h) => {
   frames.push({ t: frames.length / 12, buf: Buffer.from(buf), w, h });
 });
 
@@ -130,7 +101,7 @@ findings.top = [...diffs].sort((a, b) => b.d - a.d).slice(0, Number(opt('top', 0
 // ---- pass 2: 2 fps RGB, blue-purple ----
 let purpleFrames = 0;
 let rgbFrames = 0;
-await decode({ fps: 2, width: 160, pixFmt: 'rgb24' }, (buf, w, h) => {
+await frames_({ fps: 2, width: 160, pixFmt: 'rgb24' }, (buf, w, h) => {
   rgbFrames++;
   let hit = 0;
   const total = w * h;

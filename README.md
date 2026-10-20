@@ -14,7 +14,8 @@ npm run gate:audio   # 音频门禁，8 项断言
 npm run gate:ui      # 预览界面门禁，12 项断言
 npm run gate:comments # 批注回路门禁，13 项断言
 npm run gate:params  # 参数回路门禁，13 项断言（拖 → 写 → 回退，含负控）
-npm run gate:surface # 工具面门禁，14 项断言（每个工具真跑一次）
+npm run gate:surface # 工具面门禁，15 项断言（每个工具真跑一次）
+npm run gate:reference # 参考摄取门禁，15 项断言（合成片 + 静态负控 + 确定性）
 npm run preview      # 本地预览 → http://127.0.0.1:4173/preview.html
 ```
 
@@ -32,7 +33,8 @@ npm run preview      # 本地预览 → http://127.0.0.1:4173/preview.html
 | 界面门禁 | **12/12**（场景条 / 播放头 / 选中 / 播放） |
 | 批注门禁 | **13/13**（框选 → 批注 → 工具 → 改字 → 回复 → 解决） |
 | 参数门禁 | **13/13**（拖动改画面 → 松手写文件 → 快照 → 重载 → 拒绝越界 → 回退） |
-| 工具面门禁 | **14/14**（8 个工具全部注册并真跑一次只读路径） |
+| 工具面门禁 | **15/15**（9 个工具全部注册并真跑一次只读路径） |
+| 参考摄取门禁 | **15/15**（切点 / 配色 / 运动 / 静态负控 / 两次跑同字节） |
 
 ## 接口
 
@@ -149,6 +151,7 @@ dsh plugin --profile web add <repo 路径>   # 本地目录安装（先 npm run 
 | `motion_comments` | 列出 / 回复 / 解决批注线程（带三要素锚点） |
 | `motion_params` | 列出 / 设置场景参数（越界拒绝，写前留快照） |
 | `motion_history` | 列出 / 恢复 timeline 快照 |
+| `motion_reference` | 读一支参考视频，返回切点 / 运动曲线 / 主色 / 分镜摘要 |
 | `motion_render` | 接触表（stills）或 MP4（video） |
 | `motion_export` | 导出 `mp4` 或 `gif`（GIF 从成片转码，无音频） |
 
@@ -179,6 +182,42 @@ dsh plugin --profile web add <repo 路径>   # 本地目录安装（先 npm run 
 三者共用同一条「校验 → 快照 → 写」的路径（`src/project.mjs`）。
 
 ![参数面板](docs/ui-params.png)
+
+## 参考摄取
+
+“我刷到一个视频，想要那种感觉”以前只能翻译成形容词。现在可以先翻译成数字：
+
+```bash
+node scripts/reference.mjs clip.mp4 --out out/reference.json
+```
+
+| 字段 | 内容 |
+|---|---|
+| `cuts` | 切点 `{t, score, kind, spike}`：`hard` 是硬切，`soft` 是共享背景下的场景交换 |
+| `motion` | `mean` / `p90` / `max` + 每 0.5s 一点的运动曲线 |
+| `palette` | 主色 top5，带像素占比 |
+| `segments` | 每个镜头的 `start` / `length` / `motion` / 主色 |
+
+两遍流式解码：10fps 灰度算切点与运动（只留上一帧），2fps RGB 算颜色（每镜头一个直方图）。
+没有时间戳、没有随机数——同一个文件两次跑出同样的字节，门禁断言了这条。
+
+### 为什么要 `soft`
+
+本仓库自己的片子是“同一底色上换内容”，8s 与 15s 的切点在像素上只有 0.016 与 0.073 的跳变，
+按 0.12 的硬切阈值一个都找不到。所以补了第二条判据：**比前 1 秒的局部中位数高 3 倍以上，
+且绝对值不低于 0.012**。用前视而不是对称窗口，是因为切进运动镜头时，对称窗口会把新镜头的
+运动算进基线——第一版就是在这里把 4.0s 的硬切后两帧误判成了新切点。
+
+实测把示例片自己当参考：
+
+```
+cuts      8.00s soft (0.016 · ×16.4)   15.00s soft (0.073 · ×72.7)
+segments  0+8 | 8+7 | 15+4              ← 与 timeline.json 的三幕完全一致
+palette   #0b1427 83%  #131d33 3%
+motion    0+8 段 0.001 | 8+7 段 0.001 | 15+4 段 0.038
+```
+
+它不读 `timeline.json`，只读像素，却把那三幕的边界、时长和“最后一段在动”都还原了出来。
 
 ## 吸收自 huashu-art-motion 的两个门禁
 
@@ -232,6 +271,7 @@ dsh plugin --profile web add <repo 路径>   # 本地目录安装（先 npm run 
 - 只有一条音轨，没有旁白轨与 ducking
 - 音频 fit 只实现 `trim`（loop / pad 未实现）
 - 参数只支持数值：颜色走 palette、文案走 slots，没有枚举 / 布尔 / 颜色参数
+- 参考摄取只读画面：不读音频（拍点靠 `out/beats.json`）、不做字幕 / OCR、不懂语义；`soft` 切点是启发式，宁多勿漏
 - 回退只有整份快照，没有逐字段 diff，也不能撤回一次回退（可以再点一次回到 pre-restore）
 - 字体只用系统族，未入库
 - WebGL 确定性只在本机（Apple GPU + Chrome for Testing）验证过；换机器/驱动需重跑 G4

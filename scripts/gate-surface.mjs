@@ -8,6 +8,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createGate } from './lib/gate.mjs';
 import { linkSdk } from './lib/dsh.mjs';
+import { loadTools } from './lib/surface.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const { check, finish } = createGate();
@@ -19,46 +20,12 @@ try {
   /* the gates run offline; a missing link surfaces on import below */
 }
 
-const { apply } = await import(path.join(ROOT, 'lib/index.mjs'));
+const { tools, routes, dispose } = await loadTools(ROOT);
 
-const tools = new Map();
-const routes = [];
-const disposers = [];
-
-const ctx = {
-  effect(fn) {
-    disposers.push(fn());
-  },
-  tools: {
-    register(tool) {
-      tools.set(tool.name, tool);
-      return () => {};
-    },
-  },
-  inject(deps, cb) {
-    if (!deps.includes('webServer')) return;
-    cb({
-      webServer: {
-        register(route) {
-          routes.push(route);
-          return () => {};
-        },
-      },
-      effect(fn) {
-        fn();
-      },
-    });
-  },
-};
-
-try {
-  apply(ctx);
-} catch (err) {
-  console.log(`FAIL  apply(ctx) threw  — ${err.message}`);
-  finish();
-}
-
-const expected = ['motion_info', 'motion_texts', 'motion_palette', 'motion_comments', 'motion_params', 'motion_history', 'motion_render', 'motion_export'];
+const expected = [
+  'motion_info', 'motion_texts', 'motion_palette', 'motion_comments', 'motion_params',
+  'motion_history', 'motion_reference', 'motion_render', 'motion_export',
+];
 const missing = expected.filter((name) => !tools.has(name));
 check('every declared tool is registered', missing.length === 0, missing.join(', ') || `${tools.size} tools`);
 
@@ -123,12 +90,17 @@ check('motion_comments refuses a reply without an id', /needs id/.test(noId ?? '
 const ghostTool = await refused('motion_history', { action: 'restore', id: '../timeline' });
 check('motion_history refuses a traversal id', /bad snapshot id/.test(ghostTool ?? ''), ghostTool ?? 'accepted');
 
+// motion_reference runs the same script the reference gate drives; here we only
+// prove the wiring fails loudly on a bad path (the happy path is gate:reference).
+const badRef = await refused('motion_reference', { path: 'out/definitely-missing.mp4' });
+check('motion_reference reports a missing file', /no such file/.test(badRef ?? ''), badRef ?? 'accepted');
+
 // --- the panel routes exist even without a browser ---
 const paths = routes.map((r) => r.path);
 for (const suffix of ['/app', '/api/comments', '/api/params', '/api/history']) {
   check(`panel route ${suffix} is registered`, paths.some((p) => p === `/plugins/dsh-motion${suffix}`), paths.length + ' routes');
 }
 
-for (const dispose of disposers) if (typeof dispose === 'function') dispose();
+dispose();
 
 finish();

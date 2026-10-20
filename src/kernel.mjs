@@ -13,6 +13,7 @@ export function createKernel({ timeline, modules }) {
   const warnings = [];
   let canvas = null;
   let surface = null;
+  let auditBoxes = null; // non-null only while audit() runs
   let width = timeline.width ?? 1920;
   let height = timeline.height ?? 1080;
   let dpr = 1;
@@ -89,6 +90,30 @@ export function createKernel({ timeline, modules }) {
     // space here keeps readback stable on macOS (display-P3 otherwise shifts values).
     surface = canvas.getContext('2d', { colorSpace: 'srgb' });
 
+    const instrument = (g) => {
+      if (!g || g.__dshMotionAudited) return g;
+      const original = g.fillText.bind(g);
+      g.fillText = (text, x, y, ...rest) => {
+        if (auditBoxes) {
+          const size = Number((g.font.match(/(\d+(?:\.\d+)?)px/) ?? [])[1] ?? 16);
+          auditBoxes.push({
+            text: String(text).slice(0, 48),
+            x: Number(x),
+            y: Number(y) - size * 0.8,
+            w: g.measureText(String(text)).width,
+            h: size,
+            font: g.font,
+            alpha: g.globalAlpha,
+          });
+        }
+        return original(text, x, y, ...rest);
+      };
+      g.__dshMotionAudited = true;
+      return g;
+    };
+
+    instrument(surface);
+
     for (const scene of timeline.scenes) {
       const mod = byId.get(scene.id);
       const sc = document.createElement('canvas');
@@ -97,7 +122,7 @@ export function createKernel({ timeline, modules }) {
       const kind = mod.kind === 'auto' || !mod.kind ? 'canvas2d' : mod.kind;
 
       // A canvas can hold only one context type, so each scene owns its own.
-      const g = kind === 'canvas2d' ? sc.getContext('2d', { colorSpace: 'srgb' }) : null;
+      const g = kind === 'canvas2d' ? instrument(sc.getContext('2d', { colorSpace: 'srgb' })) : null;
       const entry = { module: mod, kind, canvas: sc, g, ctx: null };
       entry.ctx = makeCtx(scene, entry);
       await mod.mount?.(entry.ctx);
@@ -184,6 +209,16 @@ export function createKernel({ timeline, modules }) {
       timeline.overrides ??= {};
       const key = elementId ? `${sceneId}/${elementId}` : sceneId;
       timeline.overrides[key] = { ...(timeline.overrides[key] ?? {}), ...patch };
+    },
+    /** Render one frame and return the text boxes it drew (layout audit). */
+    audit(atT) {
+      auditBoxes = [];
+      try {
+        this.renderAt(atT);
+        return auditBoxes;
+      } finally {
+        auditBoxes = null;
+      }
     },
     pick(x, y, atT) {
       const scene = sceneAt(atT);

@@ -224,6 +224,7 @@ window.__PREVIEW__ = {
     renderFrame();
   },
   selected: () => selected,
+  audit: (t) => kernel.audit(t),
   play: () => playBtn.click(),
   scenes: timeline.scenes.map((s) => ({ id: s.id, start: s.start, length: s.length })),
   duration: total,

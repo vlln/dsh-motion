@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { commentsHandlers } from '../src/comments-http.mjs';
+import { paramsHandlers } from '../src/params-http.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -26,12 +27,16 @@ const json = (res, code, data) => {
 };
 
 const API = commentsHandlers(ROOT);
+const PARAMS = paramsHandlers(ROOT);
 
 async function api(req, res, url) {
   const post = (req.method ?? 'GET').toUpperCase() === 'POST';
   if (url.pathname === '/api/comments') return post ? API.create(req, res) : API.list(req, res);
   if (post && url.pathname === '/api/comments/reply') return API.reply(req, res);
   if (post && url.pathname === '/api/comments/resolve') return API.resolve(req, res);
+  if (url.pathname === '/api/params') return post ? PARAMS.set(req, res) : PARAMS.get(req, res);
+  if (url.pathname === '/api/history') return post ? PARAMS.restore(req, res) : PARAMS.history(req, res);
+  if (post && url.pathname === '/api/history/restore') return PARAMS.restore(req, res);
   return json(res, 404, { error: 'unknown api route' });
 }
 

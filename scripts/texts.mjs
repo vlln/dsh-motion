@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateTimeline } from '../src/validate.mjs';
+import { snapshot } from '../src/snapshots.mjs';
 import { modules } from '../src/scenes/all.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -57,6 +58,7 @@ if (cmd === 'get') {
     console.error(`rejected:\n${errors.map((e) => `  - ${e}`).join('\n')}`);
     process.exit(1);
   }
+  snapshot(ROOT, `text-${sceneId}-${slot}`);
   fs.writeFileSync(file, `${JSON.stringify(timeline, null, 2)}\n`);
   console.log(`${sceneId}.${slot}: ${JSON.stringify(before ?? null)} -> ${JSON.stringify(value)}`);
 } else {

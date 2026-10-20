@@ -84,6 +84,18 @@ export function validateTimeline(timeline, modules = null) {
             if (!(slot in slots)) err(`scenes[${i}]`, `textUsage references undeclared slot "${slot}"`);
             if (!Number.isInteger(n) || n < 1) err(`scenes[${i}]`, `textUsage.${slot} must be a positive integer`);
           }
+
+          // knob specs: a bad default would make the panel show a value the
+          // scene cannot draw, so the spec is part of the contract.
+          for (const [key, spec] of Object.entries(mod.params ?? {})) {
+            const at = `scenes[${i}].params.${key}`;
+            if (!isNum(spec?.default)) err(at, 'default must be a number');
+            if (!isNum(spec?.min) || !isNum(spec?.max)) err(at, 'min/max must be numbers');
+            else if (spec.min >= spec.max) err(at, `min (${spec.min}) must be < max (${spec.max})`);
+            else if (isNum(spec.default) && (spec.default < spec.min || spec.default > spec.max)) {
+              err(at, `default (${spec.default}) outside ${spec.min}..${spec.max}`);
+            }
+          }
         }
       }
     }
@@ -142,6 +154,40 @@ export function validateTimeline(timeline, modules = null) {
       else for (const [token, value] of Object.entries(patch)) {
         if (!HEX.test(value)) err(`overrides.${key}.${token}`, `not a hex color (${value})`);
         void elementId;
+      }
+    }
+  }
+
+  // params
+  if (timeline.params !== undefined) {
+    if (!timeline.params || typeof timeline.params !== 'object') {
+      err('params', 'must be an object keyed by scene id');
+    } else {
+      for (const [sceneId, knobs] of Object.entries(timeline.params)) {
+        const scene = timeline.scenes?.find((s) => s.id === sceneId);
+        if (!scene) {
+          err(`params.${sceneId}`, 'unknown scene id');
+          continue;
+        }
+        if (!knobs || typeof knobs !== 'object') {
+          err(`params.${sceneId}`, 'must be an object of params');
+          continue;
+        }
+        const mod = modules?.find((m) => m.id === sceneId);
+        for (const [key, value] of Object.entries(knobs)) {
+          const at = `params.${sceneId}.${key}`;
+          if (!isNum(value)) {
+            err(at, `must be a finite number (got ${JSON.stringify(value)})`);
+            continue;
+          }
+          if (!mod) continue; // the modules loop already reported the scene
+          const spec = mod.params?.[key];
+          if (!spec) {
+            err(at, `unknown param (declared: ${Object.keys(mod.params ?? {}).join(', ') || 'none'})`);
+          } else if (value < spec.min || value > spec.max) {
+            err(at, `must be ${spec.min}..${spec.max} (got ${value})`);
+          }
+        }
       }
     }
   }

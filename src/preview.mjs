@@ -26,6 +26,11 @@ const popSubmit = $('popSubmit');
 const popClose = $('popClose');
 const threadsEl = $('threads');
 const threadCount = $('threadCount');
+const knobsEl = $('knobs');
+const knobList = $('knobList');
+const knobScene = $('knobScene');
+const knobNote = $('knobNote');
+const undoBtn = $('undo');
 
 const dpr = Math.min(2, window.devicePixelRatio || 1);
 const { timeline, kernel } = await mountMotion({ canvas, dpr });
@@ -73,6 +78,7 @@ function setTime(next) {
   sceneName.textContent = scene.name;
   for (const { el, scene: s } of chips) el.setAttribute('aria-current', String(s.id === scene.id));
   refreshSelection();
+  buildKnobs(scene);
 }
 
 function showSelection(hit) {
@@ -152,6 +158,106 @@ scrub.addEventListener('input', () => {
   setTime(t);
 });
 
+// --- params: dragging changes the frame now, releasing writes the file ---
+let knobOwner = null;
+let latestSnapshot = null;
+
+function fmtKnob(value, step) {
+  const decimals = Math.min(3, String(step).split('.')[1]?.length ?? 2);
+  return value.toFixed(decimals);
+}
+
+async function refreshHistory() {
+  try {
+    const { snapshots } = await (await fetch('./api/history')).json();
+    latestSnapshot = snapshots[0]?.id ?? null;
+    undoBtn.disabled = !latestSnapshot;
+    undoBtn.textContent = latestSnapshot ? `回退（${snapshots.length}）` : '回退';
+  } catch {
+    latestSnapshot = null;
+    undoBtn.disabled = true;
+  }
+}
+
+async function persistParam(sceneId, key, value) {
+  try {
+    const res = await fetch('./api/params', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ scene: sceneId, key, value }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? res.statusText);
+    knobNote.textContent = `已保存 · 快照 ${data.snapshot.id.slice(25)}`;
+    await refreshHistory();
+  } catch (err) {
+    knobNote.textContent = `保存失败：${err.message}`;
+  }
+}
+
+function buildKnobs(scene, { force = false } = {}) {
+  if (!force && knobOwner === scene.id) return;
+  knobOwner = scene.id;
+  const rows = kernel.describe().scenes.find((s) => s.id === scene.id)?.params ?? [];
+  knobList.replaceChildren();
+  knobsEl.hidden = rows.length === 0;
+  knobScene.textContent = scene.name;
+
+  for (const row of rows) {
+    const label = document.createElement('label');
+    label.className = 'knob';
+
+    const head = document.createElement('span');
+    head.className = 'knob-head';
+    const name = document.createElement('span');
+    name.textContent = row.label;
+    const out = document.createElement('output');
+    out.textContent = fmtKnob(row.value, row.step);
+    head.append(name, out);
+
+    const input = document.createElement('input');
+    input.type = 'range';
+    input.min = String(row.min);
+    input.max = String(row.max);
+    input.step = String(row.step);
+    input.value = String(row.value);
+    input.dataset.key = row.key;
+    input.addEventListener('input', () => {
+      const value = Number(input.value);
+      out.textContent = fmtKnob(value, row.step);
+      kernel.setParam(scene.id, row.key, value);
+      kernel.renderAt(t);
+      knobNote.textContent = '未保存';
+    });
+    input.addEventListener('change', () => persistParam(scene.id, row.key, Number(input.value)));
+
+    label.append(head, input);
+    knobList.append(label);
+  }
+
+  knobNote.textContent = rows.length ? '拖动即时生效，松手写入 timeline.json。' : '这一幕没有可调参数。';
+}
+
+undoBtn.addEventListener('click', async () => {
+  if (!latestSnapshot) return;
+  try {
+    const res = await fetch('./api/history/restore', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ id: latestSnapshot }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? res.statusText);
+    kernel.reload(data.timeline);
+    kernel.renderAt(t);
+    buildKnobs(currentScene(t), { force: true });
+    await refreshHistory();
+    knobNote.textContent = '已回退到上一版。';
+  } catch (err) {
+    knobNote.textContent = `回退失败：${err.message}`;
+  }
+});
+
 const comments = createComments({
   canvas,
   box,
@@ -215,6 +321,7 @@ updatePlayButton();
 renderFrame();
 
 comments.refreshThreads();
+refreshHistory();
 
 window.__PREVIEW__ = {
   ready: true,
@@ -230,6 +337,26 @@ window.__PREVIEW__ = {
   duration: total,
   boxRect: () => box.getBoundingClientRect(),
   comments: async () => (await (await fetch('./api/comments')).json()).threads,
+  params: () => ({
+    scene: knobOwner,
+    knobs: [...knobList.querySelectorAll('input[data-key]')].map((input) => ({
+      key: input.dataset.key,
+      value: Number(input.value),
+    })),
+    status: knobNote.textContent,
+  }),
+  setParam: async (scene, key, value, persist = true) => {
+    kernel.setParam(scene, key, value);
+    kernel.renderAt(t);
+    buildKnobs(currentScene(t), { force: true });
+    if (persist) await persistParam(scene, key, value);
+    return value;
+  },
+  history: async () => (await (await fetch('./api/history')).json()).snapshots,
+  undo: async () => {
+    undoBtn.click();
+    await new Promise((r) => setTimeout(r, 200));
+  },
   pixel: (x, y) => {
     const g = kernel.surface;
     const scale = g.canvas.width / timeline.width;

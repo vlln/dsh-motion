@@ -3,6 +3,7 @@
 
 import { makeResolver, patchPalettes } from './palette.mjs';
 import { resolveText, setText as writeText, makeCounter } from './texts.mjs';
+import { checkParam, describeParams, resolveParam } from './params.mjs';
 import { rng } from './rng.mjs';
 
 export function createKernel({ timeline, modules }) {
@@ -54,6 +55,9 @@ export function createKernel({ timeline, modules }) {
       text(slot) {
         counter.hit(slot);
         return resolveText(timeline, scene, mod.slots, slot);
+      },
+      param(key) {
+        return resolveParam(timeline, scene, mod.params, key);
       },
       color(token, elementId) {
         return color(scene, token, elementId);
@@ -173,6 +177,7 @@ export function createKernel({ timeline, modules }) {
           kind: mod?.kind ?? 'canvas2d',
           slots: mod?.slots ?? {},
           textUsage: mod?.textUsage ?? {},
+          params: describeParams(timeline, s, mod?.params),
           currentText: Object.fromEntries(
             Object.keys(mod?.slots ?? {}).map((k) => [k, resolveText(timeline, s, mod.slots, k)]),
           ),
@@ -201,6 +206,24 @@ export function createKernel({ timeline, modules }) {
       const mod = byId.get(sceneId);
       writeText(timeline, scene, mod.slots, slot, value);
       return resolveText(timeline, scene, mod.slots, slot);
+    },
+    setParam(sceneId, key, value) {
+      const scene = timeline.scenes.find((s) => s.id === sceneId);
+      if (!scene) throw new Error(`unknown scene "${sceneId}"`);
+      const mod = byId.get(sceneId);
+      checkParam(mod?.params, key, value);
+      timeline.params ??= {};
+      timeline.params[sceneId] ??= {};
+      timeline.params[sceneId][key] = value;
+      return resolveParam(timeline, scene, mod.params, key);
+    },
+    /** Replace the timeline in place (after a restore) without re-mounting.
+     *  The beat grid came from out/beats.json, not from timeline.json, so keep it. */
+    reload(next) {
+      const beats = timeline.beats;
+      for (const key of Object.keys(timeline)) if (!(key in next)) delete timeline[key];
+      Object.assign(timeline, next);
+      if (beats) timeline.beats = beats;
     },
     setPalette(patch) {
       patchPalettes(timeline, patch);

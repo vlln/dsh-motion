@@ -38,4 +38,4 @@ const scene = makeHistoryScene({
   ],
 });
 
-export const { id, kind, slots, textUsage, mount, render, hitTest } = scene;
+export const { id, kind, slots, textUsage, params, mount, render, hitTest } = scene;

@@ -1,7 +1,7 @@
 # dsh-motion
 
-Motion 渲染内核的最小实现：**timeline + 文本槽 + 调色板 → 逐帧捕获 → MP4**。
-这是 [motion-kernel-contract.md](../motion-kernel-contract.md) 的可运行版本，用来验证三个接口，不是插件。
+Motion 渲染内核的最小实现：**timeline + 文本槽 + 调色板 + 参数 → 逐帧捕获 → MP4**。
+这是 [motion-kernel-contract.md](../motion-kernel-contract.md) 的可运行版本，同时以 dsh 插件形态安装使用。
 
 ## 跑起来
 
@@ -11,8 +11,10 @@ npm run gates        # 画面门禁，14 项断言（含 WebGL 确定性）
 npm run audio        # 合成音床 + 节拍分析 + 波形图
 npm run video        # 15 秒片子（含音频）→ out/demo.mp4
 npm run gate:audio   # 音频门禁，8 项断言
-npm run gate:ui      # 预览界面门禁，11 项断言
+npm run gate:ui      # 预览界面门禁，12 项断言
 npm run gate:comments # 批注回路门禁，13 项断言
+npm run gate:params  # 参数回路门禁，13 项断言（拖 → 写 → 回退，含负控）
+npm run gate:surface # 工具面门禁，14 项断言（每个工具真跑一次）
 npm run preview      # 本地预览 → http://127.0.0.1:4173/preview.html
 ```
 
@@ -27,14 +29,18 @@ npm run preview      # 本地预览 → http://127.0.0.1:4173/preview.html
 | 节拍 | 检出 **119 BPM**（真值 120）、29 拍、drop **7.98s**（真值 8.0） |
 | 捕获速度 | 570 帧 **约 11 秒**（含 WebGL 段） |
 | 拼图 | 8 帧 4 列 → `out/sheet.png`｜波形 → `out/wave.png` |
-| 界面门禁 | **11/11**（场景条 / 播放头 / 选中 / 播放） |
+| 界面门禁 | **12/12**（场景条 / 播放头 / 选中 / 播放） |
 | 批注门禁 | **13/13**（框选 → 批注 → 工具 → 改字 → 回复 → 解决） |
+| 参数门禁 | **13/13**（拖动改画面 → 松手写文件 → 快照 → 重载 → 拒绝越界 → 回退） |
+| 工具面门禁 | **14/14**（8 个工具全部注册并真跑一次只读路径） |
 
-## 三个接口
+## 接口
 
 1. **`render(t)`**：场景只导出 `mount(ctx)` / `render(t)`，`t` 为秒；禁 `Math.random` / `Date.now` / `rAF`，随机走 `ctx.rng(key)`。
 2. **文本槽**：场景声明 `slots` + `textUsage`，代码只读 `ctx.text('title')`；写走 `setText()`，下一帧生效，不重编译。
 3. **调色板**：代码只读 `ctx.color('accent')`；解析链 `元素覆盖 → 场景覆盖 → 场景调色板 → main → 抛错`，不静默回退黑色。
+
+4. **参数**：场景可以声明 `params`（数值旋钮）；代码只读 `ctx.param('axisY')`，值存 `timeline.params`，缺省回落声明里的 `default`。范围校验不通过直接拒绝写入，**不静默 clamp**。
 
 另外两条为 3D 增加的约定：
 
@@ -49,11 +55,16 @@ index.html                 画布页
 src/kernel.mjs             时间轴、挂载、解析、渲染
 src/palette.mjs            颜色解析（缺 token 抛错）
 src/texts.mjs              槽读写 + 使用计数校验
+src/params.mjs             参数解析 / 范围校验 / 面板描述
+src/snapshots.mjs          写前快照（.motion/snapshots，保留 20 份）
+src/project.mjs            校验 → 快照 → 写入（面板与工具共用这一层）
 src/rng.mjs                确定性随机
 src/scenes/history.mjs     时间轴式场景的共享画法（双泳道卡片 + 节拍脉冲）
 scripts/serve.mjs          开发用静态服务器（file:// 不能加载 ES module）
 scripts/capture.mjs        still / sheet / video（有音轨时自动 mux）
 scripts/gates.mjs          画面门禁（确定性 / 文本槽 / 调色板）
+scripts/gate-params.mjs    参数回路门禁
+scripts/gate-surface.mjs   工具面门禁
 scripts/synth.mjs          确定性音床（纯合成，无版权素材）
 scripts/beats.mjs          节拍分析：BPM / 拍点 / drop
 scripts/wave.mjs           波形 + 拍线 + drop 标记 → 给 agent 看
@@ -136,13 +147,38 @@ dsh plugin --profile web add <repo 路径>   # 本地目录安装（先 npm run 
 | `motion_texts` | 读写文本槽（写前校验，非法拒绝） |
 | `motion_palette` | 改共享 token 或元素级 override |
 | `motion_comments` | 列出 / 回复 / 解决批注线程（带三要素锚点） |
+| `motion_params` | 列出 / 设置场景参数（越界拒绝，写前留快照） |
+| `motion_history` | 列出 / 恢复 timeline 快照 |
 | `motion_render` | 接触表（stills）或 MP4（video） |
 | `motion_export` | 导出 `mp4` 或 `gif`（GIF 从成片转码，无音频） |
 
 | 界面 | 说明 |
 |---|---|
 | `◐ Motion` 启动器 | 右下角浮层，打开面板 |
-| 面板 | 播放器 / 场景条 / 元素检视 / 批注浮层（iframe 同源预览） |
+| 面板 | 播放器 / 场景条 / 元素检视 / 参数滑杆 / 批注浮层（iframe 同源预览） |
+
+## 参数与回退
+
+面板不只是“看”，它能写文件。场景声明 `params`，面板渲染成滑杆：拖动即时改画面，**松手才落盘**。
+
+| 阶段 | 发生什么 |
+|---|---|
+| 拖动 | `kernel.setParam` 改内存 → 立即重绘 → 文件不动 |
+| 松手 | `POST /api/params` → 范围校验 → 快照旧文件 → 写 `timeline.params` |
+| 越界 | 400 拒绝，文件与快照都不动（门禁里有负控） |
+| 回退 | `POST /api/history/restore` → 先把当前版本存成 `pre-restore` → 再覆盖 |
+
+快照在 `.motion/snapshots/`（已 gitignore），每次写保留上一版，最多 20 份。面板的“回退一步”和
+`motion_history` 读的是同一份列表，不存在两套历史。
+
+设计参照是 ReMotion 教程里的 studio 参数回路——让 agent 把要调的地方做成可编辑参数，人自己拖，
+省掉一轮轮描述。有一处刻意不同：教程里参数直接存回代码，调坏了靠 git 恢复；这里每次写先落快照，
+回退是一等操作，因为面板的写操作比手改更频繁。
+
+可调的是数值（画面比例或秒数），不是颜色或文案：颜色走 `motion_palette`，文案走 `motion_texts`，
+三者共用同一条「校验 → 快照 → 写」的路径（`src/project.mjs`）。
+
+![参数面板](docs/ui-params.png)
 
 ## 吸收自 huashu-art-motion 的两个门禁
 
@@ -195,9 +231,7 @@ dsh plugin --profile web add <repo 路径>   # 本地目录安装（先 npm run 
 
 - 只有一条音轨，没有旁白轨与 ducking
 - 音频 fit 只实现 `trim`（loop / pad 未实现）
-
-- 没有 UI（预览/场景条/批注面板）
-- client half 尚未接入（Node 工具已可用）
-- 没有打包成单文件 HTML（开发用静态服务器）
+- 参数只支持数值：颜色走 palette、文案走 slots，没有枚举 / 布尔 / 颜色参数
+- 回退只有整份快照，没有逐字段 diff，也不能撤回一次回退（可以再点一次回到 pre-restore）
 - 字体只用系统族，未入库
 - WebGL 确定性只在本机（Apple GPU + Chrome for Testing）验证过；换机器/驱动需重跑 G4

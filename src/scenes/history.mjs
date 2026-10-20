@@ -10,6 +10,18 @@ const easeOutBack = (x) => {
 };
 const clamp01 = (x) => Math.min(1, Math.max(0, x));
 
+// Knobs the panel can tune. Values are fractions of W/H or seconds, so a knob
+// means the same thing at any canvas size. Ranges are wide enough to change the
+// composition and narrow enough that the result never stops being this scene.
+export const PARAMS = {
+  axisY: { default: 0.68, min: 0.45, max: 0.82, step: 0.005, label: '轴线位置' },
+  lift: { default: 0.14, min: 0.06, max: 0.26, step: 0.005, label: '卡片离轴' },
+  laneGap: { default: 0.135, min: 0.08, max: 0.2, step: 0.005, label: '双行间距' },
+  cardW: { default: 0.3, min: 0.18, max: 0.4, step: 0.005, label: '卡片宽度' },
+  cardH: { default: 0.118, min: 0.09, max: 0.16, step: 0.002, label: '卡片高度' },
+  enter: { default: 0.32, min: 0.1, max: 0.9, step: 0.01, label: '入场时长' },
+};
+
 export function makeHistoryScene(config) {
   const { id, slots, textUsage, ticks, pins, palette: _palette } = config;
   let ctx = null;
@@ -17,6 +29,9 @@ export function makeHistoryScene(config) {
   function mount(context) {
     ctx = context;
   }
+
+  const param = (key) => ctx.param(key);
+  const cardTop = (axisY, H, lane) => axisY - H * (param('lift') + lane * param('laneGap'));
 
   function render(t) {
     const g = ctx.canvas.getContext('2d');
@@ -107,11 +122,11 @@ export function makeHistoryScene(config) {
 
     g.globalAlpha = pinA;
 
-    const stemFor = (pin) => axisY - H * (0.14 + pin.lane * 0.135) + cardH;
+    const stemFor = (pin) => cardTop(axisY, H, pin.lane) + cardH;
 
     // pass 1: stems + dots (behind every card)
     for (const pin of placed) {
-      const appear = easeOutBack((t - pin.tIn) / 0.32);
+      const appear = easeOutBack((t - pin.tIn) / param('enter'));
       if (appear <= 0) continue;
       const pinColor = ctx.color('accent', pin.elementId);
       g.save();
@@ -131,11 +146,11 @@ export function makeHistoryScene(config) {
 
     // pass 2: cards on top of every stem
     for (const pin of placed) {
-      const appear = easeOutBack((t - pin.tIn) / 0.32);
+      const appear = easeOutBack((t - pin.tIn) / param('enter'));
       if (appear <= 0) continue;
 
       const pinColor = ctx.color('accent', pin.elementId);
-      const cardY = axisY - H * (0.14 + pin.lane * 0.135);
+      const cardY = cardTop(axisY, H, pin.lane);
 
       g.save();
       g.globalAlpha = appear * axisA;
@@ -180,11 +195,11 @@ export function makeHistoryScene(config) {
   }
 
   function layoutPins(W, H) {
-    const axisY = H * 0.68;
+    const axisY = H * param('axisY');
     const x0 = W * 0.08;
     const x1 = W * 0.92;
-    const cardW = W * 0.30;
-    const cardH = H * 0.118;
+    const cardW = W * param('cardW');
+    const cardH = H * param('cardH');
     const gap = 12;
     const lanes = [[], []];
     const placed = [];
@@ -208,7 +223,7 @@ export function makeHistoryScene(config) {
     const { axisY, cardW, cardH, placed } = layoutPins(ctx.width, ctx.height);
     for (const pin of placed) {
       if (t < pin.tIn) continue;
-      const cardY = axisY - ctx.height * (0.14 + pin.lane * 0.135);
+      const cardY = cardTop(axisY, ctx.height, pin.lane);
       if (x >= pin.cx && x <= pin.cx + cardW && y >= cardY && y <= cardY + cardH) {
         return {
           id: pin.elementId ? `pin-${pin.elementId}` : `pin-${pin.eraText}`,
@@ -225,7 +240,7 @@ export function makeHistoryScene(config) {
     return null;
   }
 
-  return { id, kind: 'canvas2d', slots, textUsage, mount, render, hitTest };
+  return { id, kind: 'canvas2d', slots, textUsage, params: PARAMS, mount, render, hitTest };
 }
 
 function roundRect(g, x, y, w, h, r) {

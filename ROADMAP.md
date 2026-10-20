@@ -79,6 +79,20 @@
   - `dependencies` / `peerDependencies` 为空；`devDependencies` 仅本地工具链
   - 冒烟含真实调用与负控（`gate:tools`）
 
+### M7 · 参数写回与回退 ✅（2026-10-20）
+
+- 场景声明 `params`（数值旋钮），值存 `timeline.params`，缺省回落 `default`；越界拒绝，不 clamp
+- 面板：滑杆拖动即时重绘，**松手才写**；`src/project.mjs` 统一「校验 → 快照 → 写」，面板 API 与工具共用
+- 回退：每次写前把上一版存进 `.motion/snapshots/`（保留 20 份），`motion_history` 与面板的“回退”读同一份列表
+- 工具：`motion_params`（list / set）、`motion_history`（list / restore）
+- 退出证据：
+  - `npm run gate:params` **13/13**：拖动改的是画面像素（不只 DOM）→ 松手写文件 + 留快照 → 重载读到持久值 → 越界 400 且文件与快照都不动 → 回退把文件和画面一起带回
+  - `npm run gate:surface` **14/14**：8 个工具全部注册并真跑一次只读路径；负控三项。此门禁在写它时立刻抓到一个真 bug——`motion_comments` 调了未导入的 `list()`
+  - README 增「参数与回退」；截图 `docs/ui-params.png`
+
+动机来自 ReMotion 教程里“让 agent 把要调的地方做成可编辑参数”的工序：**需求精度决定难度，所以改一次参数必须比描述一次便宜**。
+与其说是抄功能，不如说是补上“看得见但改不动”这个缺口。
+
 ---
 
 ## 门禁（累积，任何时候都要绿）
@@ -90,6 +104,8 @@
 | 校验 | `node scripts/validate-tests.mjs` | 全部非法样例被拒 |
 | 交互 | `npm run gate:ui` | 播放头/场景条/选中 3 项 |
 | 批注 | `npm run gate:comments` | 4 步闭环 |
+| 参数 | `npm run gate:params` | 13/13（拖 → 写 → 快照 → 重载 → 越界 → 回退） |
+| 工具面 | `npm run gate:surface` | 14/14（每个工具真跑一次） |
 | 插件 | `npm run gate:plugin` | 安装冒烟 + 负控 |
 
 ---

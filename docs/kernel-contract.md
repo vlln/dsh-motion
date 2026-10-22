@@ -246,7 +246,11 @@ renderAt(t) → page.screenshot({ type: 'jpeg', quality: 95 }) → ffmpeg -f ima
 ```
 
 音频在视频完成后单独 mux（`loudnorm=I=-14:TP=-1`），视频流直接 copy。
-帧率由本次运行决定（`--fps`），时长由 `timeline.duration` 决定。
+帧率默认取 `timeline.fps`（示例片为 60），可用 `--fps` 覆盖；时长由 `timeline.duration` 决定。
+
+`--supersample 2` 让页面以 2× 设备比例渲染、再在 ffmpeg 里降到目标尺寸：
+文字是在捕获分辨率上光栅化的，1× 时笔画会发虚，2× 是补偿它的唯一办法。
+代价接近 4 倍像素；钳制在 2，因为内核的 `dpr` 上限就是 2。
 
 ### 5.4 命中坐标
 

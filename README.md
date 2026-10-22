@@ -10,7 +10,7 @@ Motion 渲染内核的最小实现：**timeline + 文本槽 + 调色板 + 参数
 npm install          # 只装 playwright（浏览器用本机缓存的 Chrome for Testing）
 npm run gates        # 画面门禁，14 项断言（含 WebGL 确定性）
 npm run audio        # 合成音床 + 节拍分析 + 波形图
-npm run video        # 15 秒片子（含音频）→ out/demo.mp4
+npm run video        # 19 秒片子（含音频）→ out/demo.mp4
 npm run gate:audio   # 音频门禁，8 项断言
 npm run gate:ui      # 预览界面门禁，12 项断言
 npm run gate:comments # 批注回路门禁，13 项断言
@@ -20,6 +20,7 @@ npm run gate:reference # 参考摄取门禁，15 项断言（合成片 + 静态�
 npm run gate:text     # 文字门禁，14 项断言（中文断行 / 命中 / 确定性）
 npm run gate:media    # 媒体门禁，11 项断言（图片 / 片段雪碧图 / 缺素材负控）
 npm run gate:tweaks   # 面板改字门禁，11 项断言（按帧列槽 / 点字聚焦 / 落盘 / 越界拒绝）
+npm run gate:scale    # 缩放门禁，5 项断言（默认 60fps / 2× 超采样 / 钳制）
 npm run assets        # 把 timeline.assets 里的片段烘成雪碧图 → out/media/
 npm run preview      # 本地预览 → http://127.0.0.1:4173/preview.html
 ```
@@ -30,10 +31,10 @@ npm run preview      # 本地预览 → http://127.0.0.1:4173/preview.html
 |---|---|
 | 画面门禁 | **14/14 通过**（含 WebGL） |
 | 音频门禁 | **8/8 通过** |
-| 视频 | 1920×1080 / 30fps / 19.0s / H.264 + AAC 48k / 3.1 MB |
+| 视频 | 1920×1080 / **60fps** / 19.0s / H.264 + AAC 48k / 4.1 MB |
 | 响度 | **−14.1 LUFS**（目标 −14） |
 | 节拍 | 检出 **119 BPM**（真值 120）、29 拍、drop **7.98s**（真值 8.0） |
-| 捕获速度 | 570 帧 **约 11 秒**（含 WebGL 段） |
+| 捕获速度 | 1140 帧 **约 23 秒**（60fps，含 WebGL、音频与封装）≈ 20ms/帧 |
 | 拼图 | 8 帧 4 列 → `out/sheet.png`｜波形 → `out/wave.png` |
 | 界面门禁 | **12/12**（场景条 / 播放头 / 选中 / 播放） |
 | 批注门禁 | **13/13**（框选 → 批注 → 工具 → 改字 → 回复 → 解决） |
@@ -43,6 +44,7 @@ npm run preview      # 本地预览 → http://127.0.0.1:4173/preview.html
 | 文字门禁 | **14/14**（中文断行 / 禁则 / 省略号 / 按槽命中 / 同帧两次一致） |
 | 媒体门禁 | **11/11**（图片 / 片段随 t 推进 / 路径穿越拒绝 / 缺素材响亮报错） |
 | 改字门禁 | **11/11**（按帧列槽 / 点字聚焦 / 输入即改 / 失焦落盘 / 快照 / 越界拒绝） |
+| 缩放门禁 | **5/5**（默认 60fps / 2× 超采样保住细节 / 钳制到 2） |
 
 ## 接口
 

@@ -31,7 +31,11 @@ const browser = await chromium.launch({ executablePath: exe, args: ['--hide-scro
 
 const W = Number(opt('width', 1920));
 const H = Number(opt('height', 1080));
-const dpr = Number(opt('dpr', 1));
+// Supersampling: render the page at N× device scale, then scale back down in
+// ffmpeg. Text is the reason — it is rasterised at capture resolution, so a 2×
+// pass keeps glyph edges sharp at 1080p.
+const supersample = Math.max(1, Math.min(2, Number(opt('supersample', 1))));
+const dpr = Number(opt('dpr', supersample));
 const page = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: dpr });
 page.on('pageerror', (e) => console.error('[page error]', e.message));
 page.on('console', (m) => m.type() === 'error' && console.error('[page]', m.text()));
@@ -90,7 +94,7 @@ if (!has('video')) {
   process.exit(1);
 }
 
-const fps = Number(opt('fps', 30));
+const fps = Number(opt('fps', timeline.fps ?? 30));
 const from = Number(opt('from', 0));
 const to = Number(opt('to', timeline.duration ?? 15));
 const frames = Math.round((to - from) * fps);
@@ -103,6 +107,7 @@ const ff = spawn(
   [
     '-loglevel', 'error', '-y',
     '-f', 'image2pipe', '-framerate', String(fps), '-i', '-',
+    ...(supersample > 1 ? ['-vf', `scale=${W}:${H}:flags=lanczos`] : []),
     '-c:v', 'libx264', '-preset', 'medium', '-crf', '18',
     '-pix_fmt', 'yuv420p', '-movflags', '+faststart', silent,
   ],

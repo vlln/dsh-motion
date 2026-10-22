@@ -179,6 +179,32 @@ interface ParamSpec {
 
 ---
 
+## 3.1 数据槽
+
+```ts
+interface ValueSpec {
+  default: number;
+  min: number;
+  max: number;
+  step?: number;
+  label?: string;
+  format?: 'int' | 'decimal' | 'percent' | 'compact';
+  suffix?: string;
+  places?: number;      // format=decimal 时的小数位
+}
+```
+
+```js
+ctx.value('speed');                                     // 原始数值，喂图表
+ctx.drawValue('speed', { x, y, w, size, weight });      // 格式化后绘制，并登记为可编辑
+```
+
+- 值存 `timeline.values[sceneId][key]`，缺失用 `default`；
+- 越界拒绝，不 clamp；
+- 同一个 key 可以在画面里出现多次（`drawValue` 每次调用都登记），面板改一次、多处一起变；
+- 面板把每个 `drawValue` 呈现为数字输入，写走 `POST /api/values`（与 params / texts 同一条
+  「校验 → 快照 → 写」路径）。
+
 ## 4. 调色板
 
 ```jsonc

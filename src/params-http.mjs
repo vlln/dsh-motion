@@ -2,7 +2,7 @@
 // plugin's web routes (lib/index.mjs). Same reason as comments: one
 // implementation, two mount points.
 
-import { describeProject, history, restoreProject, setProjectParam, setProjectText } from './project.mjs';
+import { describeProject, history, restoreProject, setProjectParam, setProjectText, setProjectValue } from './project.mjs';
 
 const json = (res, code, data) => {
   res.writeHead(code, { 'content-type': 'application/json; charset=utf-8' });
@@ -50,6 +50,13 @@ export function paramsHandlers(root) {
       if (value === undefined || value === null) throw new Error('set needs value');
       const out = await setProjectText(root, scene, slot, value);
       json(res, 200, { ok: true, scene, slot, value: out.value, snapshot: out.snapshot });
+    }),
+    value: wrap(async (req, res) => {
+      const { scene, key, value } = await readBody(req);
+      if (!scene || !key) throw new Error('set needs scene and key');
+      if (value === undefined || value === null) throw new Error('set needs value');
+      const out = await setProjectValue(root, scene, key, value);
+      json(res, 200, { ok: true, scene, key, value: out.value, snapshot: out.snapshot });
     }),
     history: wrap(async (req, res) => json(res, 200, { snapshots: history(root) })),
     restore: wrap(async (req, res) => {

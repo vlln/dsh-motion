@@ -166,6 +166,22 @@ scrub.addEventListener('input', () => {
 // --- on-screen text: edit what the current frame actually shows ---
 let textKey = '';
 
+async function persistValue(sceneId, key, value) {
+  try {
+    const res = await fetch('./api/values', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ scene: sceneId, key, value }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? res.statusText);
+    textNote.textContent = `已保存 · 快照 ${data.snapshot.id.slice(25)}`;
+    await refreshHistory();
+  } catch (err) {
+    textNote.textContent = `保存失败：${err.message}`;
+  }
+}
+
 async function persistText(sceneId, slot, value) {
   try {
     const res = await fetch('./api/texts', {
@@ -191,23 +207,44 @@ function refreshTexts() {
   if (key !== textKey) {
     textList.replaceChildren();
     for (const item of items) {
+      const isValue = item.kind === 'value';
+      const spec = isValue ? kernel.describeValues(item.scene).find((v) => v.key === item.key) : null;
+
       const row = document.createElement('label');
       row.className = 'text-row';
 
       const name = document.createElement('span');
       name.className = 'slot';
-      name.textContent = item.truncated ? `${item.slot} · 已截断` : item.slot;
+      name.textContent = isValue
+        ? `${spec?.label ?? item.key} · 数值`
+        : item.truncated
+          ? `${item.slot} · 已截断`
+          : item.slot;
 
       const input = document.createElement('input');
-      input.value = item.text;
       input.dataset.textScene = item.scene;
       input.dataset.textSlot = item.slot;
-      input.addEventListener('input', () => {
-        kernel.setText(item.scene, item.slot, input.value);
-        kernel.renderAt(t);
-        textNote.textContent = '未保存';
-      });
-      input.addEventListener('change', () => persistText(item.scene, item.slot, input.value));
+      if (isValue) {
+        input.type = 'number';
+        input.min = String(spec.min);
+        input.max = String(spec.max);
+        input.step = String(spec.step);
+        input.value = String(item.value);
+        input.addEventListener('input', () => {
+          kernel.setValue(item.scene, item.key, Number(input.value));
+          kernel.renderAt(t);
+          textNote.textContent = '未保存';
+        });
+        input.addEventListener('change', () => persistValue(item.scene, item.key, Number(input.value)));
+      } else {
+        input.value = item.text;
+        input.addEventListener('input', () => {
+          kernel.setText(item.scene, item.slot, input.value);
+          kernel.renderAt(t);
+          textNote.textContent = '未保存';
+        });
+        input.addEventListener('change', () => persistText(item.scene, item.slot, input.value));
+      }
 
       row.append(name, input);
       textList.append(row);
@@ -219,7 +256,9 @@ function refreshTexts() {
   for (const input of textList.querySelectorAll('input')) {
     if (document.activeElement === input) continue;
     const item = items.find((i) => i.scene === input.dataset.textScene && i.slot === input.dataset.textSlot);
-    if (item && input.value !== item.text) input.value = item.text;
+    if (!item) continue;
+    const next = item.kind === 'value' ? String(item.value) : item.text;
+    if (input.value !== next) input.value = next;
   }
 }
 

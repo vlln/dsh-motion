@@ -5,5 +5,6 @@ import * as coldWar from './cold-war.mjs';
 import * as orbit from './orbit.mjs';
 import * as textLab from './text-lab.mjs';
 import * as mediaLab from './media-lab.mjs';
+import * as dataLab from './data-lab.mjs';
 
-export const modules = [firstPeoples, coldWar, textLab, mediaLab, orbit];
+export const modules = [firstPeoples, coldWar, textLab, mediaLab, dataLab, orbit];

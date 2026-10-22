@@ -85,6 +85,20 @@ export function validateTimeline(timeline, modules = null) {
             if (!Number.isInteger(n) || n < 1) err(`scenes[${i}]`, `textUsage.${slot} must be a positive integer`);
           }
 
+          // value specs: same reasoning as knobs, plus a known format.
+          for (const [key, spec] of Object.entries(mod.values ?? {})) {
+            const at = `scenes[${i}].values.${key}`;
+            if (!isNum(spec?.default)) err(at, 'default must be a number');
+            if (!isNum(spec?.min) || !isNum(spec?.max)) err(at, 'min/max must be numbers');
+            else if (spec.min >= spec.max) err(at, `min (${spec.min}) must be < max (${spec.max})`);
+            else if (isNum(spec.default) && (spec.default < spec.min || spec.default > spec.max)) {
+              err(at, `default (${spec.default}) outside ${spec.min}..${spec.max}`);
+            }
+            if (spec?.format && !['int', 'decimal', 'percent', 'compact'].includes(spec.format)) {
+              err(at, `unknown format "${spec.format}" (int | decimal | percent | compact)`);
+            }
+          }
+
           // knob specs: a bad default would make the panel show a value the
           // scene cannot draw, so the spec is part of the contract.
           for (const [key, spec] of Object.entries(mod.params ?? {})) {
@@ -184,6 +198,40 @@ export function validateTimeline(timeline, modules = null) {
           const spec = mod.params?.[key];
           if (!spec) {
             err(at, `unknown param (declared: ${Object.keys(mod.params ?? {}).join(', ') || 'none'})`);
+          } else if (value < spec.min || value > spec.max) {
+            err(at, `must be ${spec.min}..${spec.max} (got ${value})`);
+          }
+        }
+      }
+    }
+  }
+
+  // values
+  if (timeline.values !== undefined) {
+    if (!timeline.values || typeof timeline.values !== 'object') {
+      err('values', 'must be an object keyed by scene id');
+    } else {
+      for (const [sceneId, entries] of Object.entries(timeline.values)) {
+        const scene = timeline.scenes?.find((s) => s.id === sceneId);
+        if (!scene) {
+          err(`values.${sceneId}`, 'unknown scene id');
+          continue;
+        }
+        if (!entries || typeof entries !== 'object') {
+          err(`values.${sceneId}`, 'must be an object of values');
+          continue;
+        }
+        const mod = modules?.find((m) => m.id === sceneId);
+        for (const [key, value] of Object.entries(entries)) {
+          const at = `values.${sceneId}.${key}`;
+          if (!isNum(value)) {
+            err(at, `must be a finite number (got ${JSON.stringify(value)})`);
+            continue;
+          }
+          if (!mod) continue;
+          const spec = mod.values?.[key];
+          if (!spec) {
+            err(at, `unknown value (declared: ${Object.keys(mod.values ?? {}).join(', ') || 'none'})`);
           } else if (value < spec.min || value > spec.max) {
             err(at, `must be ${spec.min}..${spec.max} (got ${value})`);
           }

@@ -4,6 +4,7 @@
 import { makeResolver, patchPalettes } from './palette.mjs';
 import { resolveText, setText as writeText, makeCounter } from './texts.mjs';
 import { checkParam, describeParams, resolveParam } from './params.mjs';
+import { checkValue, describeValues, formatValue, resolveValue } from './values.mjs';
 import { layoutText } from './text.mjs';
 import { fitRect, frameAt, frameRect } from './media.mjs';
 
@@ -46,6 +47,48 @@ export function createKernel({ timeline, modules }) {
     if (!mod) throw new Error(`scene module "${scene.id}" is not registered`);
 
     const media = { images: new Map(), clips: new Map() };
+
+    /** Shared text painter: drawText and drawValue differ only in where the string comes from. */
+    const paintText = (value, opts = {}) => {
+      const g = active;
+      const size = opts.size ?? Math.round(height * 0.03);
+      const weight = opts.weight ?? 400;
+      const lineHeight = opts.lineHeight ?? 1.35;
+      const family = FONTS[opts.family ?? 'sans'] ?? opts.family ?? FONTS.sans;
+      const align = opts.align ?? 'left';
+      const x = opts.x ?? 0;
+      const y = opts.y ?? 0;
+      const w = opts.w ?? width - x;
+      const maxLines = opts.maxLines ?? 3;
+
+      g.save();
+      g.font = `${weight} ${size}px ${family}`;
+      if ('letterSpacing' in g && opts.letterSpacing) g.letterSpacing = `${opts.letterSpacing}px`;
+      g.textBaseline = 'top';
+      g.textAlign = 'left';
+      g.fillStyle = opts.color ?? color(scene, 'fg');
+      g.globalAlpha = opts.alpha ?? 1;
+
+      const measure = (text) => g.measureText(text).width;
+      const { lines, truncated } = layoutText({ text: String(value), measure, maxWidth: w, maxLines, ellipsis: opts.ellipsis ?? '…' });
+      const lineH = size * lineHeight;
+      const boxes = [];
+      auditSuppress++;
+      try {
+        lines.forEach((line, i) => {
+          const lw = measure(line);
+          const lx = align === 'center' ? x + (w - lw) / 2 : align === 'right' ? x + w - lw : x;
+          const ly = y + i * lineH;
+          g.fillText(line, lx, ly);
+          boxes.push({ text: line, x: lx, y: ly, w: lw, h: size });
+        });
+      } finally {
+        auditSuppress--;
+      }
+      g.restore();
+
+      return { box: { x, y, w, h: Math.max(size, lines.length * lineH) }, lines: boxes, truncated };
+    };
 
     const loadBitmap = async (src) => {
       const res = await fetch(new URL(src, document.baseURI));
@@ -147,49 +190,35 @@ export function createKernel({ timeline, modules }) {
       },
       drawText(slot, opts = {}) {
         if (!active) throw new Error(`drawText("${slot}") called outside a render pass`);
-        const g = active;
         const value = resolveText(timeline, scene, mod.slots, slot);
         counter.hit(slot);
-
-        const size = opts.size ?? Math.round(height * 0.03);
-        const weight = opts.weight ?? 400;
-        const lineHeight = opts.lineHeight ?? 1.35;
-        const family = FONTS[opts.family ?? 'sans'] ?? opts.family ?? FONTS.sans;
-        const align = opts.align ?? 'left';
-        const x = opts.x ?? 0;
-        const y = opts.y ?? 0;
-        const w = opts.w ?? width - x;
-        const maxLines = opts.maxLines ?? 3;
-
-        g.save();
-        g.font = `${weight} ${size}px ${family}`;
-        if ('letterSpacing' in g && opts.letterSpacing) g.letterSpacing = `${opts.letterSpacing}px`;
-        g.textBaseline = 'top';
-        g.textAlign = 'left';
-        g.fillStyle = opts.color ?? color(scene, 'fg');
-        g.globalAlpha = opts.alpha ?? 1;
-
-        const measure = (text) => g.measureText(text).width;
-        const { lines, truncated } = layoutText({ text: value, measure, maxWidth: w, maxLines, ellipsis: opts.ellipsis ?? '…' });
-        const lineH = size * lineHeight;
-        const boxes = [];
-        auditSuppress++;
-        try {
-          lines.forEach((line, i) => {
-            const lw = measure(line);
-            const lx = align === 'center' ? x + (w - lw) / 2 : align === 'right' ? x + w - lw : x;
-            const ly = y + i * lineH;
-            g.fillText(line, lx, ly);
-            boxes.push({ text: line, x: lx, y: ly, w: lw, h: size });
-          });
-        } finally {
-          auditSuppress--;
-        }
-        g.restore();
-
-        const box = { x, y, w, h: Math.max(size, lines.length * lineH) };
-        frameText.push({ slot, sceneId: scene.id, box, lines: boxes, truncated, text: value });
-        return { box, lines: boxes, truncated };
+        const out = paintText(value, opts);
+        frameText.push({ slot, sceneId: scene.id, kind: 'text', box: out.box, lines: out.lines, truncated: out.truncated, text: value });
+        return out;
+      },
+      /** Raw value, for charts and layout maths. */
+      value(key) {
+        return resolveValue(timeline, scene, mod.values, key);
+      },
+      /** Formatted value drawn as text, registered like a slot so it is editable. */
+      drawValue(key, opts = {}) {
+        if (!active) throw new Error(`drawValue("${key}") called outside a render pass`);
+        const spec = mod.values?.[key];
+        const raw = resolveValue(timeline, scene, mod.values, key);
+        const text = formatValue(raw, spec);
+        const out = paintText(text, opts);
+        frameText.push({
+          slot: `value:${key}`,
+          key,
+          value: raw,
+          sceneId: scene.id,
+          kind: 'value',
+          box: out.box,
+          lines: out.lines,
+          truncated: out.truncated,
+          text,
+        });
+        return out;
       },
       rng(key) {
         return rng(timeline.seed ?? 746337560, `${scene.id}:${key}`);
@@ -335,6 +364,9 @@ export function createKernel({ timeline, modules }) {
       return frameText.map((record) => ({
         scene: record.sceneId,
         slot: record.slot,
+        kind: record.kind ?? 'text',
+        key: record.key,
+        value: record.value,
         text: record.text,
         truncated: record.truncated,
         box: {
@@ -344,6 +376,21 @@ export function createKernel({ timeline, modules }) {
           h: Math.round(record.box.h),
         },
       }));
+    },
+    setValue(sceneId, key, value) {
+      const scene = timeline.scenes.find((s) => s.id === sceneId);
+      if (!scene) throw new Error(`unknown scene "${sceneId}"`);
+      const mod = byId.get(sceneId);
+      checkValue(mod?.values, key, value);
+      timeline.values ??= {};
+      timeline.values[sceneId] ??= {};
+      timeline.values[sceneId][key] = value;
+      return resolveValue(timeline, scene, mod.values, key);
+    },
+    describeValues(sceneId) {
+      const scene = timeline.scenes.find((s) => s.id === sceneId);
+      if (!scene) throw new Error(`unknown scene "${sceneId}"`);
+      return describeValues(timeline, scene, byId.get(sceneId)?.values);
     },
     setParam(sceneId, key, value) {
       const scene = timeline.scenes.find((s) => s.id === sceneId);

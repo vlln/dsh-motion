@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { validateTimeline } from './validate.mjs';
 import { describeParams, resolveParam, checkParam as validateParam } from './params.mjs';
+import { checkValue as validateValue } from './values.mjs';
 import { listSnapshots, readSnapshot, snapshot } from './snapshots.mjs';
 
 const timelineFile = (root) => path.join(root, 'timeline.json');
@@ -85,6 +86,22 @@ export async function setProjectText(root, sceneId, slot, value) {
 
   const snap = await writeTimeline(root, timeline, `text-${sceneId}-${slot}`);
   return { value: String(value), snapshot: snap };
+}
+
+export async function setProjectValue(root, sceneId, key, value) {
+  const timeline = readTimeline(root);
+  const scene = timeline.scenes.find((s) => s.id === sceneId);
+  if (!scene) throw new Error(`unknown scene "${sceneId}"`);
+
+  const mod = (await modules()).find((m) => m.id === sceneId);
+  validateValue(mod?.values, key, value);
+
+  timeline.values ??= {};
+  timeline.values[sceneId] ??= {};
+  timeline.values[sceneId][key] = value;
+
+  const snap = await writeTimeline(root, timeline, `value-${sceneId}-${key}`);
+  return { value, snapshot: snap };
 }
 
 export function history(root) {

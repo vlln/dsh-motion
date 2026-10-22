@@ -1,0 +1,21 @@
+{
+  "width": 1920,
+  "height": 1080,
+  "fps": 30,
+  "duration": 4,
+  "palettes": {
+    "main": {
+      "bg": "#0b1426",
+      "fg": "#f2f2f0",
+      "accent": "#e0b040",
+      "muted": "#8b98ad",
+      "grid": "#243450",
+      "panel": "#101c33"
+    }
+  },
+  "overrides": {},
+  "texts": {},
+  "scenes": [
+    { "id": "text-lab", "name": "Text lab", "start": 0, "length": 4, "palette": "main", "speed": 1 }
+  ]
+}

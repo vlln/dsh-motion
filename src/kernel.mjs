@@ -4,6 +4,13 @@
 import { makeResolver, patchPalettes } from './palette.mjs';
 import { resolveText, setText as writeText, makeCounter } from './texts.mjs';
 import { checkParam, describeParams, resolveParam } from './params.mjs';
+import { layoutText } from './text.mjs';
+
+const FONTS = {
+  serif: '"Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif',
+  sans: 'Inter, "Helvetica Neue", Arial, sans-serif',
+  mono: 'ui-monospace, "SF Mono", Menlo, monospace',
+};
 import { rng } from './rng.mjs';
 
 export function createKernel({ timeline, modules }) {
@@ -15,6 +22,9 @@ export function createKernel({ timeline, modules }) {
   let canvas = null;
   let surface = null;
   let auditBoxes = null; // non-null only while audit() runs
+  let auditSuppress = 0; // drawText registers its own boxes; don't count them twice
+  let active = null; // 2d context of the pass in progress (scene canvas or overlay)
+  let frameText = []; // text drawn this frame: { slot, box, lines }
   let width = timeline.width ?? 1920;
   let height = timeline.height ?? 1080;
   let dpr = 1;
@@ -67,12 +77,53 @@ export function createKernel({ timeline, modules }) {
         return parseInt(hex.replace('#', ''), 16);
       },
       font(family) {
-        const stacks = {
-          serif: '"Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif',
-          sans: 'Inter, "Helvetica Neue", Arial, sans-serif',
-          mono: 'ui-monospace, "SF Mono", Menlo, monospace',
-        };
-        return stacks[family] ?? family;
+        return FONTS[family] ?? family;
+      },
+      drawText(slot, opts = {}) {
+        if (!active) throw new Error(`drawText("${slot}") called outside a render pass`);
+        const g = active;
+        const value = resolveText(timeline, scene, mod.slots, slot);
+        counter.hit(slot);
+
+        const size = opts.size ?? Math.round(height * 0.03);
+        const weight = opts.weight ?? 400;
+        const lineHeight = opts.lineHeight ?? 1.35;
+        const family = FONTS[opts.family ?? 'sans'] ?? opts.family ?? FONTS.sans;
+        const align = opts.align ?? 'left';
+        const x = opts.x ?? 0;
+        const y = opts.y ?? 0;
+        const w = opts.w ?? width - x;
+        const maxLines = opts.maxLines ?? 3;
+
+        g.save();
+        g.font = `${weight} ${size}px ${family}`;
+        if ('letterSpacing' in g && opts.letterSpacing) g.letterSpacing = `${opts.letterSpacing}px`;
+        g.textBaseline = 'top';
+        g.textAlign = 'left';
+        g.fillStyle = opts.color ?? color(scene, 'fg');
+        g.globalAlpha = opts.alpha ?? 1;
+
+        const measure = (text) => g.measureText(text).width;
+        const { lines, truncated } = layoutText({ text: value, measure, maxWidth: w, maxLines, ellipsis: opts.ellipsis ?? '…' });
+        const lineH = size * lineHeight;
+        const boxes = [];
+        auditSuppress++;
+        try {
+          lines.forEach((line, i) => {
+            const lw = measure(line);
+            const lx = align === 'center' ? x + (w - lw) / 2 : align === 'right' ? x + w - lw : x;
+            const ly = y + i * lineH;
+            g.fillText(line, lx, ly);
+            boxes.push({ text: line, x: lx, y: ly, w: lw, h: size });
+          });
+        } finally {
+          auditSuppress--;
+        }
+        g.restore();
+
+        const box = { x, y, w, h: Math.max(size, lines.length * lineH) };
+        frameText.push({ slot, sceneId: scene.id, box, lines: boxes, truncated, text: value });
+        return { box, lines: boxes, truncated };
       },
       rng(key) {
         return rng(timeline.seed ?? 746337560, `${scene.id}:${key}`);
@@ -98,7 +149,7 @@ export function createKernel({ timeline, modules }) {
       if (!g || g.__dshMotionAudited) return g;
       const original = g.fillText.bind(g);
       g.fillText = (text, x, y, ...rest) => {
-        if (auditBoxes) {
+        if (auditBoxes && !auditSuppress) {
           const size = Number((g.font.match(/(\d+(?:\.\d+)?)px/) ?? [])[1] ?? 16);
           auditBoxes.push({
             text: String(text).slice(0, 48),
@@ -140,10 +191,12 @@ export function createKernel({ timeline, modules }) {
     if (!entry) throw new Error(`scene "${scene.id}" is not mounted`);
 
     counter.reset();
+    frameText = [];
     if (entry.kind === 'canvas2d') {
       entry.g.setTransform(dpr, 0, 0, dpr, 0, 0);
       entry.g.clearRect(0, 0, width, height);
     }
+    active = entry.kind === 'canvas2d' ? entry.g : null;
     entry.module.render(Math.max(0, t - scene.start), entry.ctx);
     lastTime = t;
 
@@ -155,8 +208,10 @@ export function createKernel({ timeline, modules }) {
     // optional 2D overlay on top of the composited scene (3D + typography)
     if (entry.module.overlay) {
       surface.setTransform(dpr, 0, 0, dpr, 0, 0);
+      active = surface;
       entry.module.overlay(surface, entry.ctx, Math.max(0, t - scene.start));
     }
+    active = null;
 
     const issues = counter.verify(entry.module);
     if (issues.length) warnings.push({ scene: scene.id, t, issues });
@@ -238,7 +293,10 @@ export function createKernel({ timeline, modules }) {
       auditBoxes = [];
       try {
         this.renderAt(atT);
-        return auditBoxes;
+        const drawn = frameText.flatMap((record) =>
+          record.lines.map((line) => ({ ...line, slot: record.slot, scene: record.sceneId })),
+        );
+        return [...auditBoxes, ...drawn];
       } finally {
         auditBoxes = null;
       }
@@ -246,8 +304,29 @@ export function createKernel({ timeline, modules }) {
     pick(x, y, atT) {
       const scene = sceneAt(atT);
       const entry = mounted.get(scene.id);
-      if (!entry?.module.hitTest) return null;
-      return entry.module.hitTest(x, y, Math.max(0, atT - scene.start));
+      const hit = entry?.module.hitTest?.(x, y, Math.max(0, atT - scene.start));
+      if (hit) return hit;
+      // Text drawn through ctx.drawText is addressable without per-scene code.
+      // Only valid for the frame that is currently drawn, hence the time check.
+      if (Math.abs(atT - lastTime) > 1e-6) return null;
+      for (let i = frameText.length - 1; i >= 0; i--) {
+        const record = frameText[i];
+        if (record.sceneId !== scene.id) continue;
+        const { x: bx, y: by, w, h } = record.box;
+        if (x < bx || x > bx + w || y < by || y > by + h) continue;
+        return {
+          id: `text-${record.slot}`,
+          kind: 'text',
+          slot: record.slot,
+          x: Math.round(bx),
+          y: Math.round(by),
+          w: Math.round(w),
+          h: Math.round(h),
+          label: (record.lines[0]?.text ?? record.text).slice(0, 40),
+          at: Number(atT.toFixed(2)),
+        };
+      }
+      return null;
     },
     textUsage(sceneId, atT) {
       const scene = sceneAt(atT);

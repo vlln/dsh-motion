@@ -332,6 +332,7 @@ window.__PREVIEW__ = {
   },
   selected: () => selected,
   audit: (t) => kernel.audit(t),
+  pick: (x, y, at = t) => kernel.pick(x, y, at),
   play: () => playBtn.click(),
   scenes: timeline.scenes.map((s) => ({ id: s.id, start: s.start, length: s.length })),
   duration: total,

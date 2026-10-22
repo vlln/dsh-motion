@@ -26,6 +26,10 @@ const popSubmit = $('popSubmit');
 const popClose = $('popClose');
 const threadsEl = $('threads');
 const threadCount = $('threadCount');
+const textsEl = $('texts');
+const textList = $('textList');
+const textScope = $('textScope');
+const textNote = $('textNote');
 const knobsEl = $('knobs');
 const knobList = $('knobList');
 const knobScene = $('knobScene');
@@ -79,6 +83,7 @@ function setTime(next) {
   for (const { el, scene: s } of chips) el.setAttribute('aria-current', String(s.id === scene.id));
   refreshSelection();
   buildKnobs(scene);
+  refreshTexts();
 }
 
 function showSelection(hit) {
@@ -157,6 +162,66 @@ scrub.addEventListener('input', () => {
   kernel.renderAt(t);
   setTime(t);
 });
+
+// --- on-screen text: edit what the current frame actually shows ---
+let textKey = '';
+
+async function persistText(sceneId, slot, value) {
+  try {
+    const res = await fetch('./api/texts', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ scene: sceneId, slot, value }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? res.statusText);
+    textNote.textContent = `已保存 · 快照 ${data.snapshot.id.slice(25)}`;
+    await refreshHistory();
+  } catch (err) {
+    textNote.textContent = `保存失败：${err.message}`;
+  }
+}
+
+function refreshTexts() {
+  const items = kernel.texts();
+  textsEl.hidden = items.length === 0;
+  textScope.textContent = items.length ? `${items.length} 处` : '';
+
+  const key = items.map((item) => `${item.scene}/${item.slot}`).join('|');
+  if (key !== textKey) {
+    textList.replaceChildren();
+    for (const item of items) {
+      const row = document.createElement('label');
+      row.className = 'text-row';
+
+      const name = document.createElement('span');
+      name.className = 'slot';
+      name.textContent = item.truncated ? `${item.slot} · 已截断` : item.slot;
+
+      const input = document.createElement('input');
+      input.value = item.text;
+      input.dataset.textScene = item.scene;
+      input.dataset.textSlot = item.slot;
+      input.addEventListener('input', () => {
+        kernel.setText(item.scene, item.slot, input.value);
+        kernel.renderAt(t);
+        textNote.textContent = '未保存';
+      });
+      input.addEventListener('change', () => persistText(item.scene, item.slot, input.value));
+
+      row.append(name, input);
+      textList.append(row);
+    }
+    textKey = key;
+    return;
+  }
+
+  for (const input of textList.querySelectorAll('input')) {
+    if (document.activeElement === input) continue;
+    const item = items.find((i) => i.scene === input.dataset.textScene && i.slot === input.dataset.textSlot);
+    if (item && input.value !== item.text) input.value = item.text;
+  }
+}
 
 // --- params: dragging changes the frame now, releasing writes the file ---
 let knobOwner = null;
@@ -300,6 +365,13 @@ canvas.addEventListener('click', (e) => {
   }
   selected = hit;
   refreshSelection();
+  if (hit.slot) {
+    const input = textList.querySelector(`input[data-text-scene="${currentScene(t).id}"][data-text-slot="${hit.slot}"]`);
+    if (input) {
+      input.focus();
+      input.select();
+    }
+  }
 });
 
 window.addEventListener('keydown', (e) => {
@@ -332,6 +404,7 @@ window.__PREVIEW__ = {
   },
   selected: () => selected,
   audit: (t) => kernel.audit(t),
+  texts: () => kernel.texts(),
   pick: (x, y, at = t) => kernel.pick(x, y, at),
   play: () => playBtn.click(),
   scenes: timeline.scenes.map((s) => ({ id: s.id, start: s.start, length: s.length })),

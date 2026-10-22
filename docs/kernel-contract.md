@@ -115,10 +115,14 @@ interface SlotSpec {
 timeline.texts[sceneId][slot] ?? slots[slot].default ?? ''（并记一条 warning）
 ```
 
-写入（两个入口，同一条路径）：
+写入（三个入口，同一条路径）：
+
+- 面板：播放头停在哪，就列出**这一帧实际画出来的槽**（`kernel.texts()`），改字即时重绘，失焦落盘；
 
 - 面板 / agent：`motion_texts` → `scripts/texts.mjs` → 校验 → 快照 → 写 `timeline.json`；
 - 内核：`kernel.setText(sceneId, slot, value)`。
+
+面板走 `POST /api/texts`，与 `POST /api/params` 共用 `src/project.mjs` 的「校验 → 快照 → 写」。
 
 写入后**下一帧立即生效**，不需要重新构建场景。
 

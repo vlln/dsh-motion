@@ -29,8 +29,8 @@ const scene = makeHistoryScene({
     { at: 1.0, label: '6,000 BCE' },
   ],
   pins: [
-    { at: 0.30, tIn: 1.8, eraText: 'c. 13,000 BCE', noteText: 'First people arrive from Siberia' },
-    { at: 0.52, tIn: 3.4, eraText: 'c. 11,000 BCE', noteText: 'Clovis culture spreads across the Americas' },
+    { at: 0.30, tIn: 1.8 },
+    { at: 0.52, tIn: 3.4 },
   ],
 });
 

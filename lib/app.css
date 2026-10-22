@@ -408,3 +408,53 @@ canvas {
   opacity: 0.4;
   cursor: default;
 }
+
+/* --- on-screen text --- */
+
+.texts {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.texts h2 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.text-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.text-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.text-row .slot {
+  font: 10px ui-monospace, "SF Mono", Menlo, monospace;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+
+.text-row input {
+  width: 100%;
+  background: #0b1426;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--fg);
+  font: 12px/1.4 Inter, sans-serif;
+  padding: 5px 7px;
+}
+
+.text-row input:focus {
+  outline: none;
+  border-color: var(--accent);
+}

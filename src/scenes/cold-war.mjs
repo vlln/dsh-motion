@@ -33,8 +33,8 @@ const scene = makeHistoryScene({
   ],
   pins: [
     { at: 0.18, tIn: 0.6, eraText: '1945', noteText: 'Two superpowers', elementId: 'superpowers' },
-    { at: 0.62, tIn: 1.5, eraText: '1969', noteText: 'People walk on the Moon' },
-    { at: 0.80, tIn: 2.4, eraText: '1975', noteText: 'Out of Vietnam' },
+    { at: 0.62, tIn: 1.5 },
+    { at: 0.80, tIn: 2.4 },
   ],
 });
 

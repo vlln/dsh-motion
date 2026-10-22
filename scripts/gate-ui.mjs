@@ -28,11 +28,16 @@ const time = () => page.evaluate(() => window.__PREVIEW__.time());
 
 check('initial time is 0', (await time()) === 0, await tc());
 const frame0 = await page.screenshot();
-const sample = await page.evaluate(() => ({
-  title: window.__PREVIEW__.pixel(220, 250),
-  corner: window.__PREVIEW__.pixel(20, 20),
-}));
-check('frame 0 is not blank', JSON.stringify(sample.title) !== JSON.stringify(sample.corner), JSON.stringify(sample.title));
+// Sample the title band instead of one point: a single pixel can land in the gap
+// between glyphs and call a good frame blank.
+const sample = await page.evaluate(() => {
+  const corner = window.__PREVIEW__.pixel(20, 20);
+  const points = [
+    [165, 235], [200, 250], [260, 270], [340, 240], [430, 260],
+  ].map(([x, y]) => window.__PREVIEW__.pixel(x, y));
+  return { painted: points.filter((p) => JSON.stringify(p) !== JSON.stringify(corner)).length, corner };
+});
+check('frame 0 is not blank', sample.painted >= 1, `${sample.painted}/5 points painted`);
 
 // --- scene strip ---
 await page.click('[data-scene="cold-war"]');

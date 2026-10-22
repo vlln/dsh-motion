@@ -69,6 +69,24 @@ export async function setProjectParam(root, sceneId, key, value) {
   return { value: resolveParam(timeline, scene, mod.params, key), snapshot: snap };
 }
 
+export async function setProjectText(root, sceneId, slot, value) {
+  const timeline = readTimeline(root);
+  const scene = timeline.scenes.find((s) => s.id === sceneId);
+  if (!scene) throw new Error(`unknown scene "${sceneId}"`);
+
+  const mod = (await modules()).find((m) => m.id === sceneId);
+  if (!mod?.slots?.[slot]) {
+    throw new Error(`unknown slot "${slot}" for scene "${sceneId}" (declared: ${Object.keys(mod?.slots ?? {}).join(', ') || 'none'})`);
+  }
+
+  timeline.texts ??= {};
+  timeline.texts[sceneId] ??= {};
+  timeline.texts[sceneId][slot] = String(value);
+
+  const snap = await writeTimeline(root, timeline, `text-${sceneId}-${slot}`);
+  return { value: String(value), snapshot: snap };
+}
+
 export function history(root) {
   return listSnapshots(root);
 }

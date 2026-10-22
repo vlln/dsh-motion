@@ -330,6 +330,21 @@ export function createKernel({ timeline, modules }) {
       writeText(timeline, scene, mod.slots, slot, value);
       return resolveText(timeline, scene, mod.slots, slot);
     },
+    /** What the last rendered frame actually put on screen, with slot identity. */
+    texts() {
+      return frameText.map((record) => ({
+        scene: record.sceneId,
+        slot: record.slot,
+        text: record.text,
+        truncated: record.truncated,
+        box: {
+          x: Math.round(record.box.x),
+          y: Math.round(record.box.y),
+          w: Math.round(record.box.w),
+          h: Math.round(record.box.h),
+        },
+      }));
+    },
     setParam(sceneId, key, value) {
       const scene = timeline.scenes.find((s) => s.id === sceneId);
       if (!scene) throw new Error(`unknown scene "${sceneId}"`);
@@ -417,7 +432,9 @@ export function createKernel({ timeline, modules }) {
       if (scene.id !== sceneId) throw new Error(`t=${atT} is in scene "${scene.id}", not "${sceneId}"`);
       const entry = mounted.get(sceneId);
       counter.reset();
+      active = entry.kind === 'canvas2d' ? entry.g : null;
       entry.module.render(Math.max(0, atT - scene.start), entry.ctx);
+      active = null;
       return counter.snapshot();
     },
   };

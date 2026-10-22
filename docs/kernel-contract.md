@@ -67,6 +67,9 @@ export interface MountContext {
   font(family: 'serif' | 'sans' | 'mono' | string): string;
   rng(key: string): () => number;                  // §1.3
   asset(name: string): string;                     // assets/ 下的 URL
+  preload(names?: string[]): Promise<void>;        // 内核在 mount 前调用，装载 scene.assets
+  image(name: string, opts?: MediaOpts): Box;      // §2.2
+  frame(name: string, t: number, opts?: MediaOpts): Box;
 }
 ```
 
@@ -122,7 +125,31 @@ timeline.texts[sceneId][slot] ?? slots[slot].default ?? ''（并记一条 warnin
 `textUsage` 是声明式的"这个词改一次会动几处"，运行时统计实际读取次数并比对，
 不一致时进 `kernel.warnings`。
 
-### 2.1 `ctx.drawText`（P1，尚未实现）
+### 2.2 媒体（P2）
+
+```jsonc
+// timeline.json
+"assets": {
+  "plate": { "kind": "image", "src": "assets/plate.png" },
+  "clipA": { "kind": "clip",  "src": "assets/clip.mp4", "fps": 24 }
+}
+```
+
+场景用 `export const assets = ['plate', 'clipA']` 声明；内核在 `mount` 之前把它们装载好，
+`render` 里只做同步绘制：
+
+```js
+ctx.image('plate', { x, y, w, h, fit: 'cover', focus: [0.5, 0.5] });
+ctx.frame('clipA', t, { x, y, w, h, fit: 'cover' });
+```
+
+- 片段不是逐帧文件，而是**一张雪碧图 + 清单**（`out/media/<name>.jpg|json`），
+  `npm run assets` 生成。一个位图就能装下整段，`drawImage` 用源矩形取帧，捕获期没有文件 IO。
+- 帧索引用 `floor(t × fps)` 并夹在 `[0, count-1]`，所以同一 t 永远是同一帧。
+- 缺素材 → `mount` 抛错（`HTTP 404` / `not prepared`），**不留空帧**。
+- 素材路径必须落在包内（`scripts/assets.mjs` 拒绝 `../` 与绝对路径）。
+
+### 2.1 `ctx.drawText`（P1，已完成）
 
 文字绘制、换行、登记元素、暴露槽身份合并成一个原语，见 [primitives.md](primitives.md#文字p1)。
 在此之前，场景用 `ctx.text(slot)` + `fillText`，换行由场景自己负责（**已知缺陷：中文不换行**）。

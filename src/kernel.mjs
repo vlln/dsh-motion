@@ -5,6 +5,7 @@ import { makeResolver, patchPalettes } from './palette.mjs';
 import { resolveText, setText as writeText, makeCounter } from './texts.mjs';
 import { checkParam, describeParams, resolveParam } from './params.mjs';
 import { layoutText } from './text.mjs';
+import { fitRect, frameAt, frameRect } from './media.mjs';
 
 const FONTS = {
   serif: '"Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif',
@@ -25,6 +26,7 @@ export function createKernel({ timeline, modules }) {
   let auditSuppress = 0; // drawText registers its own boxes; don't count them twice
   let active = null; // 2d context of the pass in progress (scene canvas or overlay)
   let frameText = []; // text drawn this frame: { slot, box, lines }
+  let frameNodes = []; // images / clip frames drawn this frame
   let width = timeline.width ?? 1920;
   let height = timeline.height ?? 1080;
   let dpr = 1;
@@ -43,7 +45,36 @@ export function createKernel({ timeline, modules }) {
     const mod = byId.get(scene.id);
     if (!mod) throw new Error(`scene module "${scene.id}" is not registered`);
 
+    const media = { images: new Map(), clips: new Map() };
+
+    const loadBitmap = async (src) => {
+      const res = await fetch(new URL(src, document.baseURI));
+      if (!res.ok) throw new Error(`media "${src}": HTTP ${res.status}`);
+      return createImageBitmap(await res.blob());
+    };
+
     return {
+      /** Load every asset the scene declared. Called by the kernel before mount(). */
+      async preload(names = []) {
+        for (const name of names) {
+          const spec = timeline.assets?.[name];
+          if (!spec) {
+            throw new Error(`scene "${scene.id}" declares asset "${name}" but timeline.assets has no such entry`);
+          }
+          if (spec.kind === 'image') {
+            media.images.set(name, await loadBitmap(spec.src));
+            continue;
+          }
+          if (spec.kind === 'clip') {
+            const res = await fetch(new URL(`out/media/${name}.json`, document.baseURI));
+            if (!res.ok) throw new Error(`clip "${name}" is not prepared — run: npm run assets`);
+            const clip = await res.json();
+            media.clips.set(name, { ...clip, sheet: await loadBitmap(clip.src) });
+            continue;
+          }
+          throw new Error(`asset "${name}": unknown kind "${spec.kind}" (image | clip)`);
+        }
+      },
       canvas: entry.canvas,
       get kind() {
         return entry.kind;
@@ -78,6 +109,41 @@ export function createKernel({ timeline, modules }) {
       },
       font(family) {
         return FONTS[family] ?? family;
+      },
+      image(name, opts = {}) {
+        if (!active) throw new Error(`image("${name}") called outside a render pass`);
+        const bitmap = media.images.get(name);
+        if (!bitmap) throw new Error(`image "${name}" is not preloaded (declare it in the scene's assets)`);
+        const g = active;
+        const boxX = opts.x ?? 0;
+        const boxY = opts.y ?? 0;
+        const boxW = opts.w ?? bitmap.width;
+        const boxH = opts.h ?? bitmap.height;
+        const r = fitRect({ srcW: bitmap.width, srcH: bitmap.height, boxX, boxY, boxW, boxH, fit: opts.fit ?? 'cover', focus: opts.focus });
+        g.save();
+        if (opts.alpha !== undefined) g.globalAlpha = opts.alpha;
+        g.drawImage(bitmap, r.sx, r.sy, r.sw, r.sh, r.dx, r.dy, r.dw, r.dh);
+        g.restore();
+        frameNodes.push({ kind: 'image', name, box: { x: boxX, y: boxY, w: boxW, h: boxH } });
+        return { x: boxX, y: boxY, w: boxW, h: boxH };
+      },
+      frame(name, at, opts = {}) {
+        if (!active) throw new Error(`frame("${name}") called outside a render pass`);
+        const clip = media.clips.get(name);
+        if (!clip) throw new Error(`clip "${name}" is not preloaded (declare it in the scene's assets)`);
+        const g = active;
+        const boxX = opts.x ?? 0;
+        const boxY = opts.y ?? 0;
+        const boxW = opts.w ?? clip.frameW;
+        const boxH = opts.h ?? clip.frameH;
+        const cell = frameRect(frameAt(at, clip), clip);
+        const r = fitRect({ srcW: clip.frameW, srcH: clip.frameH, boxX, boxY, boxW, boxH, fit: opts.fit ?? 'cover', focus: opts.focus });
+        g.save();
+        if (opts.alpha !== undefined) g.globalAlpha = opts.alpha;
+        g.drawImage(clip.sheet, cell.sx + r.sx, cell.sy + r.sy, r.sw, r.sh, r.dx, r.dy, r.dw, r.dh);
+        g.restore();
+        frameNodes.push({ kind: 'clip', name, box: { x: boxX, y: boxY, w: boxW, h: boxH } });
+        return { x: boxX, y: boxY, w: boxW, h: boxH };
       },
       drawText(slot, opts = {}) {
         if (!active) throw new Error(`drawText("${slot}") called outside a render pass`);
@@ -180,6 +246,7 @@ export function createKernel({ timeline, modules }) {
       const g = kind === 'canvas2d' ? instrument(sc.getContext('2d', { colorSpace: 'srgb' })) : null;
       const entry = { module: mod, kind, canvas: sc, g, ctx: null };
       entry.ctx = makeCtx(scene, entry);
+      await entry.ctx.preload(mod.assets ?? []);
       await mod.mount?.(entry.ctx);
       mounted.set(scene.id, entry);
     }
@@ -192,6 +259,7 @@ export function createKernel({ timeline, modules }) {
 
     counter.reset();
     frameText = [];
+    frameNodes = [];
     if (entry.kind === 'canvas2d') {
       entry.g.setTransform(dpr, 0, 0, dpr, 0, 0);
       entry.g.clearRect(0, 0, width, height);
@@ -309,6 +377,22 @@ export function createKernel({ timeline, modules }) {
       // Text drawn through ctx.drawText is addressable without per-scene code.
       // Only valid for the frame that is currently drawn, hence the time check.
       if (Math.abs(atT - lastTime) > 1e-6) return null;
+      for (let i = frameNodes.length - 1; i >= 0; i--) {
+        const node = frameNodes[i];
+        const { x: nx, y: ny, w, h } = node.box;
+        if (x >= nx && x <= nx + w && y >= ny && y <= ny + h) {
+          return {
+            id: `${node.kind}-${node.name}`,
+            kind: node.kind,
+            x: Math.round(nx),
+            y: Math.round(ny),
+            w: Math.round(w),
+            h: Math.round(h),
+            label: node.name,
+            at: Number(atT.toFixed(2)),
+          };
+        }
+      }
       for (let i = frameText.length - 1; i >= 0; i--) {
         const record = frameText[i];
         if (record.sceneId !== scene.id) continue;

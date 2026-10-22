@@ -18,6 +18,8 @@ npm run gate:params  # 参数回路门禁，13 项断言（拖 → 写 → 回�
 npm run gate:surface # 工具面门禁，15 项断言（每个工具真跑一次）
 npm run gate:reference # 参考摄取门禁，15 项断言（合成片 + 静态负控 + 确定性）
 npm run gate:text     # 文字门禁，14 项断言（中文断行 / 命中 / 确定性）
+npm run gate:media    # 媒体门禁，11 项断言（图片 / 片段雪碧图 / 缺素材负控）
+npm run assets        # 把 timeline.assets 里的片段烘成雪碧图 → out/media/
 npm run preview      # 本地预览 → http://127.0.0.1:4173/preview.html
 ```
 
@@ -38,6 +40,7 @@ npm run preview      # 本地预览 → http://127.0.0.1:4173/preview.html
 | 工具面门禁 | **15/15**（9 个工具全部注册并真跑一次只读路径） |
 | 参考摄取门禁 | **15/15**（切点 / 配色 / 运动 / 静态负控 / 两次跑同字节） |
 | 文字门禁 | **14/14**（中文断行 / 禁则 / 省略号 / 按槽命中 / 同帧两次一致） |
+| 媒体门禁 | **11/11**（图片 / 片段随 t 推进 / 路径穿越拒绝 / 缺素材响亮报错） |
 
 ## 接口
 

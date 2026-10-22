@@ -100,6 +100,14 @@ try {
   const frameTc = await frame.locator('#tc').textContent();
   check('iframe preview is live', /^0:0\d\.\d\d$/.test(frameTc ?? ''), frameTc ?? '');
 
+  const mediaRes = await page.request.get(`${boot.origin}/plugins/dsh-motion/out/media/index.json`);
+  check('media route served by the plugin', mediaRes.status() === 200, String(mediaRes.status()));
+
+  // 403 from our guard, or 404 if the client normalised the dots away first:
+  // either way the file must not be served.
+  const escape = await page.request.get(`${boot.origin}/plugins/dsh-motion/out/%2e%2e/lib/index.mjs`);
+  check('prefix route never serves outside its base', escape.status() !== 200, String(escape.status()));
+
   // relative URLs inside the iframe must land on /plugins/dsh-motion/*, not the host root
   const inFrame = await frame
     .locator('body')

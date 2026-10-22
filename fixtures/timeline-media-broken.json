@@ -1,0 +1,25 @@
+{
+  "width": 1920,
+  "height": 1080,
+  "fps": 30,
+  "duration": 4,
+  "palettes": {
+    "main": {
+      "bg": "#0b1426",
+      "fg": "#f2f2f0",
+      "accent": "#e0b040",
+      "muted": "#8b98ad",
+      "grid": "#243450",
+      "panel": "#101c33"
+    }
+  },
+  "assets": {
+    "plate": { "kind": "image", "src": "out/fixtures/missing.png" },
+    "clipA": { "kind": "clip", "src": "out/fixtures/clip.mp4", "fps": 24 }
+  },
+  "overrides": {},
+  "texts": {},
+  "scenes": [
+    { "id": "media-lab", "name": "Media lab", "start": 0, "length": 4, "palette": "main", "speed": 1 }
+  ]
+}

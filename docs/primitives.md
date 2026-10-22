@@ -22,8 +22,8 @@
 | 文字 | ✅（`ctx.drawText`） | ✅（按槽命中） | ⚠️ 数据通、面板未接 | ✅ | 可用（面板待 P3） | P3 |
 | 形状 / 路径 | ✅ | ✅ | ✅（params） | ✅ | 可用 | — |
 | 3D（WebGL） | ✅ | ❌ | ❌ | ✅ | 可用但不可编辑 | P1 之后 |
-| 图片 | ❌ | ❌ | ❌ | ❌ | 缺 | P2 |
-| 视频帧 | ❌ | ❌ | ❌ | ❌ | 缺 | P2 |
+| 图片 | ✅ | ✅ | ⚠️（数据通） | ✅ | 可用（P2） | 面板选择器 |
+| 视频帧 | ✅（雪碧图） | ✅ | ⚠️（数据通） | ✅ | 可用（P2） | 面板选择器 |
 | 图表 / 数据 | ❌ | ❌ | ❌ | ❌ | 缺 | P5 |
 | 粒子 / 噪声 | ✅（自写） | ❌ | ⚠️ | ✅ | 可用 | — |
 | 音频（音床） | — | — | ✅（timeline.audio） | ✅ | 可用 | — |
@@ -80,7 +80,7 @@ ctx.shape({ x, y, w, h, radius, fill, stroke });   // 目前以场景自绘为�
 
 要补的是：`ctx.node(id, object3d)` 登记命中的屏幕包围盒；参数走 `params`。
 
-### 图片（P2）
+### 图片（P2，已完成）
 
 ```js
 await ctx.image('logo', { src: 'assets/logo.png', fit: 'contain', focus: [0.5, 0.5] });
@@ -94,7 +94,7 @@ await ctx.image('logo', { src: 'assets/logo.png', fit: 'contain', focus: [0.5, 0
 - 命中登记为矩形；可编辑字段：`src` / `fit` / `focus`；
 - 2× 时按 2× 重新采样，不能放大 1× 位图。
 
-### 视频帧（P2）
+### 视频帧（P2，已完成）
 
 ```js
 ctx.frame('clipA', t);   // 取该片段在 t 时刻的一帧并 drawImage

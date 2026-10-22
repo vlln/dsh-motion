@@ -22,14 +22,16 @@
     "link": "node scripts/dev-link.mjs",
     "build:client": "node scripts/build-client.mjs",
     "gate:client": "node scripts/gate-client.mjs",
-    "check": "npm run validate && npm run gates && npm run gate:audio && npm run gate:ui && npm run gate:layout && npm run gate:comments && npm run gate:params && npm run gate:surface && npm run gate:reference && npm run gate:text && npm run gate:split && npm run gate:client && npm run gate:plugin",
+    "check": "npm run validate && npm run gates && npm run gate:audio && npm run gate:ui && npm run gate:layout && npm run gate:comments && npm run gate:params && npm run gate:surface && npm run gate:reference && npm run gate:text && npm run gate:media && npm run gate:split && npm run gate:client && npm run gate:plugin",
     "gate:split": "node scripts/gate-split.mjs",
     "gate:film": "node scripts/gate-film.mjs",
     "gate:layout": "node scripts/gate-layout.mjs",
     "gate:params": "node scripts/gate-params.mjs",
     "gate:surface": "node scripts/gate-surface.mjs",
     "gate:reference": "node scripts/gate-reference.mjs",
-    "gate:text": "node scripts/gate-text.mjs"
+    "gate:text": "node scripts/gate-text.mjs",
+    "gate:media": "node scripts/gate-media.mjs",
+    "assets": "node scripts/assets.mjs prep"
   },
   "devDependencies": {
     "esbuild": "^0.28.2",

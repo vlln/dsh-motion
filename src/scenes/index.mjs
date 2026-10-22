@@ -4,8 +4,9 @@
 import * as firstPeoples from './first-peoples.mjs';
 import * as coldWar from './cold-war.mjs';
 import * as textLab from './text-lab.mjs';
+import * as mediaLab from './media-lab.mjs';
 
-const STATIC = [firstPeoples, coldWar, textLab];
+const STATIC = [firstPeoples, coldWar, textLab, mediaLab];
 
 const LAZY = {
   orbit: () => import('./orbit.mjs'),

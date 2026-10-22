@@ -1,7 +1,8 @@
 # dsh-motion
 
 Motion 渲染内核的最小实现：**timeline + 文本槽 + 调色板 + 参数 → 逐帧捕获 → MP4**。
-这是 [motion-kernel-contract.md](../motion-kernel-contract.md) 的可运行版本，同时以 dsh 插件形态安装使用。
+契约见 [docs/kernel-contract.md](docs/kernel-contract.md)，原语清单见 [docs/primitives.md](docs/primitives.md)，
+技术栈的取舍与「什么会让我们改主意」见 [docs/decisions.md](docs/decisions.md)。
 
 ## 跑起来
 

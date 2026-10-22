@@ -59,6 +59,7 @@
     "src",
     "scripts",
     "README.md",
+    "docs",
     "LICENSE"
   ],
   "license": "MIT",

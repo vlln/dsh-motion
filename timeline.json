@@ -53,11 +53,5 @@
     "start": 0,
     "targetLufs": -14,
     "fit": "trim"
-  },
-  "params": {
-    "first-peoples": {
-      "axisY": 0.665,
-      "enter": 0.41
-    }
   }
 }

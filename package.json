@@ -13,6 +13,7 @@
     "validate": "node scripts/validate-tests.mjs",
     "gate:validate": "node scripts/validate-tests.mjs",
     "preview": "node scripts/serve.mjs",
+    "dev:host": "node scripts/verify-standalone.mjs",
     "gate:ui": "node scripts/gate-ui.mjs",
     "gate:comments": "node scripts/gate-comments.mjs",
     "comments": "node scripts/comments.mjs",

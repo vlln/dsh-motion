@@ -29,7 +29,8 @@ install('web', ROOT, HOME);
 const boot = await bootWeb(HOME);
 
 console.log(`\nmanual verification\n  url   ${boot.url}\n  home  ${HOME}\n`);
-console.log('open the page, click the ◐ Motion launcher at the bottom right.');
+console.log('open the page and ask the agent to render; the film lands in the right sidebar.');
+console.log('the ◐ Motion entry in the left sidebar opens the full editor.');
 
 const shutdown = () => {
   boot.stop();

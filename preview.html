@@ -51,28 +51,7 @@
         </div>
       </details>
 
-      <details class="menu" id="export">
-        <summary><span>导出</span></summary>
-        <div class="menu-body">
-          <label class="field"><span>格式</span>
-            <select id="expFormat">
-              <option value="mp4">MP4（含音轨）</option>
-              <option value="gif">GIF（无音频）</option>
-            </select>
-          </label>
-          <label class="field"><span>帧率</span>
-            <select id="expFps">
-              <option value="30">30 fps</option>
-              <option value="60">60 fps</option>
-            </select>
-          </label>
-          <label class="field"><span>2× 超采样</span><input type="checkbox" id="expSs" /></label>
-          <p class="hint" id="expEstimate"></p>
-          <button id="expRun" class="btn" style="width: 100%">导出</button>
-          <p class="hint" id="expResult"></p>
-        </div>
-      </details>
-
+      <button id="exportOpen" class="export-pill">导出</button>
       <span class="tag" id="mode" hidden></span>
       <span class="dim" id="projectScope" hidden></span>
       <span class="dim" id="exportScope" hidden></span>
@@ -168,6 +147,58 @@
         <button id="loop" class="btn ghost" aria-pressed="false" title="循环播放">循环</button>
         <button id="undo" class="btn ghost" disabled title="回到上一次写入前">回退</button>
         <input id="scrub" class="scrub" type="range" min="0" max="19" step="0.01" value="0" />
+      </div>
+    </div>
+
+
+    <div class="modal" id="exportModal" hidden>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="exportTitle">
+        <header class="modal-head">
+          <h2 id="exportTitle">导出</h2>
+          <button class="icon-btn" id="exportClose" aria-label="关闭">×</button>
+        </header>
+
+        <div class="modal-row"><span>格式</span>
+          <div class="seg" data-field="format">
+            <button data-value="mp4" aria-pressed="true">MP4 视频</button>
+            <button data-value="gif" aria-pressed="false">GIF</button>
+          </div>
+        </div>
+
+        <div class="modal-row"><span>分辨率</span>
+          <div class="seg" data-field="height">
+            <button data-value="720" aria-pressed="false">720p</button>
+            <button data-value="1080" aria-pressed="true">1080p</button>
+          </div>
+        </div>
+
+        <div class="modal-row"><span>帧率</span>
+          <div class="seg" data-field="fps">
+            <button data-value="60" aria-pressed="true">60 fps</button>
+            <button data-value="30" aria-pressed="false">30 fps</button>
+            <button data-value="15" aria-pressed="false">15 fps</button>
+          </div>
+        </div>
+
+        <div class="modal-row"><span>质量</span>
+          <div class="seg" data-field="quality">
+            <button data-value="high" aria-pressed="true">高</button>
+            <button data-value="medium" aria-pressed="false">中</button>
+            <button data-value="low" aria-pressed="false">低</button>
+          </div>
+        </div>
+
+        <div class="modal-row"><span>文字更清晰<small>（2× 渲染，较慢）</small></span>
+          <label class="switch"><input type="checkbox" id="expSs" /><span class="knob"></span></label>
+        </div>
+
+        <p class="hint" id="expEstimate"></p>
+
+        <footer class="modal-foot">
+          <button class="btn ghost" id="exportCancel">取消</button>
+          <button class="btn" id="expRun">导出</button>
+        </footer>
+        <p class="hint" id="expResult"></p>
       </div>
     </div>
 

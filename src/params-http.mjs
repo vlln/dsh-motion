@@ -77,8 +77,8 @@ export function paramsHandlers(root) {
       json(res, 200, { ok: true, scene: out.scene, duration: out.duration, snapshot: out.snapshot });
     }),
     export: wrap(async (req, res) => {
-      const { format, fps, supersample, timeline } = await readBody(req);
-      const out = await exportProject(root, { format, fps, supersample, file: timeline });
+      const { format, fps, supersample, height, quality, timeline } = await readBody(req);
+      const out = await exportProject(root, { format, fps, supersample, height, quality, file: timeline });
       json(res, 200, { ok: true, ...out });
     }),
     projects: wrap(async (req, res) =>

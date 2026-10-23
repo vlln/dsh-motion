@@ -346,6 +346,9 @@ export async function exportProject(root, opts = {}) {
   const fps = Number(opts.fps ?? timeline.fps ?? 60);
   if (!(fps >= 1 && fps <= 120)) throw new Error(`fps must be 1..120 (got ${opts.fps})`);
   const supersample = Math.max(1, Math.min(2, Number(opts.supersample ?? 1)));
+  const height = [720, 1080].includes(Number(opts.height)) ? Number(opts.height) : (timeline.height ?? 1080);
+  const quality = ['high', 'medium', 'low'].includes(opts.quality) ? opts.quality : 'high';
+  const crf = { high: 18, medium: 23, low: 28 }[quality];
 
   const base = path.basename(file, '.json');
   const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
@@ -354,7 +357,12 @@ export async function exportProject(root, opts = {}) {
 
   execFileSync(
     process.execPath,
-    ['scripts/capture.mjs', '--video', '--timeline', file, '--out', mp4, '--fps', String(fps), '--supersample', String(supersample), ...(format === 'gif' ? ['--no-audio'] : [])],
+    [
+      'scripts/capture.mjs', '--video', '--timeline', file, '--out', mp4,
+      '--fps', String(fps), '--supersample', String(supersample),
+      '--crf', String(crf), '--out-height', String(height),
+      ...(format === 'gif' ? ['--no-audio'] : []),
+    ],
     { cwd: root, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 },
   );
 
@@ -374,6 +382,8 @@ export async function exportProject(root, opts = {}) {
     path: rel,
     format,
     fps,
+    height,
+    quality,
     supersample,
     bytes: fs.statSync(abs).size,
     ms: Date.now() - started,

@@ -37,9 +37,10 @@ const projectTemplate = $('projectTemplate');
 const projectName = $('projectName');
 const projectCreate = $('projectCreate');
 const projectNote = $('projectNote');
-const exportScope = $('exportScope');
-const expFormat = $('expFormat');
-const expFps = $('expFps');
+const exportOpen = $('exportOpen');
+const exportModal = $('exportModal');
+const exportClose = $('exportClose');
+const exportCancel = $('exportCancel');
 const expSs = $('expSs');
 const expEstimate = $('expEstimate');
 const expRun = $('expRun');
@@ -451,26 +452,55 @@ projectCreate.addEventListener('click', async () => {
 });
 
 // --- export: the panel should be where a film leaves ---
-function estimateExport() {
-  const fps = Number(expFps.value);
-  const ss = expSs.checked ? 2 : 1;
-  const gif = expFormat.value === 'gif';
-  // Rates are measured on this repo's demo (1080p, crf 18): ~0.22 MB/s at 60fps.
-  const mb = gif ? 0.9 * total * (fps / 60) : 0.22 * total * (fps / 60) * (ss === 2 ? 1.15 : 1);
-  const secs = Math.round(total * (fps / 60) * 1.2 * (ss === 2 ? 3.4 : 1));
-  return `约 ${mb.toFixed(1)} MB · 约 ${secs} 秒`;
+const segValue = (field) =>
+  document.querySelector(`.seg[data-field="${field}"] button[aria-pressed="true"]`)?.dataset.value;
+
+for (const field of ['format', 'height', 'fps', 'quality']) {
+  for (const button of document.querySelectorAll(`.seg[data-field="${field}"] button`)) {
+    button.addEventListener('click', () => {
+      for (const other of button.parentElement.children) other.setAttribute('aria-pressed', String(other === button));
+      syncExportEstimate();
+    });
+  }
 }
 
 function syncExportEstimate() {
-  // The summary is what you see while the card is folded, so it carries the
-  // price of the export rather than the frame rate.
-  exportScope.textContent = estimateExport();
-  expEstimate.textContent = `${total.toFixed(1)}s · ${expFps.value}fps · 估算按示例片实测速率`;
+  const fps = Number(segValue('fps') ?? 60);
+  const height = Number(segValue('height') ?? 1080);
+  const quality = segValue('quality') ?? 'high';
+  const gif = (segValue('format') ?? 'mp4') === 'gif';
+  const ss = expSs.checked ? 2 : 1;
+  // Measured on this film's own exports (1080p, high): ~0.15 MB/s at 60fps.
+  const rate =
+    0.15 *
+    (height / 1080) ** 1.4 *
+    (fps / 60) *
+    ({ high: 1, medium: 0.62, low: 0.38 }[quality] ?? 1) *
+    (gif ? 1.6 : ss === 2 ? 1.35 : 1);
+  const mb = Math.max(0.1, total * rate);
+  const secs = Math.round(total * (fps / 60) * (height / 1080) ** 1.2 * (ss === 2 ? 2.2 : 1) * 0.6);
+  expEstimate.textContent = `约 ${mb.toFixed(1)} MB · 约 ${secs} 秒`;
 }
 
-expFps.addEventListener('change', syncExportEstimate);
-expFormat.addEventListener('change', syncExportEstimate);
 expSs.addEventListener('change', syncExportEstimate);
+
+const setExportOpen = (open) => {
+  exportModal.hidden = !open;
+  if (open) {
+    syncExportEstimate();
+    expResult.textContent = '';
+  }
+};
+
+exportOpen.addEventListener('click', () => setExportOpen(true));
+exportClose.addEventListener('click', () => setExportOpen(false));
+exportCancel.addEventListener('click', () => setExportOpen(false));
+exportModal.addEventListener('click', (e) => {
+  if (e.target === exportModal) setExportOpen(false);
+});
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !exportModal.hidden) setExportOpen(false);
+});
 
 expRun.addEventListener('click', async () => {
   expRun.disabled = true;
@@ -483,8 +513,10 @@ expRun.addEventListener('click', async () => {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: body({
-        format: expFormat.value,
-        fps: Number(expFps.value),
+        format: segValue('format') ?? 'mp4',
+        fps: Number(segValue('fps') ?? 60),
+        height: Number(segValue('height') ?? 1080),
+        quality: segValue('quality') ?? 'high',
         supersample: expSs.checked ? 2 : 1,
       }),
     });

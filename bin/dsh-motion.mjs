@@ -106,7 +106,20 @@ async function exportVideo() {
     console.log(gif);
     return;
   }
-  await run('capture.mjs', ['--video', ...(out ? ['--out', out] : []), ...(opt('fps') ? ['--fps', opt('fps')] : [])], FILM);
+  const quality = opt('quality', 'high');
+  const crf = { high: 18, medium: 23, low: 28 }[quality] ?? 18;
+  const height = opt('height', '');
+  await run(
+    'capture.mjs',
+    [
+      '--video',
+      '--out', out ?? (flag('gif') ? 'out/export.gif' : 'out/export.mp4'),
+      ...(opt('fps') ? ['--fps', opt('fps')] : []),
+      ...(height ? ['--out-height', height] : []),
+      '--crf', String(crf),
+    ],
+    FILM,
+  );
 }
 
 const commands = {
@@ -122,7 +135,7 @@ if (!cmd || !commands[cmd]) {
   console.error('  init      [--title "…"] [--length 6]');
   console.error('  validate  check the timeline and every scene it names');
   console.error('  render    [--stills 0,3,6] | [--video] [--out path] [--cols 3]');
-  console.error('  export    [--gif] [--out path] [--fps 30]');
+  console.error('  export    [--gif] [--out path] [--fps 30] [--height 720|1080] [--quality high|medium|low]');
   process.exit(cmd ? 1 : 0);
 }
 

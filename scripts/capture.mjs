@@ -44,6 +44,10 @@ const H = Number(opt('height', 1080));
 // pass keeps glyph edges sharp at 1080p.
 const supersample = Math.max(1, Math.min(2, Number(opt('supersample', 1))));
 const dpr = Number(opt('dpr', supersample));
+// Encoder quality and output height are separate knobs: CRF changes how much
+// the same pixels are compressed, height changes how many pixels there are.
+const crf = String(Math.max(0, Math.min(51, Number(opt('crf', 18)))));
+const outHeight = Number(opt('out-height', 0));
 const page = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: dpr });
 page.on('pageerror', (e) => console.error('[page error]', e.message));
 page.on('console', (m) => m.type() === 'error' && console.error('[page]', m.text()));
@@ -52,7 +56,8 @@ const query = timelinePath === path.join(PROJECT, 'timeline.json') ? '' : `?time
 await page.goto(`${origin}/index.html${query}`);
 await page.waitForFunction(() => window.__MOTION__?.ready === true, null, { timeout: 30000 });
 
-const out = path.resolve(PROJECT, opt('out', 'out/out.png'));
+const isVideo = has('video');
+const out = path.resolve(PROJECT, opt('out', isVideo ? 'out/video.mp4' : 'out/out.png'));
 fs.mkdirSync(path.dirname(out), { recursive: true });
 
 async function renderAt(t) {
@@ -116,8 +121,13 @@ const ff = spawn(
   [
     '-loglevel', 'error', '-y',
     '-f', 'image2pipe', '-framerate', String(fps), '-i', '-',
-    ...(supersample > 1 ? ['-vf', `scale=${W}:${H}:flags=lanczos`] : []),
-    '-c:v', 'libx264', '-preset', 'medium', '-crf', '18',
+    ...(() => {
+      const filters = [];
+      if (supersample > 1) filters.push(`scale=${W}:${H}:flags=lanczos`);
+      if (outHeight && outHeight !== H) filters.push(`scale=-2:${outHeight}:flags=lanczos`);
+      return filters.length ? ['-vf', filters.join(',')] : [];
+    })(),
+    '-c:v', 'libx264', '-preset', 'medium', '-crf', crf,
     '-pix_fmt', 'yuv420p', '-movflags', '+faststart', silent,
   ],
   { stdio: ['pipe', 'inherit', 'inherit'] },

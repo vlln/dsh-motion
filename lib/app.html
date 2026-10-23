@@ -30,9 +30,9 @@
       </main>
 
       <aside class="panel">
-        <header>
-          <h1>dsh-motion</h1>
-          <p class="sub">preview · <span id="mode">paused</span></p>
+        <header class="panel-head">
+          <h1>Motion</h1>
+          <span class="tag" id="mode">paused</span>
         </header>
 
         <section class="readout">
@@ -81,7 +81,12 @@
         <div class="playhead" id="playhead"></div>
       </div>
       <div class="transport">
-        <button id="play" class="btn" aria-label="play">▶</button>
+        <button id="play" class="btn icon" aria-label="play">
+          <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+            <path class="i-play" d="M5 3.2v9.6l8-4.8z" />
+            <path class="i-pause" d="M5.4 3.4h2.2v9.2H5.4zM8.4 3.4h2.2v9.2H8.4z" style="display: none" />
+          </svg>
+        </button>
         <button id="loop" class="btn ghost" aria-pressed="false">循环</button>
         <input id="scrub" class="scrub" type="range" min="0" max="19" step="0.01" value="0" />
       </div>

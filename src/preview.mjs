@@ -149,7 +149,15 @@ function tick(now) {
 }
 
 function updatePlayButton() {
-  playBtn.textContent = playing ? '⏸' : '▶';
+  const icon = playBtn.querySelector('.i-play');
+  const pause = playBtn.querySelector('.i-pause');
+  // `hidden` is an HTML attribute; on SVG paths it does nothing, so both icons
+  // would paint on top of each other.
+  if (icon && pause) {
+    icon.style.display = playing ? 'none' : 'inline';
+    pause.style.display = playing ? 'inline' : 'none';
+  }
+  playBtn.setAttribute('aria-label', playing ? 'pause' : 'play');
   modeEl.textContent = playing ? 'playing' : 'paused';
 }
 

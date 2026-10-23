@@ -9,7 +9,7 @@ const KEEP = 20;
 const ID = /^[0-9TZ-]+-[A-Za-z0-9-]+$/;
 
 const dir = (root) => path.join(root, '.motion', 'snapshots');
-const timelineFile = (root) => path.join(root, 'timeline.json');
+const timelineFile = (root, file = 'timeline.json') => path.join(root, file);
 
 const stamp = () => new Date().toISOString().replace(/[:.]/g, '-');
 const slug = (reason) => String(reason).replace(/[^A-Za-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 32);
@@ -18,17 +18,17 @@ const slug = (reason) => String(reason).replace(/[^A-Za-z0-9-]+/g, '-').replace(
  * Copy the current timeline.json aside. Call this *before* writing: the point is
  * to keep the state the user can return to.
  */
-export function snapshot(root, reason = 'edit', keep = KEEP) {
-  const src = timelineFile(root);
+export function snapshot(root, reason = 'edit', keep = KEEP, file = 'timeline.json') {
+  const src = timelineFile(root, file);
   if (!fs.existsSync(src)) return null;
 
   const directory = dir(root);
   fs.mkdirSync(directory, { recursive: true });
   const id = `${stamp()}-${slug(reason) || 'edit'}`;
-  const file = path.join(directory, `${id}.json`);
-  fs.copyFileSync(src, file);
+  const copy = path.join(directory, `${id}.json`);
+  fs.copyFileSync(src, copy);
   prune(directory, keep);
-  return { id, at: atOf(id), reason: reasonOf(id), bytes: fs.statSync(file).size };
+  return { id, at: atOf(id), reason: reasonOf(id), bytes: fs.statSync(copy).size };
 }
 
 function reasonOf(id) {

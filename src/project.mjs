@@ -11,7 +11,12 @@ import { describeParams, resolveParam, checkParam as validateParam } from './par
 import { checkValue as validateValue } from './values.mjs';
 import { listSnapshots, readSnapshot, snapshot } from './snapshots.mjs';
 
-const timelineFile = (root) => path.join(root, 'timeline.json');
+const timelineFile = (root, file = 'timeline.json') => {
+  const abs = path.resolve(root, file);
+  if (!abs.startsWith(root + path.sep)) throw new Error(`timeline path escapes the package: ${file}`);
+  if (path.extname(abs) !== '.json') throw new Error(`timeline must be a .json file: ${file}`);
+  return abs;
+};
 
 // The node-side module list pulls three in (orbit.mjs). Loading it lazily keeps
 // `dsh` boot free of that cost: only an edit or a panel open ever pays it.
@@ -21,8 +26,8 @@ export async function modules() {
   return cached;
 }
 
-export function readTimeline(root) {
-  return JSON.parse(fs.readFileSync(timelineFile(root), 'utf8'));
+export function readTimeline(root, file = 'timeline.json') {
+  return JSON.parse(fs.readFileSync(timelineFile(root, file), 'utf8'));
 }
 
 function assertValid(timeline, mods) {
@@ -31,17 +36,17 @@ function assertValid(timeline, mods) {
 }
 
 /** Validate, keep the previous file, then write. `reason` ends up in the snapshot id. */
-export async function writeTimeline(root, timeline, reason = 'edit') {
+export async function writeTimeline(root, timeline, reason = 'edit', file = 'timeline.json') {
   const mods = await modules();
   assertValid(timeline, mods);
-  const snap = snapshot(root, reason);
-  fs.writeFileSync(timelineFile(root), `${JSON.stringify(timeline, null, 2)}\n`);
+  const snap = snapshot(root, reason, undefined, file);
+  fs.writeFileSync(timelineFile(root, file), `${JSON.stringify(timeline, null, 2)}\n`);
   return snap;
 }
 
 /** Every scene that declares knobs, with its current values. */
-export async function describeProject(root) {
-  const timeline = readTimeline(root);
+export async function describeProject(root, file = 'timeline.json') {
+  const timeline = readTimeline(root, file);
   const mods = await modules();
   return timeline.scenes
     .map((scene) => {
@@ -55,8 +60,8 @@ export async function describeProject(root) {
     .filter((scene) => scene.knobs.length > 0);
 }
 
-export async function setProjectParam(root, sceneId, key, value) {
-  const timeline = readTimeline(root);
+export async function setProjectParam(root, sceneId, key, value, file = 'timeline.json') {
+  const timeline = readTimeline(root, file);
   const scene = timeline.scenes.find((s) => s.id === sceneId);
   if (!scene) throw new Error(`unknown scene "${sceneId}"`);
 
@@ -67,12 +72,12 @@ export async function setProjectParam(root, sceneId, key, value) {
   timeline.params[sceneId] ??= {};
   timeline.params[sceneId][key] = value;
 
-  const snap = await writeTimeline(root, timeline, `param-${sceneId}-${key}`);
+  const snap = await writeTimeline(root, timeline, `param-${sceneId}-${key}`, file);
   return { value: resolveParam(timeline, scene, mod.params, key), snapshot: snap };
 }
 
-export async function setProjectText(root, sceneId, slot, value) {
-  const timeline = readTimeline(root);
+export async function setProjectText(root, sceneId, slot, value, file = 'timeline.json') {
+  const timeline = readTimeline(root, file);
   const scene = timeline.scenes.find((s) => s.id === sceneId);
   if (!scene) throw new Error(`unknown scene "${sceneId}"`);
 
@@ -85,12 +90,12 @@ export async function setProjectText(root, sceneId, slot, value) {
   timeline.texts[sceneId] ??= {};
   timeline.texts[sceneId][slot] = String(value);
 
-  const snap = await writeTimeline(root, timeline, `text-${sceneId}-${slot}`);
+  const snap = await writeTimeline(root, timeline, `text-${sceneId}-${slot}`, file);
   return { value: String(value), snapshot: snap };
 }
 
-export async function setProjectValue(root, sceneId, key, value) {
-  const timeline = readTimeline(root);
+export async function setProjectValue(root, sceneId, key, value, file = 'timeline.json') {
+  const timeline = readTimeline(root, file);
   const scene = timeline.scenes.find((s) => s.id === sceneId);
   if (!scene) throw new Error(`unknown scene "${sceneId}"`);
 
@@ -101,7 +106,7 @@ export async function setProjectValue(root, sceneId, key, value) {
   timeline.values[sceneId] ??= {};
   timeline.values[sceneId][key] = value;
 
-  const snap = await writeTimeline(root, timeline, `value-${sceneId}-${key}`);
+  const snap = await writeTimeline(root, timeline, `value-${sceneId}-${key}`, file);
   return { value, snapshot: snap };
 }
 
@@ -112,8 +117,8 @@ const IMAGE_EXT = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif']);
  * Clips are refused: their sprite sheet was baked by `npm run assets`, so a new
  * source needs a new bake — changing the path alone would render the old frames.
  */
-export async function setProjectAsset(root, name, src) {
-  const timeline = readTimeline(root);
+export async function setProjectAsset(root, name, src, file = 'timeline.json') {
+  const timeline = readTimeline(root, file);
   const spec = timeline.assets?.[name];
   if (!spec) throw new Error(`unknown asset "${name}" (declared: ${Object.keys(timeline.assets ?? {}).join(', ') || 'none'})`);
   if (spec.kind !== 'image') {
@@ -127,7 +132,7 @@ export async function setProjectAsset(root, name, src) {
   if (!IMAGE_EXT.has(ext)) throw new Error(`not an image (${ext || 'no extension'}): ${src}`);
 
   timeline.assets[name] = { ...spec, src };
-  const snap = await writeTimeline(root, timeline, `asset-${name}`);
+  const snap = await writeTimeline(root, timeline, `asset-${name}`, file);
   return { name, src, snapshot: snap };
 }
 
@@ -138,8 +143,8 @@ const VIDEO_EXT = new Set(['.mp4', '.mov', '.webm', '.mkv', '.m4v']);
  * asset. If the bake fails the timeline is rolled back — a clip whose source is
  * not baked would render stale frames, which is worse than refusing.
  */
-export async function rebakeAsset(root, name, src) {
-  const timeline = readTimeline(root);
+export async function rebakeAsset(root, name, src, file = 'timeline.json') {
+  const timeline = readTimeline(root, file);
   const spec = timeline.assets?.[name];
   if (!spec) throw new Error(`unknown asset "${name}" (declared: ${Object.keys(timeline.assets ?? {}).join(', ') || 'none'})`);
   if (spec.kind !== 'clip') throw new Error(`asset "${name}" is ${spec.kind === 'image' ? 'an' : 'a'} ${spec.kind}: only clips are baked`);
@@ -152,10 +157,10 @@ export async function rebakeAsset(root, name, src) {
     throw new Error(`not a video (${path.extname(abs) || 'no extension'}): ${target}`);
   }
 
-  const previous = fs.readFileSync(path.join(root, 'timeline.json'), 'utf8');
+  const previous = fs.readFileSync(timelineFile(root, file), 'utf8');
   if (target !== spec.src) {
     timeline.assets[name] = { ...spec, src: target };
-    await writeTimeline(root, timeline, `asset-${name}`);
+    await writeTimeline(root, timeline, `asset-${name}`, file);
   }
 
   try {
@@ -164,7 +169,7 @@ export async function rebakeAsset(root, name, src) {
       encoding: 'utf8',
     });
   } catch (err) {
-    fs.writeFileSync(path.join(root, 'timeline.json'), previous);
+    fs.writeFileSync(timelineFile(root, file), previous);
     throw new Error(`rebake failed: ${String(err.stderr || err.stdout || err.message).trim()}`);
   }
 
@@ -177,11 +182,11 @@ export function history(root) {
 }
 
 /** Restore a snapshot; the state being replaced is itself snapshotted first. */
-export async function restoreProject(root, id) {
+export async function restoreProject(root, id, file = 'timeline.json') {
   const next = readSnapshot(root, id);
   const mods = await modules();
   assertValid(next, mods);
-  snapshot(root, 'pre-restore');
-  fs.writeFileSync(timelineFile(root), `${JSON.stringify(next, null, 2)}\n`);
+  snapshot(root, 'pre-restore', undefined, file);
+  fs.writeFileSync(timelineFile(root, file), `${JSON.stringify(next, null, 2)}\n`);
   return next;
 }

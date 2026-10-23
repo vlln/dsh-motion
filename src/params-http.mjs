@@ -39,42 +39,42 @@ export function paramsHandlers(root) {
   return {
     get: wrap(async (req, res) => json(res, 200, { scenes: await describeProject(root) })),
     set: wrap(async (req, res) => {
-      const { scene, key, value } = await readBody(req);
+      const { scene, key, value, timeline } = await readBody(req);
       if (!scene || !key) throw new Error('set needs scene and key');
-      const out = await setProjectParam(root, scene, key, value);
+      const out = await setProjectParam(root, scene, key, value, timeline);
       json(res, 200, { ok: true, scene, key, value: out.value, snapshot: out.snapshot });
     }),
     text: wrap(async (req, res) => {
-      const { scene, slot, value } = await readBody(req);
+      const { scene, slot, value, timeline } = await readBody(req);
       if (!scene || !slot) throw new Error('set needs scene and slot');
       if (value === undefined || value === null) throw new Error('set needs value');
-      const out = await setProjectText(root, scene, slot, value);
+      const out = await setProjectText(root, scene, slot, value, timeline);
       json(res, 200, { ok: true, scene, slot, value: out.value, snapshot: out.snapshot });
     }),
     value: wrap(async (req, res) => {
-      const { scene, key, value } = await readBody(req);
+      const { scene, key, value, timeline } = await readBody(req);
       if (!scene || !key) throw new Error('set needs scene and key');
       if (value === undefined || value === null) throw new Error('set needs value');
-      const out = await setProjectValue(root, scene, key, value);
+      const out = await setProjectValue(root, scene, key, value, timeline);
       json(res, 200, { ok: true, scene, key, value: out.value, snapshot: out.snapshot });
     }),
     asset: wrap(async (req, res) => {
-      const { name, src } = await readBody(req);
+      const { name, src, timeline } = await readBody(req);
       if (!name || !src) throw new Error('set needs name and src');
-      const out = await setProjectAsset(root, name, src);
+      const out = await setProjectAsset(root, name, src, timeline);
       json(res, 200, { ok: true, name: out.name, src: out.src, snapshot: out.snapshot });
     }),
     rebake: wrap(async (req, res) => {
-      const { name, src } = await readBody(req);
+      const { name, src, timeline } = await readBody(req);
       if (!name) throw new Error('rebake needs name');
-      const out = await rebakeAsset(root, name, src);
+      const out = await rebakeAsset(root, name, src, timeline);
       json(res, 200, { ok: true, name: out.name, src: out.src, manifest: out.manifest });
     }),
     history: wrap(async (req, res) => json(res, 200, { snapshots: history(root) })),
     restore: wrap(async (req, res) => {
-      const { id } = await readBody(req);
+      const { id, timeline: target } = await readBody(req);
       if (!id) throw new Error('restore needs id');
-      const timeline = await restoreProject(root, id);
+      const timeline = await restoreProject(root, id, target);
       json(res, 200, { ok: true, restored: id, timeline });
     }),
   };

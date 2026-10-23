@@ -16,6 +16,8 @@ const FILE = path.join(ROOT, 'timeline.json');
 const before = fs.readFileSync(FILE, 'utf8');
 const hadMeta = fs.existsSync(path.join(ROOT, '.motion'));
 const snapsBefore = new Set(listSnapshots(ROOT).map((s) => s.id));
+const TOUR = path.join(ROOT, 'fixtures/timeline-tour.json');
+const tourBefore = fs.readFileSync(TOUR, 'utf8');
 
 const { check, finish } = createGate();
 const read = () => JSON.parse(fs.readFileSync(FILE, 'utf8'));
@@ -102,6 +104,20 @@ try {
   check('an over-long value is rejected', res.status === 400 && /maxChars/.test(body.error ?? ''), body.error ?? res.status);
   check('the rejected write left the file alone', read().texts['first-peoples'].title === edited);
 
+  // --- the page writes to the timeline it was opened with ---
+  const rootAtTour = fs.readFileSync(FILE, 'utf8');
+  const tourPage = await browser.newPage({ viewport: { width: 1600, height: 900 }, deviceScaleFactor: 1 });
+  await tourPage.goto(`${origin}/preview.html?timeline=./fixtures/timeline-tour.json`);
+  await tourPage.waitForFunction(() => window.__PREVIEW__?.ready === true, { timeout: 30000 });
+  await tourPage.evaluate(() => window.__PREVIEW__.setTime(2));
+  const tourInput = tourPage.locator('#textList input[data-text-slot="title"]');
+  await tourInput.fill('Tour title');
+  await tourPage.evaluate(() => document.activeElement.blur());
+  const tourSaved = await until(() => JSON.parse(fs.readFileSync(TOUR, 'utf8')).texts?.['first-peoples']?.title === 'Tour title');
+  check('writes follow the timeline the page opened', tourSaved, JSON.parse(fs.readFileSync(TOUR, 'utf8')).texts?.['first-peoples']?.title ?? 'unchanged');
+  check('the default timeline is untouched by a tour edit', fs.readFileSync(FILE, 'utf8') === rootAtTour);
+  await tourPage.close();
+
   const ghost = await fetch(`${origin}/api/texts`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -112,6 +128,7 @@ try {
   await browser.close();
   close();
   fs.writeFileSync(FILE, before);
+  fs.writeFileSync(TOUR, tourBefore);
   for (const snap of listSnapshots(ROOT)) {
     if (snapsBefore.has(snap.id)) continue;
     fs.rmSync(path.join(ROOT, '.motion/snapshots', `${snap.id}.json`), { force: true });

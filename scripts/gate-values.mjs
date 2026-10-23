@@ -16,6 +16,14 @@ import { setProjectValue } from '../src/project.mjs';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const { check, finish } = createGate();
 
+// The panel now writes to the timeline it was opened with, so this gate edits
+// the fixture it loads. Keep the original bytes and start from declared defaults.
+const FIXTURE = path.join(ROOT, 'fixtures/timeline-values.json');
+const fixtureBefore = fs.readFileSync(FIXTURE, 'utf8');
+const clean = JSON.parse(fixtureBefore);
+clean.values = {};
+fs.writeFileSync(FIXTURE, `${JSON.stringify(clean, null, 2)}\n`);
+
 // --- formatting ---
 check('int formats with a suffix', formatValue(21, { format: 'int', suffix: ' km/h' }) === '21 km/h', formatValue(21, { format: 'int', suffix: ' km/h' }));
 check('percent scales by 100', formatValue(0.421, { format: 'percent' }) === '42%', formatValue(0.421, { format: 'percent' }));
@@ -92,6 +100,7 @@ try {
 } finally {
   await browser.close();
   close();
+  fs.writeFileSync(FIXTURE, fixtureBefore);
 }
 
 finish();

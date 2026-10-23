@@ -40,6 +40,11 @@ const knobScene = $('knobScene');
 const knobNote = $('knobNote');
 const undoBtn = $('undo');
 
+// If this page was opened with ?timeline=, writes must land in that same file.
+const requested = new URLSearchParams(location.search).get('timeline');
+const target = requested && /^(\.\/|\/plugins\/dsh-motion\/)/.test(requested) ? requested : null;
+const body = (payload) => JSON.stringify(target ? { ...payload, timeline: target } : payload);
+
 const dpr = Math.min(2, window.devicePixelRatio || 1);
 const { timeline, kernel } = await mountMotion({ canvas, dpr });
 
@@ -176,7 +181,7 @@ async function persistAsset(name, src) {
     const res = await fetch('./api/assets', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name, src }),
+      body: body({ name, src }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? res.statusText);
@@ -197,7 +202,7 @@ async function persistRebake(name, src) {
     const res = await fetch('./api/assets/rebake', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name, src }),
+      body: body({ name, src }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? res.statusText);
@@ -268,7 +273,7 @@ async function persistValue(sceneId, key, value) {
     const res = await fetch('./api/values', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ scene: sceneId, key, value }),
+      body: body({ scene: sceneId, key, value }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? res.statusText);
@@ -284,7 +289,7 @@ async function persistText(sceneId, slot, value) {
     const res = await fetch('./api/texts', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ scene: sceneId, slot, value }),
+      body: body({ scene: sceneId, slot, value }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? res.statusText);
@@ -385,7 +390,7 @@ async function persistParam(sceneId, key, value) {
     const res = await fetch('./api/params', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ scene: sceneId, key, value }),
+      body: body({ scene: sceneId, key, value }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? res.statusText);
@@ -445,7 +450,7 @@ undoBtn.addEventListener('click', async () => {
     const res = await fetch('./api/history/restore', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ id: latestSnapshot }),
+      body: body({ id: latestSnapshot }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? res.statusText);

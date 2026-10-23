@@ -94,6 +94,24 @@ try {
   const composer = await page.locator('[contenteditable="true"]').first().isVisible();
   check('the conversation stays beside the film', composer, 'composer visible');
 
+  // --- a comment travels panel → host → the session it belongs to ---
+  // The panel cannot talk to a session; the client half relays it, and the
+  // session is proven by the panel's own mount path.
+  const said = await tabFrame.locator('body').evaluate(async () => {
+    const out = await window.__PREVIEW__.comment({
+      t: 1,
+      rect: { x: 100, y: 100, w: 400, h: 200 },
+      text: '门禁批注',
+    });
+    return { ok: out.sent.ok, reason: out.sent.reason ?? null };
+  });
+  check('a comment is delivered to the session', said.ok === true, said.reason ?? 'ok');
+  const landed = await page
+    .waitForFunction(() => document.body.innerText.includes('门禁批注'), null, { timeout: 20000 })
+    .then(() => true)
+    .catch(() => false);
+  check('the comment appears as a message in the conversation', landed, landed ? 'found' : 'missing');
+
   await page.screenshot({ path: path.join(ROOT, 'out/ui-tab-dsh.png') });
 } finally {
   await browser?.close();

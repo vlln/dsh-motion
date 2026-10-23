@@ -155,7 +155,7 @@ canvas {
 }
 
 .tc {
-  font: 600 18px/1 var(--mono);
+  font: 500 13px/1 var(--mono);
   color: var(--fg);
   font-variant-numeric: tabular-nums;
 }

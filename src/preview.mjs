@@ -199,7 +199,11 @@ function setTime(next) {
   playhead.style.left = `${(t / total) * 100}%`;
   const scene = currentScene(t);
   sceneName.textContent = scene.name;
-  for (const { el, scene: s } of chips) el.setAttribute('aria-current', String(s.id === scene.id));
+  for (const { el, scene: s } of chips) {
+    el.setAttribute('aria-current', String(s.id === scene.id));
+    // Keep the playing scene visible in a strip that scrolls.
+    if (s.id === scene.id) el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }
   refreshSelection();
   buildKnobs(scene);
   buildScene(scene);

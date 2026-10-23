@@ -123,7 +123,7 @@ try {
 }
 const { timeline, kernel } = mounted;
 
-const total = timeline.duration;
+let total = timeline.duration;
 let t = 0;
 let playing = false;
 let looping = true;
@@ -137,25 +137,43 @@ const fmt = (s) => {
   return `${m}:${sec.toFixed(2).padStart(5, '0')}`;
 };
 
-// scene strip
-const chips = timeline.scenes.map((scene) => {
-  const el = document.createElement('button');
-  el.className = 'chip';
-  el.dataset.scene = scene.id;
-  el.style.flexGrow = String(scene.length);
-  el.style.flexBasis = '0';
-  el.innerHTML = `${scene.name} <span class="len">· ${scene.length.toFixed(1)}s</span>`;
-  el.addEventListener('click', () => {
-    if (suppressChip) {
-      suppressChip = false;
-      return;
-    }
-    setTime(scene.start + 0.001);
-    renderFrame();
+// scene strip — rebuilt whenever the film's structure changes, because a scene
+// that got shorter moves every scene after it
+let chips = [];
+
+function buildChips(scenes) {
+  for (const { el } of chips) el.remove();
+  chips = scenes.map((scene) => {
+    const el = document.createElement('button');
+    el.className = 'chip';
+    el.dataset.scene = scene.id;
+    el.style.flexGrow = String(scene.length);
+    el.style.flexBasis = '0';
+    el.innerHTML = `${scene.name} <span class="len">· ${scene.length.toFixed(1)}s</span>`;
+    el.addEventListener('click', () => {
+      if (suppressChip) {
+        suppressChip = false;
+        return;
+      }
+      setTime(scene.start + 0.001);
+      renderFrame();
+    });
+    scenesEl.insertBefore(el, playhead);
+    return { el, scene };
   });
-  scenesEl.insertBefore(el, playhead);
-  return { el, scene };
-});
+}
+
+buildChips(timeline.scenes);
+
+/** Take a reloaded timeline: the clock, the strip and the duration all follow. */
+function adoptTimeline(next) {
+  total = next.duration;
+  scrub.max = String(total);
+  durEl.textContent = fmt(total);
+  if (t > total - 0.001) t = Math.max(0, total - 0.001);
+  buildChips(next.scenes);
+  setTime(t);
+}
 
 // Dragging anywhere on the strip scrubs; a click without movement still jumps
 // to that scene's start (the chip handler), so suppress that click after a drag.
@@ -375,7 +393,7 @@ async function pollRevision() {
       if (dataOnly(latest) !== dataOnly(kernel.timeline)) {
         kernel.reload(latest);
         kernel.renderAt(t);
-        setTime(t);
+        adoptTimeline(latest);
       }
       return;
     }
@@ -392,7 +410,7 @@ async function pollRevision() {
     if (dataOnly(latest) === dataOnly(kernel.timeline)) return; // our own write
     kernel.reload(latest);
     kernel.renderAt(t);
-    setTime(t);
+    adoptTimeline(latest);
   } catch {
     /* the host may be restarting */
   }
@@ -1002,7 +1020,9 @@ window.__PREVIEW__ = {
   sound: () => (sound ? { src: sound.src, at: sound.currentTime, paused: sound.paused } : null),
   play: () => playBtn.click(),
   scenes: timeline.scenes.map((s) => ({ id: s.id, start: s.start, length: s.length })),
-  duration: total,
+  get duration() {
+    return total;
+  },
   boxRect: () => box.getBoundingClientRect(),
   comments: async () => (await (await fetch('./api/comments')).json()).threads,
   params: () => ({

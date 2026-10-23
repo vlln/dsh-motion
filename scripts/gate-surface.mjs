@@ -23,8 +23,9 @@ try {
 const { tools, routes, dispose } = await loadTools(ROOT);
 
 const expected = [
-  'motion_project', 'motion_info', 'motion_texts', 'motion_palette', 'motion_comments',
-  'motion_params', 'motion_history', 'motion_reference', 'motion_render', 'motion_export',
+  'motion_project', 'motion_scene', 'motion_info', 'motion_texts', 'motion_palette',
+  'motion_comments', 'motion_params', 'motion_history', 'motion_reference', 'motion_render',
+  'motion_export',
 ];
 const missing = expected.filter((name) => !tools.has(name));
 check('every declared tool is registered', missing.length === 0, missing.join(', ') || `${tools.size} tools`);

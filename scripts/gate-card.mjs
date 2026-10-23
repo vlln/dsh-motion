@@ -76,7 +76,13 @@ try {
   const composer = page.locator('[contenteditable="true"]').first();
   await composer.click();
   await page.keyboard.type(
-    "Call motion_project with action=create and title='Gate film'. Then call motion_render once with mode=stills and stills=0,3. Then reply with only the file path it returns.",
+    [
+      "Call motion_project with action=create and title='Gate film'.",
+      "Then call motion_scene with action=write, id='titlecard', add=true, name='Title card', length=4.",
+      "The source must be a module that exports id='titlecard', slots={title:{default:'Gate film'}} and render(t); render fills ctx.canvas with ctx.color('bg') and calls ctx.drawText('title', {x:160,y:380,w:1600,size:120,weight:700}).",
+      'Then call motion_render once with mode=stills and stills=0,2.',
+      "Then reply with only 'done'.",
+    ].join(' '),
   );
   await page.keyboard.press('Enter');
 
@@ -137,6 +143,13 @@ try {
   check('the film was created inside the workspace', fs.existsSync(film), film);
   const scene = path.join(workspace, 'motion', 'scenes', 'blank.mjs');
   check('the starter scene is the workspace\'s own copy', fs.existsSync(scene), scene);
+
+  // The agent wrote its own scene through a tool — no file paths, no shell.
+  const made = fs.existsSync(film) ? JSON.parse(fs.readFileSync(film, 'utf8')) : { scenes: [] };
+  const ids = (made.scenes ?? []).map((s) => s.id);
+  check('a scene the agent wrote is in the film', ids.includes('titlecard'), ids.join(', '));
+  const authored = path.join(workspace, 'motion', 'scenes', 'titlecard.mjs');
+  check('that scene was written for this film', fs.existsSync(authored), authored);
 } finally {
   await browser?.close();
   boot?.stop();

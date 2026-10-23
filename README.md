@@ -160,8 +160,9 @@ npm run build:client                      # 打包面板（three 内联，约 1.
 dsh plugin --profile web add <repo 路径>   # 本地目录安装（先 npm run link 供 SDK）
 ```
 
-- **工具**：`motion_project`、`motion_info`、`motion_texts`、`motion_palette`、`motion_comments`、
-  `motion_params`、`motion_history`、`motion_reference`、`motion_render`、`motion_export`
+- **工具**：`motion_project`、`motion_scene`、`motion_info`、`motion_texts`、`motion_palette`、
+  `motion_comments`、`motion_params`、`motion_history`、`motion_reference`、`motion_render`、
+  `motion_export`
 - **一部片子住在会话的工作区里**，不在插件的安装目录里：
 
   ```
@@ -175,6 +176,10 @@ dsh plugin --profile web add <repo 路径>   # 本地目录安装（先 npm run 
 
   工作区还没有片子时，面板显示空状态——**不借示例片**。agent 调 `motion_project` 建片，
   包里的 `timeline.json` 只是开发和门禁用的示例，任何会话都不读它。
+
+  **agent 不需要知道这些路径，也不需要 shell。** 建片、写场景、渲染、导出全是工具调用：
+  `motion_scene write` 收整段模块源码，先试着加载、校验 `id` / `render`，通过才落盘；
+  `add=true` 顺手把它排进片子。目录布局是插件的实现细节，不是 agent 的知识。
 - **入口是对话，不是面板**：在会话里让 agent 做片子 → `motion_render` 一开跑，对话里就出现
   一张卡片（帧计数、进度条）→ 渲染完成时卡片换成片子本身，右侧的片子栏同时自己打开
 - **两个座位，同一部片子**（都是 `/plugins/dsh-motion/app` 的 iframe，只有 `embed` 不同，

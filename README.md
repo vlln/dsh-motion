@@ -160,8 +160,21 @@ npm run build:client                      # 打包面板（three 内联，约 1.
 dsh plugin --profile web add <repo 路径>   # 本地目录安装（先 npm run link 供 SDK）
 ```
 
-- **工具**：`motion_info`、`motion_texts`、`motion_palette`、`motion_comments`、`motion_params`、
-  `motion_history`、`motion_reference`、`motion_render`、`motion_export`
+- **工具**：`motion_project`、`motion_info`、`motion_texts`、`motion_palette`、`motion_comments`、
+  `motion_params`、`motion_history`、`motion_reference`、`motion_render`、`motion_export`
+- **一部片子住在会话的工作区里**，不在插件的安装目录里：
+
+  ```
+  <会话工作区>/motion/
+    timeline.json      片子：幕、时长、颜色、文字、数字
+    scenes/*.mjs       每一幕怎么画（agent 写的，运行时加载）
+    assets/            素材
+    out/               渲染产物（.gitignore）
+    .snapshots/        写前副本（.gitignore）
+  ```
+
+  工作区还没有片子时，面板显示空状态——**不借示例片**。agent 调 `motion_project` 建片，
+  包里的 `timeline.json` 只是开发和门禁用的示例，任何会话都不读它。
 - **入口是对话，不是面板**：在会话里让 agent 做片子 → `motion_render` 一开跑，对话里就出现
   一张卡片（帧计数、进度条）→ 渲染完成时卡片换成片子本身，右侧的片子栏同时自己打开
 - **两个座位，同一部片子**（都是 `/plugins/dsh-motion/app` 的 iframe，只有 `embed` 不同，
@@ -172,7 +185,7 @@ dsh plugin --profile web add <repo 路径>   # 本地目录安装（先 npm run 
   | 卡片 | 对话流里 | 这次渲染的成品与进度；一个「查看」按钮 |
   | 片子栏 | 右侧栏 | 常驻：画面 + 播放条 + 批注钉子，聊天时一直在 |
 
-  右侧栏是 `/app?embed=tab&session=<id>`（窄列上下堆叠），对话卡片是 `/app?embed=card`。
+  右侧栏是 `/p/<会话>/app?embed=tab`（窄列上下堆叠），对话卡片是 `/p/<会话>/app?embed=card`。
   **片子栏不会替换对话**：没有"打开应用"的入口，也没有主区域面板——片子永远是对话旁边的一栏。
 - **批注就是消息**：在画面上框一块、写一句，面板把它交给插件外壳，外壳用这个会话的身份
   把话送进对话（作为人说的话，排队等下一回合）。面板里只留下钉子（时刻、区域、元素、
@@ -198,7 +211,7 @@ dsh plugin --profile web add <repo 路径>   # 本地目录安装（先 npm run 
 
 ![暗色](docs/ui-sidebar-dark.png)
 
-`npm run gate:plugin` 验证安装与启动；`npm run gate:client` 在真实 dsh web 里验证面板路由、
+`npm run gate:plugin` 验证安装与启动；`npm run gate:client` 在隔离工作区里验证面板挂到 `/p/<会话>/`、时间轴与场景来自工作区、写回工作区、
 场景条跳转、片子栏从 guide 打开、带着会话身份、对话不被替换；`npm run gate:card` 让真实会话
 跑一次 `motion_render`，验证卡片出现、片子栏自动打开，并让面板发一条批注，验证它作为消息
 落进对话（需要本机凭据，缺失时跳过）；

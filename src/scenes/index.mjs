@@ -13,12 +13,33 @@ const LAZY = {
   orbit: () => import('./orbit.mjs'),
 };
 
-export async function loadModules(sceneIds) {
-  const wanted = new Set(sceneIds);
-  const modules = STATIC.filter((m) => wanted.has(m.id));
+/**
+ * Load the scenes a timeline names. Built-ins come from this bundle; anything
+ * else is the film's own code, imported at run time from the same directory the
+ * panel was mounted at. That is what lets the agent write a scene inside the
+ * workspace and see it without rebuilding anything.
+ */
+export async function loadModules(sceneIds, base = './scenes') {
+  const wanted = [...new Set(sceneIds)];
+  const modules = [];
   for (const id of wanted) {
-    if (!LAZY[id]) continue;
-    modules.push(await LAZY[id]());
+    const builtin = STATIC.find((m) => m.id === id);
+    if (builtin) {
+      modules.push(builtin);
+      continue;
+    }
+    if (LAZY[id]) {
+      modules.push(await LAZY[id]());
+      continue;
+    }
+    let mod;
+    try {
+      mod = await import(`${base}/${encodeURIComponent(id)}.mjs`);
+    } catch (cause) {
+      throw new Error(`scene "${id}" is neither built in nor found at scenes/${id}.mjs`, { cause });
+    }
+    if (mod.id !== id) throw new Error(`scene module scenes/${id}.mjs declares id "${mod.id}"`);
+    modules.push(mod);
   }
   return modules;
 }

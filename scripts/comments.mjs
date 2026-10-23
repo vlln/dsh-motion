@@ -13,6 +13,7 @@ import { startServer } from './serve.mjs';
 import { findChromium } from './lib/chromium.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const PROJECT = path.resolve(process.env.DSH_MOTION_PROJECT ?? ROOT);
 const argv = process.argv.slice(2);
 const cmd = argv[0];
 const opt = (k, d) => {
@@ -23,7 +24,7 @@ const has = (k) => argv.includes(`--${k}`);
 
 
 async function makeCrops(threads) {
-  const timeline = JSON.parse(fs.readFileSync(path.join(ROOT, 'timeline.json'), 'utf8'));
+  const timeline = JSON.parse(fs.readFileSync(path.join(PROJECT, 'timeline.json'), 'utf8'));
   const targets = threads.filter((x) => x.anchor?.rect);
   if (!targets.length) return {};
 
@@ -33,7 +34,7 @@ async function makeCrops(threads) {
   await page.goto(`${origin}/preview.html`);
   await page.waitForFunction(() => window.__PREVIEW__?.ready === true, { timeout: 30000 });
 
-  const dir = path.join(ROOT, 'out/comments');
+  const dir = path.join(PROJECT, 'out/comments');
   fs.mkdirSync(dir, { recursive: true });
   const paths = {};
 
@@ -49,7 +50,7 @@ async function makeCrops(threads) {
     const h = Math.min(box.top + box.height - y, r.h * (1 + pad * 2) * scale);
     const file = path.join(dir, `${thread.id}.png`);
     await page.screenshot({ path: file, clip: { x: Math.round(x), y: Math.round(y), width: Math.round(w), height: Math.round(h) } });
-    paths[thread.id] = path.relative(ROOT, file);
+    paths[thread.id] = path.relative(PROJECT, file);
   }
 
   await browser.close();
@@ -58,7 +59,7 @@ async function makeCrops(threads) {
 }
 
 if (cmd === 'list') {
-  const threads = has('open') ? list(ROOT, { onlyOpen: true }) : list(ROOT);
+  const threads = has('open') ? list(PROJECT, { onlyOpen: true }) : list(PROJECT);
   const crops = has('crops') ? await makeCrops(threads) : {};
   const payload = threads.map((x) => ({
     id: x.id,
@@ -85,7 +86,7 @@ if (cmd === 'list') {
     console.error('usage: comments.mjs resolve --id th_x');
     process.exit(1);
   }
-  console.log(JSON.stringify(resolve(ROOT, id), null, 2));
+  console.log(JSON.stringify(resolve(PROJECT, id), null, 2));
 } else {
   console.error('usage: comments.mjs list|resolve');
   process.exit(1);

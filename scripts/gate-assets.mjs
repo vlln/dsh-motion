@@ -34,7 +34,7 @@ try {
   const saved = await attempt(() => setProjectAsset(tmp, 'plate', 'out/fixtures/plate2.png'));
   const written = JSON.parse(fs.readFileSync(path.join(tmp, 'timeline.json'), 'utf8'));
   check('an image asset repoints and persists', saved.ok && written.assets.plate.src === 'out/fixtures/plate2.png', saved.error ?? written.assets.plate.src);
-  check('the repoint keeps a snapshot', saved.ok && fs.existsSync(path.join(tmp, '.motion/snapshots', `${saved.value.snapshot.id}.json`)), saved.value?.snapshot?.reason);
+  check('the repoint keeps a snapshot', saved.ok && fs.existsSync(path.join(tmp, '.snapshots', `${saved.value.snapshot.id}.json`)), saved.value?.snapshot?.reason);
 
   const escape = await attempt(() => setProjectAsset(tmp, 'plate', '../outside.png'));
   check('a path outside the package is refused', !escape.ok && /escapes/.test(escape.error), escape.error ?? 'accepted');

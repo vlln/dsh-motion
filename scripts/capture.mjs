@@ -16,6 +16,9 @@ import { mux } from './mux.mjs';
 import { findChromium } from './lib/chromium.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+// The film lives wherever the caller points us: a workspace's motion/ directory
+// when a session renders, the package itself for `npm run video` and the gates.
+const PROJECT = path.resolve(process.env.DSH_MOTION_PROJECT ?? ROOT);
 const argv = process.argv.slice(2);
 const opt = (k, d) => {
   const i = argv.indexOf(`--${k}`);
@@ -25,12 +28,12 @@ const has = (k) => argv.includes(`--${k}`);
 
 // Which timeline to render. The panel passes the file it was opened with, so a
 // fixture or a second project can be exported without touching timeline.json.
-const timelinePath = path.resolve(ROOT, opt('timeline', 'timeline.json'));
-if (!timelinePath.startsWith(ROOT + path.sep)) throw new Error(`timeline escapes the package: ${opt('timeline')}`);
+const timelinePath = path.resolve(PROJECT, opt('timeline', 'timeline.json'));
+if (!timelinePath.startsWith(PROJECT + path.sep)) throw new Error(`timeline escapes the film: ${opt('timeline')}`);
 const timeline = JSON.parse(fs.readFileSync(timelinePath, 'utf8'));
 
 
-const { origin, close } = await startServer();
+const { origin, close } = await startServer(0, { project: PROJECT });
 const exe = findChromium();
 const browser = await chromium.launch({ executablePath: exe, args: ['--hide-scrollbars'] });
 
@@ -45,11 +48,11 @@ const page = await browser.newPage({ viewport: { width: W, height: H }, deviceSc
 page.on('pageerror', (e) => console.error('[page error]', e.message));
 page.on('console', (m) => m.type() === 'error' && console.error('[page]', m.text()));
 
-const query = timelinePath === path.join(ROOT, 'timeline.json') ? '' : `?timeline=${encodeURIComponent(`./${path.relative(ROOT, timelinePath)}`)}`;
+const query = timelinePath === path.join(PROJECT, 'timeline.json') ? '' : `?timeline=${encodeURIComponent(`./${path.relative(PROJECT, timelinePath)}`)}`;
 await page.goto(`${origin}/index.html${query}`);
 await page.waitForFunction(() => window.__MOTION__?.ready === true, null, { timeout: 30000 });
 
-const out = path.resolve(ROOT, opt('out', 'out/out.png'));
+const out = path.resolve(PROJECT, opt('out', 'out/out.png'));
 fs.mkdirSync(path.dirname(out), { recursive: true });
 
 async function renderAt(t) {
@@ -80,7 +83,7 @@ if (stillList) {
       { stdio: 'inherit' },
     ).on('close', r),
   );
-  console.log(`sheet → ${path.relative(ROOT, out)} (${ts.length} frames in ${path.relative(ROOT, dir)})`);
+  console.log(`sheet → ${path.relative(PROJECT, out)} (${ts.length} frames in ${path.relative(PROJECT, dir)})`);
   await browser.close();
   close();
   process.exit(0);
@@ -89,7 +92,7 @@ if (stillList) {
 if (opt('still') !== undefined) {
   await renderAt(Number(opt('still')));
   await page.screenshot({ path: out });
-  console.log(`still → ${path.relative(ROOT, out)}`);
+  console.log(`still → ${path.relative(PROJECT, out)}`);
   await browser.close();
   close();
   process.exit(0);
@@ -138,7 +141,7 @@ console.log(`\r${frames}/${frames} frames  ${((Date.now() - t0) / 1000).toFixed(
 if (useAudio) {
   await mux({
     silent,
-    audio: path.resolve(ROOT, timeline.audio.src),
+    audio: path.resolve(PROJECT, timeline.audio.src),
     out,
     start: timeline.audio.start ?? 0,
     targetLufs: timeline.audio.targetLufs ?? -14,
@@ -147,4 +150,4 @@ if (useAudio) {
   fs.rmSync(silent, { force: true });
   console.log(`audio → ${timeline.audio.src} (loudnorm ${timeline.audio.targetLufs ?? -14} LUFS)`);
 }
-console.log(`video → ${path.relative(ROOT, out)}`);
+console.log(`video → ${path.relative(PROJECT, out)}`);

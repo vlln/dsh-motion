@@ -1,18 +1,26 @@
 #!/usr/bin/env node
-// Client-half gate: install into a throwaway DSH_HOME, boot web, then verify
-// (a) the panel route serves a working preview and (b) the launcher mounts in the
-// real UI and opens the panel in an iframe.
+// Client-half gate: install into a throwaway DSH_HOME, put a film in a
+// throwaway workspace, boot web there, and verify the panel mounts that film —
+// not the package's example, and not some other session's.
 
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
-import { bootWeb, install, linkSdk, seedHome } from './lib/dsh.mjs';
+import { bootWeb, dismissOverlays, install, linkSdk, seedHome } from './lib/dsh.mjs';
 import { findChromium } from './lib/chromium.mjs';
 import { createGate } from './lib/gate.mjs';
+import { createFilm } from '../src/film.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const { check, finish } = createGate();
+
+// A workspace of its own: the film must never land in this repository, and
+// never in the human's real Documents/deepseek-harness workspace.
+const docs = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-motion-docs-'));
+const workspace = path.join(docs, 'deepseek-harness', 'default-workspace');
+createFilm(workspace, { title: 'Gate film', length: 6 });
 
 const home = seedHome();
 let boot;
@@ -20,126 +28,78 @@ let browser;
 try {
   linkSdk(ROOT);
   install('web', ROOT, home);
-  boot = await bootWeb(home);
+  boot = await bootWeb(home, { patch: [{ id: 'workspace-controller', config: { documentsDirectory: docs } }] });
 
   browser = await chromium.launch({ executablePath: findChromium(), args: ['--hide-scrollbars'] });
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
   page.on('pageerror', (e) => console.error('[page error]', e.message));
 
-  // (a) the panel route on its own
-  const appRes = await page.goto(`${boot.origin}/plugins/dsh-motion/app`);
-  check('panel route serves HTML', appRes?.status() === 200, String(appRes?.status()));
-  const jsRes = await page.request.get(`${boot.origin}/plugins/dsh-motion/app.js`);
-  check('panel bundle served', jsRes.status() === 200 && (jsRes.headers()['content-type'] ?? '').includes('javascript'));
+  // The package root is not a project any more: there is nothing to show there.
+  const legacy = await page.request.get(`${boot.origin}/plugins/dsh-motion/app`);
+  check('the package root no longer serves a film', legacy.status() === 404, String(legacy.status()));
 
-  // code splitting: three must live in the lazy chunk, not in the entry bundle
-  const appJs = await jsRes.text();
-  check('entry bundle excludes three', !appJs.includes('WebGLRenderer'), `${(appJs.length / 1024).toFixed(0)} KiB`);
-  const chunkRes = await page.request.get(`${boot.origin}/plugins/dsh-motion/chunks/orbit.js`);
-  const chunkJs = chunkRes.status() === 200 ? await chunkRes.text() : '';
-  check('3D chunk contains three', chunkJs.includes('WebGLRenderer'), `${(chunkJs.length / 1024).toFixed(0)} KiB`);
-
-  await page.waitForFunction(() => window.__PREVIEW__?.ready === true, { timeout: 20000 });
-  const chipCount = await page.locator('.chip').count();
-  check('panel renders the scene strip', chipCount === 3, `${chipCount} chips`);
-  const dur = await page.evaluate(() => window.__PREVIEW__.duration);
-  check('panel knows the timeline duration', Math.abs(dur - 19) < 0.01, `${dur}s`);
-
-  // the write path the panel uses must exist on this origin too, not just in dev
-  const paramsRes = await page.request.get(`${boot.origin}/plugins/dsh-motion/api/params`);
-  const paramsJson = paramsRes.status() === 200 ? await paramsRes.json() : null;
-  check(
-    'params route served by the plugin',
-    paramsJson?.scenes?.length === 2 && paramsJson.scenes[0].knobs.length === 6,
-    `${paramsRes.status()} · ${paramsJson?.scenes?.length ?? 0} scenes`,
-  );
-
-  await page.click('[data-scene="cold-war"]');
-  await page.waitForTimeout(120);
-  const t = await page.evaluate(() => window.__PREVIEW__.time());
-  check('panel scene strip seeks', t >= 8 && t < 15, `${t.toFixed(2)}s`);
-  await page.screenshot({ path: path.join(ROOT, 'out/ui-panel-dsh.png') });
-
-  // (b) the film column inside the real UI. There is no "open the app" entry:
-  // the panel is a column beside the conversation, never a replacement for it.
   await page.goto(boot.url);
-
-  // dismiss first-run dialogs (fresh profile shows "Preview Notice" then "Get started")
-  for (let i = 0; i < 3; i++) {
-    const cont = page.getByRole('button', { name: /continue/i });
-    if (await cont.isVisible().catch(() => false)) {
-      await cont.click();
-      await page.waitForTimeout(400);
-      continue;
-    }
-    const dialog = page.getByRole('dialog');
-    if (await dialog.count()) {
-      const close = dialog.locator('button').first();
-      if (await close.isVisible().catch(() => false)) {
-        await close.click();
-        await page.waitForTimeout(400);
-        continue;
-      }
-    }
-    await page.keyboard.press('Escape');
-    await page.waitForTimeout(200);
-  }
+  await page.waitForTimeout(1500);
+  await dismissOverlays(page);
+  await page.waitForTimeout(600);
 
   const openRail = page.getByRole('button', { name: 'Open right sidebar' });
   if (await openRail.isVisible().catch(() => false)) await openRail.click();
-  await page.getByText('正在编辑的片子').click({ timeout: 10000 });
+  await page.waitForTimeout(800);
+  await page.getByText('正在编辑的片子').click({ timeout: 15000 });
+
   const tabFrame = page.frameLocator('iframe[title="dsh-motion tab"]');
   await tabFrame.locator('#tc').waitFor({ timeout: 20000 });
-
   const tabSrc = (await page.locator('iframe[title="dsh-motion tab"]').getAttribute('src')) ?? '';
-  check('the preview tab opens from the guide', /embed=tab/.test(tabSrc), tabSrc || 'missing');
-  check('the tab carries the session it belongs to', /session=[0-9a-zA-Z_-]{6,}/.test(tabSrc), tabSrc);
+  const match = /^\/plugins\/dsh-motion\/p\/([^/]+)\/app\?embed=tab$/.exec(tabSrc);
+  check('the tab mounts under the session prefix', Boolean(match), tabSrc || 'missing');
 
-  const tabTc = await tabFrame.locator('#tc').textContent();
-  check('the preview tab renders the film', /^0:0\d\.\d\d$/.test(tabTc ?? ''), tabTc ?? '');
-  const tabPanel = await tabFrame.locator('.panel').isVisible();
-  check('the narrow tab stacks rather than clipping the panel', tabPanel, 'panel visible under the film');
+  const session = match?.[1] ?? '';
+  const chips = await tabFrame.locator('.chip').count();
+  check('the panel shows the workspace film', chips === 1, `${chips} chips`);
+  const dur = await tabFrame.locator('body').evaluate(() => window.__PREVIEW__.duration);
+  check('the duration is the workspace film\'s', Math.abs(dur - 6) < 0.01, `${dur}s`);
 
-  // The conversation must still be there, and the panel must agree about whose
-  // session it is showing — otherwise its comments would land somewhere else.
+  // The film's own files are what the panel reads.
+  const timelineRes = await page.request.get(`${boot.origin}/plugins/dsh-motion/p/${session}/timeline.json`);
+  const timeline = timelineRes.status() === 200 ? await timelineRes.json() : null;
+  check(
+    'the served timeline is the workspace one',
+    timeline?.scenes?.[0]?.id === 'blank' && timeline?.duration === 6,
+    `${timelineRes.status()} · ${timeline?.scenes?.[0]?.id ?? 'none'}`,
+  );
+  const sceneRes = await page.request.get(`${boot.origin}/plugins/dsh-motion/p/${session}/scenes/blank.mjs`);
+  check(
+    'the scene module is served from the workspace',
+    sceneRes.status() === 200 && (sceneRes.headers()['content-type'] ?? '').includes('javascript'),
+    String(sceneRes.status()),
+  );
+
+  // A write through the panel's API lands in the workspace timeline.
+  const writeRes = await page.request.post(`${boot.origin}/plugins/dsh-motion/p/${session}/api/texts`, {
+    data: { scene: 'blank', slot: 'title', value: 'Gate title' },
+  });
+  const after = await (await page.request.get(`${boot.origin}/plugins/dsh-motion/p/${session}/timeline.json`)).json();
+  check(
+    'a panel write lands in the workspace timeline',
+    writeRes.status() === 200 && after?.texts?.blank?.title === 'Gate title',
+    `${writeRes.status()} · ${after?.texts?.blank?.title ?? 'missing'}`,
+  );
+
+  // Traversal: the prefix resolves inside the film directory only.
+  const escape = await page.request.get(`${boot.origin}/plugins/dsh-motion/p/${session}/..%2f..%2flib%2findex.mjs`);
+  check('the film prefix never serves outside the film', escape.status() !== 200, String(escape.status()));
+
+  // The conversation is still there beside the film.
   const composer = await page.locator('[contenteditable="true"]').first().isVisible();
   check('the conversation stays beside the film', composer, 'composer visible');
-  const sessionSeen = await tabFrame.locator('body').evaluate(() => window.__PREVIEW__.session());
-  const sessionInUrl = new URL(tabSrc, boot.origin).searchParams.get('session') ?? '';
-  check('the panel knows its session', sessionSeen !== '' && sessionSeen === sessionInUrl, `${sessionSeen} vs ${sessionInUrl}`);
 
   await page.screenshot({ path: path.join(ROOT, 'out/ui-tab-dsh.png') });
-
-  const mediaRes = await page.request.get(`${boot.origin}/plugins/dsh-motion/out/media/index.json`);
-  check('media route served by the plugin', mediaRes.status() === 200, String(mediaRes.status()));
-
-  // 403 from our guard, or 404 if the client normalised the dots away first:
-  // either way the file must not be served.
-  const legacy = await page.request.get(`${boot.origin}/plugins/dsh-motion/timeline.json`);
-  check('a timeline file is served by name', legacy.status() === 200, String(legacy.status()));
-  const stray = await page.request.get(`${boot.origin}/plugins/dsh-motion/timeline-hack.json`);
-  check('only timeline-shaped names are served', stray.status() === 404 || stray.status() === 403, String(stray.status()));
-
-  const escape = await page.request.get(`${boot.origin}/plugins/dsh-motion/out/%2e%2e/lib/index.mjs`);
-  check('prefix route never serves outside its base', escape.status() !== 200, String(escape.status()));
-
-  // relative URLs inside the iframe must land on /plugins/dsh-motion/*, not the host root
-  const inFrame = await tabFrame
-    .locator('body')
-    .evaluate(async () => {
-      const res = await fetch('./api/history');
-      const body = await res.json().catch(() => ({}));
-      return { status: res.status, path: new URL('./api/history', location.href).pathname, ok: Array.isArray(body.snapshots) };
-    });
-  check(
-    'panel API resolves inside the iframe',
-    inFrame.status === 200 && inFrame.ok && inFrame.path === '/plugins/dsh-motion/api/history',
-    `${inFrame.status} ${inFrame.path}`,
-  );
 } finally {
   await browser?.close();
   boot?.stop();
   fs.rmSync(home, { recursive: true, force: true });
+  fs.rmSync(docs, { recursive: true, force: true });
 }
 
 finish();

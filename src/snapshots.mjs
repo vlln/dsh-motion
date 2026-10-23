@@ -8,7 +8,7 @@ import path from 'node:path';
 const KEEP = 20;
 const ID = /^[0-9TZ-]+-[A-Za-z0-9-]+$/;
 
-const dir = (root) => path.join(root, '.motion', 'snapshots');
+const dir = (root) => path.join(root, '.snapshots');
 const timelineFile = (root, file = 'timeline.json') => path.join(root, file);
 
 const stamp = () => new Date().toISOString().replace(/[:.]/g, '-');

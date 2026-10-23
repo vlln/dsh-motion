@@ -4,10 +4,11 @@
 // Requires local credentials; skips (exit 0) without them.
 
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
-import { bootWeb, hasCredentials, install, linkSdk, seedHome } from './lib/dsh.mjs';
+import { bootWeb, dismissOverlays, hasCredentials, install, linkSdk, seedHome } from './lib/dsh.mjs';
 import { findChromium } from './lib/chromium.mjs';
 import { createGate } from './lib/gate.mjs';
 
@@ -20,12 +21,15 @@ if (!hasCredentials()) {
 }
 
 const home = seedHome({ credentials: true });
+// The agent must write its film into a workspace of its own, never the human's.
+const docs = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-motion-docs-'));
+const workspace = path.join(docs, 'deepseek-harness', 'default-workspace');
 let boot;
 let browser;
 try {
   linkSdk(ROOT);
   install('web', ROOT, home);
-  boot = await bootWeb(home);
+  boot = await bootWeb(home, { patch: [{ id: 'workspace-controller', config: { documentsDirectory: docs } }] });
 
   browser = await chromium.launch({ executablePath: findChromium(), args: ['--hide-scrollbars'] });
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
@@ -72,7 +76,7 @@ try {
   const composer = page.locator('[contenteditable="true"]').first();
   await composer.click();
   await page.keyboard.type(
-    'Call motion_render once with mode=stills and stills=0,6,12. Then reply with only the file path it returns.',
+    "Call motion_project with action=create and title='Gate film'. Then call motion_render once with mode=stills and stills=0,3. Then reply with only the file path it returns.",
   );
   await page.keyboard.press('Enter');
 
@@ -84,7 +88,9 @@ try {
   // The tab opens itself on completion — the "made it, look" moment.
   const tab = page.locator('iframe[title="dsh-motion tab"]').first();
   await tab.waitFor({ timeout: 120000 });
-  check('the preview tab opens without being asked', true, await tab.getAttribute('src'));
+  const tabSrc = (await tab.getAttribute('src')) ?? '';
+  check('the preview tab opens without being asked', true, tabSrc);
+  const session = /\/p\/([^/]+)\//.exec(tabSrc)?.[1] ?? '';
 
   // The settled tool group folds, so the card is attached but not on screen;
   // its iframe must still be the real film.
@@ -121,15 +127,21 @@ try {
   check('the message is marked as a comment', /\[批注\]/.test(bodyText), 'found [批注]');
 
   // And the pin must record that it was spoken, so it is never shown as a draft.
-  const pins = await (await page.request.get(`${boot.origin}/plugins/dsh-motion/api/comments`)).json();
+  const pins = await (await page.request.get(`${boot.origin}/plugins/dsh-motion/p/${session}/api/comments`)).json();
   const pin = (pins.threads ?? []).find((thread) => thread.id === said.id);
   check('the pin is marked sent', Boolean(pin?.sentAt), pin?.sentAt ?? 'missing');
 
   await page.screenshot({ path: path.join(ROOT, 'out/ui-card-dsh.png') });
+  // The film belongs to the workspace the agent was working in.
+  const film = path.join(workspace, 'motion', 'timeline.json');
+  check('the film was created inside the workspace', fs.existsSync(film), film);
+  const scene = path.join(workspace, 'motion', 'scenes', 'blank.mjs');
+  check('the starter scene is the workspace\'s own copy', fs.existsSync(scene), scene);
 } finally {
   await browser?.close();
   boot?.stop();
   fs.rmSync(home, { recursive: true, force: true });
+  fs.rmSync(docs, { recursive: true, force: true });
 }
 
 finish();

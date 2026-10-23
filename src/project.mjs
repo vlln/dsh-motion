@@ -7,6 +7,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
 import { validateTimeline } from './validate.mjs';
 import { describeParams, resolveParam, checkParam as validateParam } from './params.mjs';
 import { checkValue as validateValue } from './values.mjs';
@@ -22,9 +23,31 @@ const timelineFile = (root, file = 'timeline.json') => {
 // The node-side module list pulls three in (orbit.mjs). Loading it lazily keeps
 // `dsh` boot free of that cost: only an edit or a panel open ever pays it.
 let cached = null;
-export async function modules() {
+const projectModules = new Map();
+
+/**
+ * Every scene this film can use: the package's built-ins plus whatever the
+ * agent wrote into <film>/scenes/. Project modules are re-imported when their
+ * mtime moves, so an edit is visible without restarting the plugin.
+ */
+export async function modules(root) {
   cached ??= (await import('./scenes/all.mjs')).modules;
-  return cached;
+  if (!root) return cached;
+  const dir = path.join(root, 'scenes');
+  if (!fs.existsSync(dir)) return cached;
+  const list = [...cached];
+  for (const name of fs.readdirSync(dir).filter((f) => f.endsWith('.mjs')).sort()) {
+    const file = path.join(dir, name);
+    const stamp = fs.statSync(file).mtimeMs;
+    const key = `${file}:${stamp}`;
+    let mod = projectModules.get(key);
+    if (!mod) {
+      mod = await import(`${pathToFileURL(file).href}?v=${stamp}`);
+      projectModules.set(key, mod);
+    }
+    list.push(mod);
+  }
+  return list;
 }
 
 export function readTimeline(root, file = 'timeline.json') {
@@ -38,7 +61,7 @@ function assertValid(timeline, mods) {
 
 /** Validate, keep the previous file, then write. `reason` ends up in the snapshot id. */
 export async function writeTimeline(root, timeline, reason = 'edit', file = 'timeline.json') {
-  const mods = await modules();
+  const mods = await modules(root);
   assertValid(timeline, mods);
   const snap = snapshot(root, reason, undefined, file);
   fs.writeFileSync(timelineFile(root, file), `${JSON.stringify(timeline, null, 2)}\n`);
@@ -48,7 +71,7 @@ export async function writeTimeline(root, timeline, reason = 'edit', file = 'tim
 /** Every scene that declares knobs, with its current values. */
 export async function describeProject(root, file = 'timeline.json') {
   const timeline = readTimeline(root, file);
-  const mods = await modules();
+  const mods = await modules(root);
   return timeline.scenes
     .map((scene) => {
       const mod = mods.find((m) => m.id === scene.id);
@@ -66,7 +89,7 @@ export async function setProjectParam(root, sceneId, key, value, file = 'timelin
   const scene = timeline.scenes.find((s) => s.id === sceneId);
   if (!scene) throw new Error(`unknown scene "${sceneId}"`);
 
-  const mod = (await modules()).find((m) => m.id === sceneId);
+  const mod = (await modules(root)).find((m) => m.id === sceneId);
   validateParam(mod?.params, key, value);
 
   timeline.params ??= {};
@@ -82,7 +105,7 @@ export async function setProjectText(root, sceneId, slot, value, file = 'timelin
   const scene = timeline.scenes.find((s) => s.id === sceneId);
   if (!scene) throw new Error(`unknown scene "${sceneId}"`);
 
-  const mod = (await modules()).find((m) => m.id === sceneId);
+  const mod = (await modules(root)).find((m) => m.id === sceneId);
   if (!mod?.slots?.[slot]) {
     throw new Error(`unknown slot "${slot}" for scene "${sceneId}" (declared: ${Object.keys(mod?.slots ?? {}).join(', ') || 'none'})`);
   }
@@ -100,7 +123,7 @@ export async function setProjectValue(root, sceneId, key, value, file = 'timelin
   const scene = timeline.scenes.find((s) => s.id === sceneId);
   if (!scene) throw new Error(`unknown scene "${sceneId}"`);
 
-  const mod = (await modules()).find((m) => m.id === sceneId);
+  const mod = (await modules(root)).find((m) => m.id === sceneId);
   validateValue(mod?.values, key, value);
 
   timeline.values ??= {};
@@ -365,7 +388,7 @@ export function history(root) {
 /** Restore a snapshot; the state being replaced is itself snapshotted first. */
 export async function restoreProject(root, id, file = 'timeline.json') {
   const next = readSnapshot(root, id);
-  const mods = await modules();
+  const mods = await modules(root);
   assertValid(next, mods);
   snapshot(root, 'pre-restore', undefined, file);
   fs.writeFileSync(timelineFile(root, file), `${JSON.stringify(next, null, 2)}\n`);

@@ -37,7 +37,7 @@ try {
   const saved = await setProjectValue(tmp, 'data-lab', 'speed', 100);
   const written = JSON.parse(fs.readFileSync(path.join(tmp, 'timeline.json'), 'utf8'));
   check('a value write lands in timeline.values', written.values?.['data-lab']?.speed === 100, JSON.stringify(written.values));
-  check('the write keeps a snapshot', fs.existsSync(path.join(tmp, '.motion/snapshots', `${saved.snapshot.id}.json`)), saved.snapshot?.reason);
+  check('the write keeps a snapshot', fs.existsSync(path.join(tmp, '.snapshots', `${saved.snapshot.id}.json`)), saved.snapshot?.reason);
 
   let rangeError = '';
   try {

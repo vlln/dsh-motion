@@ -15,9 +15,9 @@ import { listSnapshots } from '../src/snapshots.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const FILE = path.join(ROOT, 'timeline.json');
-const META = path.join(ROOT, '.motion');
+const SNAPS = path.join(ROOT, '.snapshots');
 const before = fs.readFileSync(FILE, 'utf8');
-const hadMeta = fs.existsSync(META);
+const hadSnaps = fs.existsSync(SNAPS);
 const snapsBefore = new Set(listSnapshots(ROOT).map((s) => s.id));
 
 const { check, finish } = createGate();
@@ -44,9 +44,9 @@ function cleanup() {
   fs.writeFileSync(FILE, before);
   for (const snap of listSnapshots(ROOT)) {
     if (snapsBefore.has(snap.id)) continue;
-    fs.rmSync(path.join(META, 'snapshots', `${snap.id}.json`), { force: true });
+    fs.rmSync(path.join(SNAPS, `${snap.id}.json`), { force: true });
   }
-  if (!hadMeta) fs.rmSync(META, { recursive: true, force: true });
+  if (!hadSnaps) fs.rmSync(SNAPS, { recursive: true, force: true });
 }
 
 const { origin, close } = await startServer();

@@ -14,6 +14,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const PROJECT = path.resolve(process.env.DSH_MOTION_PROJECT ?? ROOT);
 const argv = process.argv.slice(2);
 const cmd = argv[0];
 const opt = (k, d) => {
@@ -26,16 +27,16 @@ if (cmd !== 'prep') {
   process.exit(1);
 }
 
-const timelinePath = path.resolve(ROOT, opt('timeline', 'timeline.json'));
+const timelinePath = path.resolve(PROJECT, opt('timeline', 'timeline.json'));
 const only = opt('only', null);
 const timeline = JSON.parse(fs.readFileSync(timelinePath, 'utf8'));
 const assets = timeline.assets ?? {};
-const outDir = path.join(ROOT, 'out', 'media');
+const outDir = path.join(PROJECT, 'out', 'media');
 fs.mkdirSync(outDir, { recursive: true });
 
 function inside(src) {
-  const abs = path.resolve(ROOT, src);
-  if (!abs.startsWith(ROOT + path.sep)) throw new Error(`asset escapes the package: ${src}`);
+  const abs = path.resolve(PROJECT, src);
+  if (!abs.startsWith(PROJECT + path.sep)) throw new Error(`asset escapes the film: ${src}`);
   if (!fs.existsSync(abs)) throw new Error(`asset not found: ${src}`);
   return abs;
 }
@@ -76,7 +77,7 @@ for (const [name, spec] of Object.entries(assets)) {
   execFileSync(
     'ffmpeg',
     ['-y', '-v', 'error', '-i', src, '-vf', `fps=${fps},scale=${frameW}:${frameH},tile=${cols}x${rows}`, '-frames:v', '1', '-q:v', '2', sheet],
-    { cwd: ROOT },
+    { cwd: PROJECT },
   );
 
   const manifest = {

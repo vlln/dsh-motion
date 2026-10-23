@@ -12,7 +12,8 @@ import { snapshot } from '../src/snapshots.mjs';
 import { modules } from '../src/scenes/all.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const file = path.join(ROOT, 'timeline.json');
+const PROJECT = path.resolve(process.env.DSH_MOTION_PROJECT ?? ROOT);
+const file = path.join(PROJECT, 'timeline.json');
 const argv = process.argv.slice(2);
 const cmd = argv[0];
 const opt = (k, d) => {
@@ -58,7 +59,7 @@ if (cmd === 'get') {
     console.error(`rejected:\n${errors.map((e) => `  - ${e}`).join('\n')}`);
     process.exit(1);
   }
-  snapshot(ROOT, `text-${sceneId}-${slot}`);
+  snapshot(PROJECT, `text-${sceneId}-${slot}`);
   fs.writeFileSync(file, `${JSON.stringify(timeline, null, 2)}\n`);
   console.log(`${sceneId}.${slot}: ${JSON.stringify(before ?? null)} -> ${JSON.stringify(value)}`);
 } else {

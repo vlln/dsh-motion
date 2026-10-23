@@ -14,7 +14,7 @@ import { listSnapshots } from '../src/snapshots.mjs';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const FILE = path.join(ROOT, 'timeline.json');
 const before = fs.readFileSync(FILE, 'utf8');
-const hadMeta = fs.existsSync(path.join(ROOT, '.motion'));
+const hadMeta = fs.existsSync(path.join(ROOT, '.snapshots'));
 const snapsBefore = new Set(listSnapshots(ROOT).map((s) => s.id));
 const TOUR = path.join(ROOT, 'fixtures/timeline-tour.json');
 const tourBefore = fs.readFileSync(TOUR, 'utf8');
@@ -131,9 +131,9 @@ try {
   fs.writeFileSync(TOUR, tourBefore);
   for (const snap of listSnapshots(ROOT)) {
     if (snapsBefore.has(snap.id)) continue;
-    fs.rmSync(path.join(ROOT, '.motion/snapshots', `${snap.id}.json`), { force: true });
+    fs.rmSync(path.join(ROOT, '.snapshots', `${snap.id}.json`), { force: true });
   }
-  if (!hadMeta) fs.rmSync(path.join(ROOT, '.motion'), { recursive: true, force: true });
+  if (!hadMeta) fs.rmSync(path.join(ROOT, '.snapshots'), { recursive: true, force: true });
 }
 
 finish();

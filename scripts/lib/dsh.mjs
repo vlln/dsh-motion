@@ -36,9 +36,24 @@ export function install(profile, pkg, home) {
   });
 }
 
-export function bootWeb(home, { timeout = 25000 } = {}) {
+export function bootWeb(home, { timeout = 25000, patch } = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawn('dsh', ['--profile', 'web', '--no-open', '--port', '0'], {
+    // An extra patch layer keeps a throwaway HOME from reaching the human's
+    // real workspace (the default workspace lives under the OS Documents dir).
+    let overlay = null;
+    if (patch) {
+      overlay = path.join(home, 'gate-patch.yml');
+      const lines = [];
+      for (const entry of patch) {
+        lines.push(`- id: ${entry.id}`);
+        for (const [key, value] of Object.entries(entry.config ?? {})) lines.push(`  config:\n    ${key}: ${value}`);
+      }
+      fs.writeFileSync(overlay, `${lines.join('\n')}\n`);
+    }
+    // Launcher options must precede the profile name; after it, they reach the
+    // web app's own parser and are rejected.
+    const args = [...(overlay ? ['--patch', overlay] : []), '--profile', 'web', '--no-open', '--port', '0'];
+    const child = spawn('dsh', args, {
       env: { ...process.env, DSH_HOME: home },
     });
     let out = '';
@@ -69,4 +84,32 @@ export function runHeadless(home, prompt, timeout = 300000) {
     timeout,
   });
   return `${r.stdout ?? ''}\n${r.stderr ?? ''}`;
+}
+
+
+/**
+ * Clear the host's first-run overlays. A fresh profile can raise more than one
+ * (preview notice, then get-started), and a mask over the page eats every click.
+ * @param page - Playwright page on the host UI.
+ */
+export async function dismissOverlays(page) {
+  for (let i = 0; i < 6; i++) {
+    const dialog = page.getByRole('dialog').last();
+    if (!(await dialog.isVisible().catch(() => false))) return;
+    // Exact names only: the sign-in panel has a "Continue in your browser"
+    // button, and clicking it opens a flow no gate wants.
+    const cont = dialog.getByRole('button', { name: /^(continue|get started|ok)$/i }).first();
+    if (await cont.isVisible().catch(() => false)) {
+      await cont.click().catch(() => {});
+      await page.waitForTimeout(400);
+      continue;
+    }
+    const close = dialog.getByRole('button', { name: /^(close|cancel)$/i }).first();
+    if (await close.isVisible().catch(() => false)) {
+      await close.click().catch(() => {});
+    } else {
+      await page.keyboard.press('Escape').catch(() => {});
+    }
+    await page.waitForTimeout(400);
+  }
 }

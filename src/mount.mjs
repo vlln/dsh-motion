@@ -10,7 +10,14 @@ export async function mountMotion({ canvas, width, height, dpr = window.devicePi
   // accepted: the panel is embedded in the host UI and must not become a fetcher.
   const requested = new URLSearchParams(location.search).get('timeline');
   const src = requested && /^(\.\/|\/plugins\/dsh-motion\/)/.test(requested) ? requested : './timeline.json';
-  const timeline = await (await fetch(src)).json();
+  // The panel is mounted at the film's own directory, so a missing timeline is
+  // an empty workspace, not a broken link.
+  const res = await fetch(src, { cache: 'no-store' });
+  if (!res.ok) {
+    if (res.status === 404) throw Object.assign(new Error('no film in this workspace'), { code: 'NO_FILM' });
+    throw new Error(`timeline: HTTP ${res.status}`);
+  }
+  const timeline = await res.json();
 
   try {
     const res = await fetch('./out/beats.json');
@@ -19,7 +26,7 @@ export async function mountMotion({ canvas, width, height, dpr = window.devicePi
     /* the page renders without a beat grid */
   }
 
-  const modules = await loadModules(timeline.scenes.map((s) => s.id));
+  const modules = await loadModules(timeline.scenes.map((s) => s.id), './scenes');
   assertTimeline(timeline, modules);
 
   const kernel = createKernel({ timeline, modules });

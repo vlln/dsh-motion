@@ -709,3 +709,46 @@ code {
 [data-embed='card'] .scenes {
   display: none;
 }
+
+/* No film yet. The panel is a window onto the conversation's work; before
+   there is any, it says where a film comes from instead of showing a demo. */
+.empty-film {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 10px;
+  padding: 32px;
+  text-align: center;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.empty-film .empty-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  border: 0.5px solid var(--line-strong);
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.empty-film h2 {
+  margin: 0;
+  font: 500 16px/1.4 var(--font);
+}
+
+.empty-film p {
+  margin: 0;
+  max-width: 360px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.empty-film code {
+  font: 12px/1.4 var(--mono);
+}

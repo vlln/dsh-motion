@@ -23,8 +23,8 @@ try {
 const { tools, routes, dispose } = await loadTools(ROOT);
 
 const expected = [
-  'motion_info', 'motion_texts', 'motion_palette', 'motion_comments', 'motion_params',
-  'motion_history', 'motion_reference', 'motion_render', 'motion_export',
+  'motion_project', 'motion_info', 'motion_texts', 'motion_palette', 'motion_comments',
+  'motion_params', 'motion_history', 'motion_reference', 'motion_render', 'motion_export',
 ];
 const missing = expected.filter((name) => !tools.has(name));
 check('every declared tool is registered', missing.length === 0, missing.join(', ') || `${tools.size} tools`);
@@ -99,13 +99,16 @@ check('motion_history refuses a traversal id', /bad snapshot id/.test(ghostTool 
 const badRef = await refused('motion_reference', { path: 'out/definitely-missing.mp4' });
 check('motion_reference reports a missing file', /no such file/.test(badRef ?? ''), badRef ?? 'accepted');
 
-// --- the panel routes exist even without a browser ---
+// --- the film is mounted per session, not at the package root ---
 const paths = routes.map((r) => r.path);
-for (const suffix of ['/app', '/api/comments', '/api/params', '/api/history', '/api/render']) {
-  check(`panel route ${suffix} is registered`, paths.some((p) => p === `/plugins/dsh-motion${suffix}`), paths.length + ' routes');
-}
-// A pin is stored only after it was said, so the "mark sent" route has no reason to exist.
-check('the mark-sent route is gone', !paths.includes('/plugins/dsh-motion/api/comments/sent'));
+check(
+  'the session mount is registered',
+  paths.includes('/plugins/dsh-motion/p'),
+  paths.join(', ') || 'none',
+);
+// A film used to be served straight from the package; a sessionless /app would
+// be exactly the demo-as-project mistake this mount removes.
+check('no package-root app route is left', !paths.includes('/plugins/dsh-motion/app'));
 
 dispose();
 

@@ -63,12 +63,49 @@ const params = new URLSearchParams(location.search);
 const requested = params.get('timeline');
 // The host tells the panel which session it belongs to; without it the panel is
 // a standalone preview and cannot speak.
-const sessionId = params.get('session') ?? '';
+// The host mounts this page under /p/<session>/…; standalone has neither.
+const sessionId =
+  params.get('session') ??
+  (() => {
+    const hit = /\/p\/([^/]+)\//.exec(location.pathname);
+    return hit ? decodeURIComponent(hit[1]) : '';
+  })();
 const target = requested && /^(\.\/|\/plugins\/dsh-motion\/)/.test(requested) ? requested : null;
 const body = (payload) => JSON.stringify(target ? { ...payload, timeline: target } : payload);
 
 const dpr = Math.min(2, window.devicePixelRatio || 1);
-const { timeline, kernel } = await mountMotion({ canvas, dpr });
+
+/**
+ * A workspace with no film is a normal state, not an error: the panel says so
+ * and points at the conversation, which is where a film gets asked for.
+ */
+function showEmptyFilm() {
+  document.querySelector('.app')?.remove();
+  document.querySelector('.timeline')?.remove();
+  const empty = document.createElement('div');
+  empty.className = 'empty-film';
+  empty.innerHTML = `
+    <div class="empty-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="28" height="28" focusable="false">
+        <path d="M9 7.5v9l7.5-4.5z" fill="currentColor" />
+      </svg>
+    </div>
+    <h2>这个工作区还没有片子</h2>
+    <p>在对话里告诉 agent 你想做什么。它会在工作区的 <code>motion/</code> 里建一条，画面会出现在这里。</p>`;
+  document.body.append(empty);
+  document.body.dataset.empty = 'film';
+}
+
+let mounted;
+try {
+  mounted = await mountMotion({ canvas, dpr });
+} catch (error) {
+  if (error?.code !== 'NO_FILM') throw error;
+  showEmptyFilm();
+  // Stop this module here: everything below expects a film to exist.
+  await new Promise(() => {});
+}
+const { timeline, kernel } = mounted;
 
 const total = timeline.duration;
 let t = 0;

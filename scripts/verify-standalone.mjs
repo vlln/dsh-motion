@@ -15,6 +15,7 @@
 // that GUI first and pass DSH_MOTION_HOME=~/.dsh.
 
 import fs from 'node:fs';
+import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -53,9 +54,51 @@ if (fs.existsSync(path.join(SHARED, 'llm-deepseek')) && !fs.existsSync(path.join
 
 linkSdk(ROOT);
 install('web', ROOT, HOME);
-const boot = await bootWeb(HOME);
 
-console.log(`\nmanual verification\n  url   ${boot.url}\n  home  ${HOME}\n`);
+// One stable port per plugin installation, chosen once and remembered. The
+// only fixed point it must avoid is the main GUI (3080). `DSH_MOTION_PORT=0`
+// forces a fresh pick.
+const PORT_FILE = path.join(HOME, 'web-port');
+const freePort = () =>
+  new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      const { port } = server.address();
+      server.close(() => resolve(port));
+    });
+  });
+
+let port;
+if (process.env.DSH_MOTION_PORT === '0') {
+  port = await freePort();
+} else if (process.env.DSH_MOTION_PORT) {
+  port = Number(process.env.DSH_MOTION_PORT);
+} else if (fs.existsSync(PORT_FILE)) {
+  port = Number(fs.readFileSync(PORT_FILE, 'utf8').trim());
+} else {
+  port = await freePort();
+  while (port === 3080) port = await freePort();
+}
+// A busy port usually means the previous instance is still alive; say so
+// instead of silently moving to another port and breaking the promise.
+const free = await new Promise((resolve) => {
+  const probe = net.createServer();
+  probe.once('error', () => resolve(false));
+  probe.listen(port, '127.0.0.1', () => probe.close(() => resolve(true)));
+});
+if (!free) {
+  console.error(`port ${port} is busy — an older instance may still be running:`);
+  console.error(`  lsof -nP -iTCP:${port} -sTCP:LISTEN`);
+  console.error('stop it, or run with DSH_MOTION_PORT=0 to pick a new stable port.');
+  process.exit(1);
+}
+
+fs.writeFileSync(PORT_FILE, String(port));
+
+const boot = await bootWeb(HOME, { port });
+
+console.log(`\nmanual verification\n  url   ${boot.url}\n  home  ${HOME}\n  port  ${port} (stable; DSH_MOTION_PORT=0 to re-pick)\n`);
 console.log('ask the agent for an animation; the film appears in the right column by itself.');
 console.log('sessions opened here persist across restarts.');
 

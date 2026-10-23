@@ -36,7 +36,7 @@ export function install(profile, pkg, home) {
   });
 }
 
-export function bootWeb(home, { timeout = 25000, patch } = {}) {
+export function bootWeb(home, { timeout = 25000, patch, port = 0 } = {}) {
   return new Promise((resolve, reject) => {
     // An extra patch layer keeps a throwaway HOME from reaching the human's
     // real workspace (the default workspace lives under the OS Documents dir).
@@ -52,7 +52,7 @@ export function bootWeb(home, { timeout = 25000, patch } = {}) {
     }
     // Launcher options must precede the profile name; after it, they reach the
     // web app's own parser and are rejected.
-    const args = [...(overlay ? ['--patch', overlay] : []), '--profile', 'web', '--no-open', '--port', '0'];
+    const args = [...(overlay ? ['--patch', overlay] : []), '--profile', 'web', '--no-open', '--port', String(port)];
     const child = spawn('dsh', args, {
       env: { ...process.env, DSH_HOME: home },
     });

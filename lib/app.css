@@ -494,6 +494,21 @@ canvas {
   letter-spacing: 0.04em;
 }
 
+.asset-line {
+  display: flex;
+  gap: 6px;
+}
+
+.asset-line input {
+  flex: 1;
+}
+
+.asset-line .btn {
+  flex: none;
+  padding: 3px 8px;
+  font-size: 11px;
+}
+
 .asset-row input {
   width: 100%;
   background: #0b1426;

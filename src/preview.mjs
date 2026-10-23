@@ -191,6 +191,26 @@ async function persistAsset(name, src) {
   }
 }
 
+async function persistRebake(name, src) {
+  try {
+    assetNote.textContent = '重烘中…';
+    const res = await fetch('./api/assets/rebake', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name, src }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? res.statusText);
+    kernel.timeline.assets[name].src = data.src;
+    await kernel.reloadAssets();
+    kernel.renderAt(t);
+    assetNote.textContent = `已重烘 · ${data.manifest.count} 帧 ${data.manifest.cols}×${data.manifest.rows}`;
+    refreshAssets();
+  } catch (err) {
+    assetNote.textContent = `重烘失败：${err.message}`;
+  }
+}
+
 function refreshAssets() {
   const items = kernel.assets();
   assetsEl.hidden = items.length === 0;
@@ -200,20 +220,33 @@ function refreshAssets() {
   if (key !== assetKey) {
     assetList.replaceChildren();
     for (const item of items) {
-      const row = document.createElement('label');
+      const row = document.createElement('div');
       row.className = 'asset-row';
 
       const name = document.createElement('span');
       name.className = 'slot';
       name.textContent = `${item.name} · ${item.kind}`;
 
+      const line = document.createElement('div');
+      line.className = 'asset-line';
+
       const input = document.createElement('input');
       input.value = item.src;
-      input.disabled = !item.editable;
+      input.disabled = !item.editable && !item.rebakeable;
       input.dataset.assetName = item.name;
-      input.addEventListener('change', () => persistAsset(item.name, input.value));
+      if (item.editable) input.addEventListener('change', () => persistAsset(item.name, input.value));
 
-      row.append(name, input);
+      line.append(input);
+      if (item.rebakeable) {
+        const bake = document.createElement('button');
+        bake.className = 'btn ghost';
+        bake.textContent = '重烘';
+        bake.dataset.bake = item.name;
+        bake.addEventListener('click', () => persistRebake(item.name, input.value));
+        line.append(bake);
+      }
+
+      row.append(name, line);
       assetList.append(row);
     }
     assetKey = key;

@@ -11,7 +11,7 @@ import { chromium } from 'playwright';
 import { startServer } from './serve.mjs';
 import { findChromium } from './lib/chromium.mjs';
 import { createGate } from './lib/gate.mjs';
-import { setProjectAsset } from '../src/project.mjs';
+import { rebakeAsset, setProjectAsset } from '../src/project.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const { check, finish } = createGate();
@@ -21,6 +21,8 @@ const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-assets-'));
 fs.copyFileSync(path.join(ROOT, 'fixtures/timeline-media.json'), path.join(tmp, 'timeline.json'));
 // Asset paths are package-relative, so the throwaway root needs the fixtures too.
 fs.cpSync(path.join(ROOT, 'out/fixtures'), path.join(tmp, 'out/fixtures'), { recursive: true });
+fs.mkdirSync(path.join(tmp, 'scripts'), { recursive: true });
+fs.copyFileSync(path.join(ROOT, 'scripts/assets.mjs'), path.join(tmp, 'scripts/assets.mjs'));
 const attempt = async (fn) => {
   try {
     return { ok: true, value: await fn() };
@@ -45,6 +47,22 @@ try {
 
   const ghost = await attempt(() => setProjectAsset(tmp, 'ghost', 'out/fixtures/plate.png'));
   check('an unknown asset is refused', !ghost.ok && /unknown asset/.test(ghost.error), ghost.error ?? 'accepted');
+
+  // --- rebake: a new source is baked, not just recorded ---
+  const baked = await attempt(() => rebakeAsset(tmp, 'clipA', 'out/fixtures/clip2.mp4'));
+  const afterBake = JSON.parse(fs.readFileSync(path.join(tmp, 'timeline.json'), 'utf8'));
+  check(
+    'rebaking repoints the clip and bakes a new sheet',
+    baked.ok && afterBake.assets.clipA.src === 'out/fixtures/clip2.mp4' && baked.value.manifest.count === 24,
+    baked.error ?? `${baked.value?.manifest.count} frames`,
+  );
+  check('the new sheet is written', fs.existsSync(path.join(tmp, 'out/media/clipA.jpg')), 'out/media/clipA.jpg');
+
+  const notVideo = await attempt(() => rebakeAsset(tmp, 'clipA', 'out/fixtures/plate.png'));
+  check('rebaking a non-video is refused', !notVideo.ok && /not a video/.test(notVideo.error), notVideo.error ?? 'accepted');
+
+  const imageBake = await attempt(() => rebakeAsset(tmp, 'plate'));
+  check('rebaking an image is refused', !imageBake.ok && /only clips are baked/.test(imageBake.error), imageBake.error ?? 'accepted');
 } finally {
   fs.rmSync(tmp, { recursive: true, force: true });
 }
@@ -65,7 +83,9 @@ try {
 
   const clipInput = page.locator('#assetList input[data-asset-name="clipA"]');
   const plateInput = page.locator('#assetList input[data-asset-name="plate"]');
-  check('clip sources are read-only', await clipInput.isDisabled(), 'disabled');
+  check('clip sources are editable again, but only through a rebake', await clipInput.isEnabled(), 'enabled');
+  check('clips get a rebake button', (await page.locator('#assetList button[data-bake="clipA"]').count()) === 1, 'button present');
+  check('images have no rebake button', (await page.locator('#assetList button[data-bake="plate"]').count()) === 0);
   check('image sources are editable', await plateInput.isEnabled(), 'enabled');
 
   const gold = await page.evaluate(() => window.__PREVIEW__.pixel(1420, 350));

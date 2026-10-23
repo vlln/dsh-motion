@@ -2,7 +2,7 @@
 // plugin's web routes (lib/index.mjs). Same reason as comments: one
 // implementation, two mount points.
 
-import { describeProject, history, restoreProject, setProjectAsset, setProjectParam, setProjectText, setProjectValue } from './project.mjs';
+import { describeProject, history, rebakeAsset, restoreProject, setProjectAsset, setProjectParam, setProjectText, setProjectValue } from './project.mjs';
 
 const json = (res, code, data) => {
   res.writeHead(code, { 'content-type': 'application/json; charset=utf-8' });
@@ -63,6 +63,12 @@ export function paramsHandlers(root) {
       if (!name || !src) throw new Error('set needs name and src');
       const out = await setProjectAsset(root, name, src);
       json(res, 200, { ok: true, name: out.name, src: out.src, snapshot: out.snapshot });
+    }),
+    rebake: wrap(async (req, res) => {
+      const { name, src } = await readBody(req);
+      if (!name) throw new Error('rebake needs name');
+      const out = await rebakeAsset(root, name, src);
+      json(res, 200, { ok: true, name: out.name, src: out.src, manifest: out.manifest });
     }),
     history: wrap(async (req, res) => json(res, 200, { snapshots: history(root) })),
     restore: wrap(async (req, res) => {

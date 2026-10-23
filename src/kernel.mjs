@@ -405,6 +405,7 @@ export function createKernel({ timeline, modules }) {
             scene: sceneAt(lastTime).id,
             src: spec.src ?? '',
             editable: node.kind === 'image',
+            rebakeable: node.kind === 'clip',
           };
         });
     },

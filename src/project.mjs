@@ -5,6 +5,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { validateTimeline } from './validate.mjs';
 import { describeParams, resolveParam, checkParam as validateParam } from './params.mjs';
 import { checkValue as validateValue } from './values.mjs';
@@ -116,7 +117,7 @@ export async function setProjectAsset(root, name, src) {
   const spec = timeline.assets?.[name];
   if (!spec) throw new Error(`unknown asset "${name}" (declared: ${Object.keys(timeline.assets ?? {}).join(', ') || 'none'})`);
   if (spec.kind !== 'image') {
-    throw new Error(`asset "${name}" is a ${spec.kind}: re-run \`npm run assets\` after changing its source`);
+    throw new Error(`asset "${name}" is ${spec.kind === 'image' ? 'an' : 'a'} ${spec.kind}: re-run \`npm run assets\` after changing its source`);
   }
 
   const abs = path.resolve(root, src);
@@ -128,6 +129,47 @@ export async function setProjectAsset(root, name, src) {
   timeline.assets[name] = { ...spec, src };
   const snap = await writeTimeline(root, timeline, `asset-${name}`);
   return { name, src, snapshot: snap };
+}
+
+const VIDEO_EXT = new Set(['.mp4', '.mov', '.webm', '.mkv', '.m4v']);
+
+/**
+ * Rebake a clip: optionally repoint it, then run the sheet builder for that one
+ * asset. If the bake fails the timeline is rolled back — a clip whose source is
+ * not baked would render stale frames, which is worse than refusing.
+ */
+export async function rebakeAsset(root, name, src) {
+  const timeline = readTimeline(root);
+  const spec = timeline.assets?.[name];
+  if (!spec) throw new Error(`unknown asset "${name}" (declared: ${Object.keys(timeline.assets ?? {}).join(', ') || 'none'})`);
+  if (spec.kind !== 'clip') throw new Error(`asset "${name}" is ${spec.kind === 'image' ? 'an' : 'a'} ${spec.kind}: only clips are baked`);
+
+  const target = src ?? spec.src;
+  const abs = path.resolve(root, target);
+  if (!abs.startsWith(root + path.sep)) throw new Error(`asset path escapes the package: ${target}`);
+  if (!fs.existsSync(abs)) throw new Error(`asset not found: ${target}`);
+  if (!VIDEO_EXT.has(path.extname(abs).toLowerCase())) {
+    throw new Error(`not a video (${path.extname(abs) || 'no extension'}): ${target}`);
+  }
+
+  const previous = fs.readFileSync(path.join(root, 'timeline.json'), 'utf8');
+  if (target !== spec.src) {
+    timeline.assets[name] = { ...spec, src: target };
+    await writeTimeline(root, timeline, `asset-${name}`);
+  }
+
+  try {
+    execFileSync(process.execPath, [path.join(root, 'scripts/assets.mjs'), 'prep', '--only', name, '--timeline', 'timeline.json'], {
+      cwd: root,
+      encoding: 'utf8',
+    });
+  } catch (err) {
+    fs.writeFileSync(path.join(root, 'timeline.json'), previous);
+    throw new Error(`rebake failed: ${String(err.stderr || err.stdout || err.message).trim()}`);
+  }
+
+  const manifest = JSON.parse(fs.readFileSync(path.join(root, 'out/media', `${name}.json`), 'utf8'));
+  return { name, src: target, manifest };
 }
 
 export function history(root) {

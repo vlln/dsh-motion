@@ -27,6 +27,7 @@ if (cmd !== 'prep') {
 }
 
 const timelinePath = path.resolve(ROOT, opt('timeline', 'timeline.json'));
+const only = opt('only', null);
 const timeline = JSON.parse(fs.readFileSync(timelinePath, 'utf8'));
 const assets = timeline.assets ?? {};
 const outDir = path.join(ROOT, 'out', 'media');
@@ -51,6 +52,7 @@ function probe(file) {
 
 const prepared = [];
 for (const [name, spec] of Object.entries(assets)) {
+  if (only && name !== only) continue;
   if (!spec || typeof spec !== 'object') throw new Error(`assets.${name}: must be an object`);
   const src = inside(spec.src);
 
@@ -92,7 +94,11 @@ for (const [name, spec] of Object.entries(assets)) {
 }
 
 // Index lets the kernel tell "not prepared yet" from "declared but broken".
-fs.writeFileSync(path.join(outDir, 'index.json'), `${JSON.stringify({ assets: prepared }, null, 2)}\n`);
+// `--only` rebakes one asset, so merge with what is already indexed.
+const indexPath = path.join(outDir, 'index.json');
+const previous = fs.existsSync(indexPath) ? (JSON.parse(fs.readFileSync(indexPath, 'utf8')).assets ?? []) : [];
+const merged = [...previous.filter((entry) => !prepared.some((p) => p.name === entry.name)), ...prepared];
+fs.writeFileSync(indexPath, `${JSON.stringify({ assets: merged }, null, 2)}\n`);
 for (const item of prepared) {
   console.log(`${item.name.padEnd(12)} ${item.kind === 'clip' ? `${item.count} frames ${item.cols}x${item.rows}` : item.src}`);
 }

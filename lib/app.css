@@ -142,12 +142,22 @@ canvas {
 .readout {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: 6px;
+  margin-right: 6px;
+}
+
+.scene-name {
+  font: 500 13px/1.4 var(--font);
+  color: var(--fg);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .tc {
-  font: 600 24px/1 var(--mono);
+  font: 600 18px/1 var(--mono);
   color: var(--fg);
+  font-variant-numeric: tabular-nums;
 }
 
 .dim {
@@ -155,11 +165,13 @@ canvas {
   font-size: 12px;
 }
 
+/* The inspector is a read-out, not a card: an empty one should not draw a box
+   the size of a paragraph. */
 .inspector {
-  border: 0.5px solid var(--line);
-  border-radius: var(--radius);
-  padding: 10px 12px;
-  background: var(--surface);
+  border: 0;
+  background: transparent;
+  padding: 0;
+  min-height: 0;
 }
 
 /* Collapsible section: the summary is the header, the body starts flush. */
@@ -245,7 +257,6 @@ canvas {
 }
 
 .inspector {
-  min-height: 72px;
   font: 12px/1.7 var(--mono);
   color: var(--muted);
 }
@@ -278,7 +289,7 @@ canvas {
   padding-top: 12px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 8px;
 }
 
@@ -292,6 +303,9 @@ canvas {
   gap: 10px;
 }
 
+/* Scene chips size to their content and scroll sideways when the column is
+   narrow; stretching them to fill the row made five scenes look like five
+   buttons. */
 .scenes {
   position: relative;
   display: flex;
@@ -299,9 +313,18 @@ canvas {
   height: 40px;
   touch-action: none;
   cursor: ew-resize;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.scenes::-webkit-scrollbar {
+  display: none;
 }
 
 .chip {
+  flex: 0 0 auto;
+  min-width: 96px;
+  max-width: 220px;
   position: relative;
   border: 0.5px solid var(--line);
   border-radius: var(--radius-sm);
@@ -751,4 +774,41 @@ code {
 
 .empty-film code {
   font: 12px/1.4 var(--mono);
+}
+
+
+/* A wide panel takes the shape the film deserves: the artboard floats with air
+   around it, the controls sit in a rail on the right, the strip runs underneath.
+   A narrow column keeps the stacked layout above. */
+@media (min-width: 880px) {
+  [data-embed='tab'] .app {
+    grid-template-columns: minmax(0, 1fr) 320px;
+    grid-template-rows: minmax(0, 1fr);
+    height: calc(100% - 96px);
+  }
+
+  [data-embed='tab'] .stage-wrap {
+    padding: 24px;
+  }
+
+  [data-embed='tab'] .panel {
+    border-top: 0;
+    border-left: 0.5px solid var(--line);
+  }
+
+  [data-embed='tab'] .timeline {
+    height: 96px;
+    padding: 10px 16px 12px;
+  }
+
+  [data-embed='tab'] .scenes {
+    height: 36px;
+  }
+}
+
+/* In a narrow column a chip can afford its name or its duration, not both. */
+@media (max-width: 700px) {
+  .chip .len {
+    display: none;
+  }
 }

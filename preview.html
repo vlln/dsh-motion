@@ -38,14 +38,9 @@
       <aside class="panel">
         <div class="panel-top">
           <header class="panel-head">
-            <h1>Motion</h1>
+            <span id="sceneName" class="scene-name">—</span>
             <span class="tag" id="mode">paused</span>
           </header>
-
-          <section class="readout">
-            <span id="tc" class="tc">0:00.00</span>
-            <span class="dim">/ <span id="dur">0:19.00</span></span>
-          </section>
         </div>
 
         <div class="stale" id="stale" hidden>
@@ -135,7 +130,6 @@
         </details>
 
         <footer class="panel-foot">
-          <span id="sceneName" class="dim">—</span>
           <button id="undo" class="btn ghost" disabled title="回到上一次写入前">回退</button>
         </footer>
       </aside>
@@ -146,6 +140,10 @@
         <div class="playhead" id="playhead"></div>
       </div>
       <div class="transport">
+        <span class="readout">
+          <span id="tc" class="tc">0:00.00</span>
+          <span class="dim">/ <span id="dur">0:19.00</span></span>
+        </span>
         <button id="play" class="btn icon" aria-label="play" title="播放 / 暂停（空格）">
           <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
             <path class="i-play" d="M5 3.2v9.6l8-4.8z" />

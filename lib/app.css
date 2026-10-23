@@ -341,10 +341,8 @@ canvas {
   background: var(--surface);
   color: var(--muted);
   font: 12px/1.4 var(--font);
-  padding: 6px 10px;
-  overflow: hidden;
+  padding: 6px 8px 6px 10px;
   white-space: nowrap;
-  text-overflow: ellipsis;
   cursor: pointer;
   text-align: left;
   transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease), background var(--dur) var(--ease);
@@ -1809,4 +1807,52 @@ body:not(.tweaks) .app {
 
 .popover .send-btn:hover {
   background: #3a3e45;
+}
+
+
+body.annotating .canvas-box {
+  cursor: crosshair;
+}
+
+#styleList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+#styleList button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--muted);
+  font: 12px/1 var(--font);
+  cursor: pointer;
+}
+
+#styleList button:hover {
+  background: var(--hover);
+}
+
+#styleList button[aria-pressed='true'] {
+  border-color: var(--line-strong);
+  background: var(--active);
+  color: var(--fg);
+}
+
+.style-dots {
+  display: flex;
+  gap: 2px;
+}
+
+.style-dots i {
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 0.5px rgb(0 0 0 / 10%);
 }

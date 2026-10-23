@@ -63,8 +63,11 @@ try {
   await nameInput.dispatchEvent('change');
   const renamed = await until(() => read().scenes[0].name === 'Renamed scene');
   check('a scene can be renamed from the panel', renamed, read().scenes[0].name);
-  const chipText = await page.locator('.chip').first().textContent();
-  check('the chip follows the new name', (chipText ?? '').includes('Renamed scene'), chipText ?? '');
+  const chipNamed = await until(
+    async () => ((await page.locator('.chip').first().textContent()) ?? '').includes('Renamed scene'),
+    4000,
+  );
+  check('the chip follows the new name', chipNamed, (await page.locator('.chip').first().textContent()) ?? '');
 
   const nextStart = read().scenes[1].start;
   await page.click('#nextScene');

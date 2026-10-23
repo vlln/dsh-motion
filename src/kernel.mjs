@@ -88,7 +88,21 @@ export function createKernel({ timeline, modules }) {
       }
       g.restore();
 
-      return { box: { x, y, w, h: Math.max(size, lines.length * lineH) }, lines: boxes, truncated };
+      // The box hugs the drawn glyphs, not the column they were wrapped into:
+      // a highlight that spans the whole column looks like a mistake.
+      const first = boxes[0];
+      const minX = Math.min(...boxes.map((b) => b.x));
+      const maxX = Math.max(...boxes.map((b) => b.x + b.w));
+      return {
+        box: {
+          x: first ? minX : x,
+          y,
+          w: first ? Math.max(1, maxX - minX) : 0,
+          h: Math.max(size, lines.length * lineH),
+        },
+        lines: boxes,
+        truncated,
+      };
     };
 
     const loadBitmap = async (src) => {
@@ -455,6 +469,25 @@ export function createKernel({ timeline, modules }) {
       for (const key of Object.keys(timeline)) if (!(key in next)) delete timeline[key];
       Object.assign(timeline, next);
       if (beats) timeline.beats = beats;
+    },
+    /** The live timeline object every resolver closes over. */
+    get timeline() {
+      return timeline;
+    },
+    /** Resolve a palette token for the frame currently drawn (debug + UI). */
+    colorAt(token, elementId) {
+      return color(sceneAt(lastTime), token, elementId);
+    },
+    /** Re-run every scene's mount(): scenes cache palette-derived sprites there,
+     *  so a style change has to rebuild them. */
+    remount() {
+      for (const entry of mounted.values()) {
+        try {
+          entry.module.mount?.(entry.ctx);
+        } catch (error) {
+          console.error(`remount ${entry.id ?? ''}`, error);
+        }
+      }
     },
     setPalette(patch) {
       patchPalettes(timeline, patch);

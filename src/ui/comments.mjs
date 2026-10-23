@@ -124,6 +124,7 @@ export function createComments({
 
   canvas.addEventListener('mousedown', (e) => {
     if (!embedded) return; // no session: plain clicks still pick elements
+    if (!document.body.classList.contains('annotating')) return;
     if (e.button !== 0) return;
     const p = point(e);
     drag = { x0: p.x, y0: p.y, x1: p.x, y1: p.y, moved: false };
@@ -218,12 +219,29 @@ export function createComments({
     if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') popSubmit.click();
   });
 
-  /** Every pin that was ever sent keeps its outline on the frame, not in a list. */
-  function paintAnchors(threads) {
+  const threadsCache = [];
+  const sceneAt = (t) => {
+    const total = timeline.duration ?? 0;
+    const clamped = Math.max(0, Math.min(t, total - 1e-6));
+    return (
+      timeline.scenes.find((sc) => clamped >= sc.start && clamped < sc.start + sc.length) ??
+      timeline.scenes[timeline.scenes.length - 1]
+    );
+  };
+
+  /**
+   * Outlines are shown only while annotating, and only in the scene the note
+   * belongs to: a box floating over an unrelated shot is noise.
+   */
+  function paintAnchors() {
     for (const old of box.querySelectorAll('.anchor')) old.remove();
-    for (const [i, th] of threads.entries()) {
-      const rect = th.anchor?.rect;
-      if (!rect || !(rect.w > 0) || !(rect.h > 0)) continue;
+    if (!document.body.classList.contains('annotating')) return;
+    const here = sceneAt(getTime())?.id;
+    const visible = threadsCache.filter(
+      (th) => th.anchor?.rect && th.anchor.rect.w > 0 && th.anchor.rect.h > 0 && sceneAt(th.anchor.t)?.id === here,
+    );
+    for (const [i, th] of visible.entries()) {
+      const rect = th.anchor.rect;
       const el = document.createElement('div');
       el.className = 'anchor';
       el.dataset.id = th.id;
@@ -247,7 +265,9 @@ export function createComments({
     try {
       const data = await (await fetch('./api/comments')).json();
       const threads = data.threads ?? [];
-      paintAnchors(threads);
+      threadsCache.length = 0;
+      threadsCache.push(...threads);
+      paintAnchors();
       threadCount.textContent = String(threads.length);
       if (!threads.length) {
         threadsEl.innerHTML = '';
@@ -284,6 +304,8 @@ export function createComments({
 
   return {
     refreshThreads,
+    /** Re-evaluate which outlines belong on this frame. */
+    refreshAnchors: () => paintAnchors(),
     /** Open the note box for a clicked object (annotate mode). */
     annotateAt: (rect) => openPopover(rect),
     /** True when a note has a conversation to reach. */

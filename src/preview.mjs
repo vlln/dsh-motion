@@ -142,6 +142,19 @@ const fmt = (s) => {
 let chips = [];
 
 function buildChips(scenes) {
+  const sameOrder = chips.length === scenes.length && chips.every((c, i) => c.scene.id === scenes[i].id);
+  if (sameOrder) {
+    // Same scenes, new lengths: update in place. Rebuilding would kill a hover
+    // (and the ... menu) every time the poll applies an edit.
+    chips.forEach(({ el }, i) => {
+      const scene = scenes[i];
+      el.style.flexGrow = String(scene.length);
+      el.querySelector('.chip-label').innerHTML = `${scene.name} <span class="len">· ${scene.length.toFixed(1)}s</span>`;
+      el.dataset.scene = scene.id;
+      chips[i].scene = scene;
+    });
+    return;
+  }
   for (const { el } of chips) el.remove();
   chips = scenes.map((scene) => {
     const el = document.createElement('div');
@@ -161,18 +174,23 @@ function buildChips(scenes) {
       }
       // Keyboard activation has no pointer, so it uses the scene's start; a
       // pointer press was already served by the strip's seek.
-      setTime(scene.start + 0.001);
+      const now = timeline.scenes.find((s) => s.id === el.dataset.scene);
+      if (!now) return;
+      setTime(now.start + 0.001);
       renderFrame();
     });
     el.addEventListener('keydown', (e) => {
       if (e.key !== 'Enter' && e.key !== ' ') return;
       e.preventDefault();
-      setTime(scene.start + 0.001);
+      const now = timeline.scenes.find((s) => s.id === el.dataset.scene);
+      if (!now) return;
+      setTime(now.start + 0.001);
       renderFrame();
     });
     el.querySelector('.chip-more').addEventListener('click', (e) => {
       e.stopPropagation();
-      openChipMenu(scene, el);
+      const now = timeline.scenes.find((s) => s.id === el.dataset.scene) ?? scene;
+      openChipMenu(now, el);
     });
     scenesEl.insertBefore(el, playhead);
     return { el, scene };
@@ -221,8 +239,11 @@ function adoptTimeline(next) {
   total = next.duration;
   durEl.textContent = fmt(total);
   if (t > total - 0.001) t = Math.max(0, total - 0.001);
-  buildChips(next.scenes);
-  buildReel(next.scenes);
+  timeline = kernel.timeline ?? next;
+  buildChips(timeline.scenes);
+  buildReel(timeline.scenes);
+  buildStyles();
+  applyStyle(currentStyle);
   setTime(t);
 }
 
@@ -346,6 +367,7 @@ function setTime(next) {
     if (s.id === scene.id) el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }
   refreshSelection();
+  comments.refreshAnchors();
   buildKnobs(scene);
   buildScene(scene);
   syncExportEstimate();
@@ -689,6 +711,69 @@ expRun.addEventListener('click', async () => {
   }
 });
 
+// --- style: the film's palettes are data, so a style is one lookup away ---
+const styleSection = $('styleSection');
+const styleList = $('styleList');
+const authoredPalette = new Map(timeline.scenes.map((s) => [s.id, s.palette]));
+let currentStyle = '';
+try {
+  currentStyle = localStorage.getItem('dshm:style') ?? '';
+} catch {
+  /* private mode */
+}
+
+function applyStyle(name) {
+  currentStyle = name;
+  for (const scene of timeline.scenes) {
+    scene.palette = name || authoredPalette.get(scene.id) || 'main';
+  }
+  try {
+    localStorage.setItem('dshm:style', name);
+  } catch {
+    /* private mode */
+  }
+  for (const button of styleList.querySelectorAll('button')) {
+    button.setAttribute('aria-pressed', String(button.dataset.style === name));
+  }
+  // Scenes bake palette colours into sprites at mount, so rebuilding them is the
+  // difference between a new style and a new style that does not paint.
+  kernel.remount?.();
+  kernel.renderAt(t);
+  refreshSelection();
+}
+
+function buildStyles() {
+  const names = Object.keys(timeline.palettes ?? {});
+  // One palette is not a choice: the section only exists when the film offers
+  // something to switch to.
+  if (names.length < 2) {
+    styleSection.hidden = true;
+    return;
+  }
+  styleSection.hidden = false;
+  const swatch = (palette, token) =>
+    `<i style="background:${palette[token] ?? '#000'}"></i>`;
+  styleList.innerHTML = [
+    `<button data-style="" aria-pressed="${currentStyle === ''}"><span class="style-dots">${swatch(timeline.palettes.main ?? {}, 'bg')}</span>原样</button>`,
+    ...names.map(
+      (name) =>
+        `<button data-style="${name}" aria-pressed="${currentStyle === name}"><span class="style-dots">${[
+          'bg',
+          'accent',
+          'fg',
+        ]
+          .map((token) => swatch(timeline.palettes[name], token))
+          .join('')}</span>${name}</button>`,
+    ),
+  ].join('');
+  for (const button of styleList.querySelectorAll('button')) {
+    button.addEventListener('click', () => applyStyle(button.dataset.style));
+  }
+}
+
+buildStyles();
+applyStyle(currentStyle);
+
 // --- scene level: length and speed (structural, so the shell reloads) ---
 let sceneKey = '';
 
@@ -702,8 +787,12 @@ async function persistScene(patch) {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? res.statusText);
-    sceneNote.textContent = `已保存 · 总时长 ${data.duration}s，正在刷新…`;
-    setTimeout(() => location.reload(), 350);
+    // Apply the new timeline in place instead of reloading the page: a reload
+    // would throw away the playhead and every hover mid-edit.
+    const latest = await (await fetch(timelineSrc, { cache: 'no-store' })).json();
+    kernel.reload(latest);
+    adoptTimeline(kernel.timeline ?? latest);
+    sceneNote.textContent = `已保存 · 总时长 ${data.duration}s`;
   } catch (err) {
     sceneNote.textContent = `保存失败：${err.message}`;
     syncSceneFields(scene);
@@ -762,13 +851,14 @@ sceneNameInput?.addEventListener('change', async () => {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? res.statusText);
-    scene.name = data.scene.name;
-    const chip = chips.find((c) => c.scene.id === scene.id);
-    if (chip) chip.el.innerHTML = `${data.scene.name} <span class="len">· ${data.scene.length.toFixed(1)}s</span>`;
-    sceneName.textContent = data.scene.name;
+    // Same path as any other edit: pull the timeline and adopt it, so chips,
+    // reel and rail all agree without a page reload.
+    const latest = await (await fetch(timelineSrc, { cache: 'no-store' })).json();
+    kernel.reload(latest);
+    adoptTimeline(kernel.timeline ?? latest);
   } catch (err) {
     sceneNote.textContent = `改名失败：${err.message}`;
-    sceneNameInput.value = scene.name;
+    sceneNameInput.value = currentScene(t).name;
   }
 });
 
@@ -1105,6 +1195,16 @@ const comments = createComments({
 
 // Two modes the human switches on, the way the reference does: the rail is a
 // door (Tweaks), and annotating is a mode (click an object, no drag needed).
+const annotateBtn = $('annotateMode');
+
+function setAnnotating(on) {
+  document.body.classList.toggle('annotating', on);
+  annotateBtn?.setAttribute('aria-pressed', String(on));
+  comments.refreshAnchors();
+}
+
+annotateBtn?.addEventListener('click', () => setAnnotating(!document.body.classList.contains('annotating')));
+
 const tweaksBtn = $('tweaksToggle');
 
 
@@ -1131,6 +1231,10 @@ tweaksBtn?.addEventListener('click', () => setTweaks(!document.body.classList.co
 // its field (I-beam), anything else opens a note.
 canvas.addEventListener('pointermove', (e) => {
   if (playing) return;
+  if (document.body.classList.contains('annotating')) {
+    canvas.style.cursor = 'crosshair';
+    return;
+  }
   const rect = canvas.getBoundingClientRect();
   const x = ((e.clientX - rect.left) / rect.width) * timeline.width;
   const y = ((e.clientY - rect.top) / rect.height) * timeline.height;
@@ -1156,6 +1260,12 @@ canvas.addEventListener('click', (e) => {
     selection.hidden = true;
     inspector.innerHTML = '';
   }
+  if (document.body.classList.contains('annotating')) {
+    // Annotating is a mode: a click or a drag marks a region, and text editing
+    // stays out of the way until the mode is off.
+    if (comments.available()) comments.annotateAt(target);
+    return;
+  }
   if (hit?.slot) {
     // A word is edited, not annotated: open the rail and put the caret in its
     // field with the value selected, so typing replaces it.
@@ -1170,7 +1280,6 @@ canvas.addEventListener('click', (e) => {
     }
     return; // editing the word is the whole gesture; no note box on top
   }
-  if (comments.available()) comments.annotateAt(target);
 });
 
 // --- fullscreen ---
@@ -1285,6 +1394,9 @@ window.__PREVIEW__ = {
     return total;
   },
   scenes: () => timeline.scenes.map((s) => ({ id: s.id, start: s.start, length: s.length })),
+  style: () => ({ current: currentStyle, palettes: timeline.scenes.map((s) => s.palette) }),
+  remount: () => kernel.remount?.(),
+  color: (token) => kernel.colorAt?.(token),
   boxRect: () => box.getBoundingClientRect(),
   comments: async () => (await (await fetch('./api/comments')).json()).threads,
   params: () => ({

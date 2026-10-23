@@ -321,12 +321,6 @@ canvas {
   height: 40px;
   touch-action: none;
   cursor: ew-resize;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.scenes::-webkit-scrollbar {
-  display: none;
 }
 
 .chip {
@@ -1215,4 +1209,44 @@ body.commenting .canvas-box {
   .volume {
     display: none;
   }
+}
+
+
+/* The strip is the scrubber. Hovering it peeks at the frame under the pointer.
+   Nothing may clip the peek, so the strip is not a scroll container: the chips
+   are proportional and always fit. */
+
+.hover-frame {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  width: 192px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #000;
+  box-shadow: 0 8px 26px rgb(0 0 0 / 28%);
+  pointer-events: none;
+  z-index: 5;
+}
+
+.hover-frame[hidden] {
+  display: none;
+}
+
+.hover-frame canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.hover-time {
+  position: absolute;
+  inset: auto 0 0;
+  padding: 3px 6px;
+  font: 500 10px/1.2 var(--mono);
+  color: #fff;
+  background: linear-gradient(transparent, rgb(0 0 0 / 65%));
+}
+
+.transport .spacer {
+  flex: 1;
 }

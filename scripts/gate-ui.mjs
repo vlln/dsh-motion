@@ -48,14 +48,24 @@ check('timecode follows chip seek', (await tc()).startsWith('0:08'), await tc())
 const active = await page.getAttribute('[data-scene="cold-war"]', 'aria-current');
 check('active chip highlighted', active === 'true');
 
-// --- scrubber ---
-await page.evaluate(() => {
-  const el = document.getElementById('scrub');
-  el.value = '3';
-  el.dispatchEvent(new Event('input', { bubbles: true }));
-});
-await page.waitForTimeout(80);
-check('scrubber sets time', Math.abs((await time()) - 3) < 0.05, `${(await time()).toFixed(2)}s · ${await tc()}`);
+// --- the strip is the scrubber (there is no separate progress bar) ---
+check('no separate scrub bar exists', (await page.locator('#scrub').count()) === 0);
+const strip = await page.locator('#scenes').boundingBox();
+const total = await page.evaluate(() => window.__PREVIEW__.duration);
+const y = strip.y + strip.height / 2;
+await page.mouse.move(strip.x + 4, y);
+await page.mouse.down();
+await page.mouse.move(strip.x + (3 / total) * strip.width, y, { steps: 8 });
+await page.mouse.up();
+await page.waitForTimeout(120);
+check('dragging the strip scrubs', Math.abs((await time()) - 3) < 0.25, `${(await time()).toFixed(2)}s · ${await tc()}`);
+
+// --- hovering the strip peeks at the frame ---
+await page.mouse.move(strip.x + strip.width * 0.5, y);
+await page.waitForTimeout(250);
+check('hovering the strip shows a peek', await page.locator('#hoverFrame').isVisible());
+await page.mouse.move(strip.x + strip.width * 0.5, strip.y - 80);
+await page.waitForTimeout(150);
 const headLeft = await page.evaluate(() => parseFloat(document.getElementById('playhead').style.left));
 const expectedLeft = ((await time()) / 19) * 100;
 check('playhead position tracks time', Math.abs(headLeft - expectedLeft) < 0.05, `${headLeft}% vs ${expectedLeft.toFixed(3)}%`);

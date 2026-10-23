@@ -12,7 +12,6 @@ const slotHl = $('slotHl');
 const inspector = $('inspector');
 const tc = $('tc');
 const durEl = $('dur');
-const scrub = $('scrub');
 const playBtn = $('play');
 const loopBtn = $('loop');
 const scenesEl = $('scenes');
@@ -170,7 +169,6 @@ buildChips(timeline.scenes);
 function adoptTimeline(next) {
   timeline = next;
   total = next.duration;
-  scrub.max = String(total);
   durEl.textContent = fmt(total);
   if (t > total - 0.001) t = Math.max(0, total - 0.001);
   buildChips(next.scenes);
@@ -215,7 +213,6 @@ window.addEventListener('pointerup', () => {
 
 function setTime(next) {
   t = Math.max(0, Math.min(total - 0.001, next));
-  scrub.value = String(t);
   tc.textContent = fmt(t);
   playhead.style.left = `${(t / total) * 100}%`;
   const scene = currentScene(t);
@@ -390,13 +387,6 @@ loopBtn.addEventListener('click', () => {
   loopBtn.setAttribute('aria-pressed', String(looping));
 });
 
-scrub.max = String(total);
-scrub.addEventListener('input', () => {
-  t = Number(scrub.value);
-  kernel.renderAt(t);
-  setTime(t);
-  if (playing) soundSeek(t);
-});
 
 // --- live changes: the agent writes the same files this panel reads ---
 // Data can be applied in place; code cannot, because the browser caches the
@@ -1051,6 +1041,65 @@ canvas.addEventListener('click', (e) => {
   }
 });
 
+// --- fullscreen ---
+const fullscreenBtn = $('fullscreen');
+fullscreenBtn?.addEventListener('click', async () => {
+  try {
+    if (document.fullscreenElement) await document.exitFullscreen();
+    else await document.documentElement.requestFullscreen();
+  } catch {
+    /* the host may not grant it to an embedded frame */
+  }
+});
+document.addEventListener('fullscreenchange', () => {
+  fullscreenBtn?.setAttribute('aria-pressed', String(!!document.fullscreenElement));
+});
+
+// --- hovering the strip peeks at that frame ---
+const hoverFrame = $('hoverFrame');
+const hoverCanvas = $('hoverCanvas');
+const hoverTime = $('hoverTime');
+const hoverCtx = hoverCanvas.getContext('2d');
+let hoverRaf = 0;
+let hoverAt = -1;
+
+function paintHover(at, clientX) {
+  if (Math.abs(at - hoverAt) > 0.05) {
+    // Draw the peek frame, copy it out, then restore the frame the transport is on.
+    kernel.renderAt(at);
+    hoverCtx.clearRect(0, 0, hoverCanvas.width, hoverCanvas.height);
+    hoverCtx.drawImage(canvas, 0, 0, hoverCanvas.width, hoverCanvas.height);
+    kernel.renderAt(t);
+    hoverAt = at;
+  }
+  hoverTime.textContent = fmt(at);
+  const rect = scenesEl.getBoundingClientRect();
+  const card = hoverFrame.getBoundingClientRect();
+  const left = Math.min(Math.max(clientX - rect.left - card.width / 2, 0), rect.width - card.width);
+  hoverFrame.style.left = `${left}px`;
+  hoverFrame.hidden = false;
+}
+
+scenesEl.addEventListener('pointermove', (e) => {
+  if (stripDrag || playing) {
+    hoverFrame.hidden = true;
+    return;
+  }
+  const rect = scenesEl.getBoundingClientRect();
+  const at = Math.min(total - 0.001, Math.max(0, ((e.clientX - rect.left) / rect.width) * total));
+  const x = e.clientX;
+  if (hoverRaf) return;
+  hoverRaf = requestAnimationFrame(() => {
+    hoverRaf = 0;
+    paintHover(at, x);
+  });
+});
+
+scenesEl.addEventListener('pointerleave', () => {
+  hoverFrame.hidden = true;
+  hoverAt = -1;
+});
+
 window.addEventListener('keydown', (e) => {
   if (e.code === 'Space') {
     e.preventDefault();
@@ -1065,7 +1114,6 @@ window.addEventListener('keydown', (e) => {
 });
 
 durEl.textContent = fmt(total);
-scrub.max = String(total);
 updatePlayButton();
 renderFrame();
 

@@ -11,7 +11,6 @@ export function createComments({
   popover,
   popT,
   popText,
-  popSend,
   popSubmit,
   popClose,
   threadsEl,
@@ -24,7 +23,59 @@ export function createComments({
   onHighlight,
   onClearSelection,
   onError,
+  session = '',
 }) {
+  // A comment is a message. When this page runs inside the host it hands the
+  // sentence to the client half, which speaks it into the session the panel
+  // belongs to; standalone, it can only keep the pin and say so.
+  const embedded = window.parent !== window && Boolean(session);
+  // Standalone has nobody to speak to; say so on the button instead of pretending.
+  if (!embedded) popSubmit.textContent = '保存批注';
+
+  const pendingAcks = new Map();
+
+  window.addEventListener('message', (event) => {
+    if (event.origin !== location.origin) return;
+    const data = event.data;
+    if (!data || data.type !== 'dshm:comment-ack') return;
+    const settle = pendingAcks.get(data.id);
+    if (settle) settle(data);
+  });
+
+  const anchorLabel = (thread) => {
+    const element = thread.anchor?.elementId;
+    const rect = thread.anchor?.rect;
+    if (element) return `${fmt(thread.anchor.t)} · ${element}`;
+    if (rect) {
+      return `${fmt(thread.anchor.t)} · 区域 ${Math.round(rect.x)},${Math.round(rect.y)} ${Math.round(rect.w)}×${Math.round(rect.h)}`;
+    }
+    return fmt(thread.anchor?.t ?? 0);
+  };
+
+  const messageFor = (thread) => `[批注] ${anchorLabel(thread)}\n${thread.messages?.[0]?.text ?? ''}`;
+
+  /** Hand one stored thread to the conversation; resolves the acknowledgement. */
+  const deliver = (thread) =>
+    new Promise((resolve) => {
+      if (!embedded) {
+        resolve({ ok: false, reason: 'standalone' });
+        return;
+      }
+      const timer = setTimeout(() => {
+        pendingAcks.delete(thread.id);
+        resolve({ ok: false, reason: 'timeout' });
+      }, 10000);
+      pendingAcks.set(thread.id, (data) => {
+        clearTimeout(timer);
+        pendingAcks.delete(thread.id);
+        resolve(data.ok ? { ok: true } : { ok: false, reason: data.error ?? 'failed' });
+      });
+      window.parent.postMessage(
+        { type: 'dshm:comment', id: thread.id, session, text: messageFor(thread) },
+        location.origin,
+      );
+    });
+
   let drag = null;
   let pending = null;
   let suppressClick = false;
@@ -111,6 +162,31 @@ export function createComments({
     selection.hidden = true;
   });
 
+  /** Create the pin, then (when embedded) say it in the conversation. */
+  async function addComment({ t, rect, text }) {
+    const trimmed = String(text ?? '').trim();
+    if (!trimmed) throw new Error('批注不能为空');
+    const center = rect ? { x: rect.x + rect.w / 2, y: rect.y + rect.h / 2 } : null;
+    const hit = center ? kernel.pick(center.x, center.y, t) : null;
+    const res = await fetch('./api/comments', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ anchor: { t, rect, elementId: hit?.id ?? null }, text: trimmed }),
+    });
+    if (!res.ok) throw new Error(`批注保存失败：${(await res.json()).error ?? res.status}`);
+    const { thread } = await res.json();
+    const sent = await deliver(thread);
+    if (sent.ok) {
+      await fetch('./api/comments/sent', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id: thread.id }),
+      });
+    }
+    await refreshThreads();
+    return { thread, sent };
+  }
+
   popSubmit.addEventListener('click', async () => {
     if (!pending) return;
     const text = popText.value.trim();
@@ -118,25 +194,22 @@ export function createComments({
       popText.focus();
       return;
     }
-    const center = { x: pending.rect.x + pending.rect.w / 2, y: pending.rect.y + pending.rect.h / 2 };
-    const hit = kernel.pick(center.x, center.y, pending.t);
-    const res = await fetch('./api/comments', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        anchor: { t: pending.t, rect: pending.rect, elementId: hit?.id ?? null },
-        text,
-        activated: popSend.checked,
-      }),
-    });
-    if (!res.ok) {
-      onError(`批注保存失败：${escapeHtml((await res.json()).error ?? res.status)}`);
+    try {
+      const { sent } = await addComment({ t: pending.t, rect: pending.rect, text });
+      if (!sent.ok && sent.reason !== 'standalone') {
+        onError(`批注已保存，但没有送到对话：${escapeHtml(sent.reason)}`);
+      }
+    } catch (error) {
+      onError(String(error?.message ?? error));
       return;
     }
     popover.hidden = true;
     pending = null;
     selection.hidden = true;
-    await refreshThreads();
+  });
+
+  popText.addEventListener('keydown', (event) => {
+    if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') popSubmit.click();
   });
 
   async function refreshThreads() {
@@ -149,13 +222,20 @@ export function createComments({
         return;
       }
       threadsEl.innerHTML = threads
-        .map(
-          (th) => `
+        .map((th) => {
+          const resolved = th.status === 'resolved';
+          const label = resolved ? '已处理' : th.sentAt ? '待处理' : '未发送';
+          const cls = resolved ? 'resolved' : th.sentAt ? 'open' : 'draft';
+          const retry =
+            !resolved && !th.sentAt && embedded
+              ? `<button class="resend" data-send="${th.id}" title="送到对话">发送</button>`
+              : '';
+          return `
         <div class="thread" data-id="${th.id}" data-t="${th.anchor.t}" data-rect="${escapeHtml(JSON.stringify(th.anchor.rect ?? null))}">
-          <div class="meta"><span>${fmt(th.anchor.t)}</span><span class="badge ${th.status}">${th.status}</span></div>
-          <div class="text">${escapeHtml(th.messages[0]?.text ?? '')}</div>
-        </div>`,
-        )
+          <div class="meta"><span>${fmt(th.anchor.t)}</span><span class="badges"><span class="badge ${cls}">${label}</span>${retry}</span></div>
+          <div class="text">${escapeHtml(th.messages?.[0]?.text ?? '')}</div>
+        </div>`;
+        })
         .join('');
       for (const el of threadsEl.querySelectorAll('.thread')) {
         el.addEventListener('click', () => {
@@ -167,6 +247,26 @@ export function createComments({
           }
         });
       }
+      for (const button of threadsEl.querySelectorAll('.resend')) {
+        button.addEventListener('click', async (event) => {
+          event.stopPropagation();
+          const id = button.dataset.send;
+          const thread = threads.find((th) => th.id === id);
+          if (!thread) return;
+          button.disabled = true;
+          const sent = await deliver(thread);
+          if (sent.ok) {
+            await fetch('./api/comments/sent', {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ id }),
+            });
+          } else {
+            onError(`没有送到对话：${escapeHtml(sent.reason ?? '失败')}`);
+          }
+          await refreshThreads();
+        });
+      }
     } catch {
       /* preview works without the API */
     }
@@ -174,6 +274,7 @@ export function createComments({
 
   return {
     refreshThreads,
+    addComment,
     consumeSuppress() {
       const value = suppressClick;
       suppressClick = false;

@@ -60,11 +60,11 @@ export function addThread(root, { anchor, text, activated = true }) {
   return thread;
 }
 
-export function reply(root, id, text, role = 'claude') {
+export function markSent(root, id) {
   const data = load(root);
   const thread = data.threads.find((x) => x.id === id);
   if (!thread) throw new Error(`unknown thread ${id}`);
-  thread.messages.push({ role, text, at: now() });
+  thread.sentAt = now();
   save(root, data);
   return thread;
 }

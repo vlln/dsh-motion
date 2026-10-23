@@ -84,8 +84,12 @@ const refused = async (name, args) => {
 const outOfRange = await refused('motion_params', { action: 'set', scene: 'first-peoples', key: 'axisY', value: 5 });
 check('motion_params refuses an out-of-range value', /0\.45\.\.0\.82/.test(outOfRange ?? ''), outOfRange ?? 'accepted');
 
-const noId = await refused('motion_comments', { action: 'reply', id: '', text: 'x' });
-check('motion_comments refuses a reply without an id', /needs id/.test(noId ?? ''), noId ?? 'accepted');
+const noId = await refused('motion_comments', { action: 'resolve', id: '' });
+check('motion_comments refuses a resolve without an id', /needs id/.test(noId ?? ''), noId ?? 'accepted');
+
+// The reply channel is gone: a comment is answered in the conversation.
+const noReply = await refused('motion_comments', { action: 'reply', id: 'th_x', text: 'x' });
+check('motion_comments refuses the removed reply action', /list or resolve/.test(noReply ?? ''), noReply ?? 'accepted');
 
 const ghostTool = await refused('motion_history', { action: 'restore', id: '../timeline' });
 check('motion_history refuses a traversal id', /bad snapshot id/.test(ghostTool ?? ''), ghostTool ?? 'accepted');
@@ -97,7 +101,7 @@ check('motion_reference reports a missing file', /no such file/.test(badRef ?? '
 
 // --- the panel routes exist even without a browser ---
 const paths = routes.map((r) => r.path);
-for (const suffix of ['/app', '/api/comments', '/api/params', '/api/history', '/api/render']) {
+for (const suffix of ['/app', '/api/comments', '/api/comments/sent', '/api/params', '/api/history', '/api/render']) {
   check(`panel route ${suffix} is registered`, paths.some((p) => p === `/plugins/dsh-motion${suffix}`), paths.length + ' routes');
 }
 

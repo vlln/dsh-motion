@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 // Comment tool contract (stand-in for the plugin's motion_comments):
 //   node scripts/comments.mjs list [--json] [--crops]
-//   node scripts/comments.mjs reply --id th_x --text "..."
 //   node scripts/comments.mjs resolve --id th_x
 
 import fs from 'node:fs';
@@ -9,7 +8,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
-import { list, reply, resolve } from '../src/comments.mjs';
+import { list, resolve } from '../src/comments.mjs';
 import { startServer } from './serve.mjs';
 import { findChromium } from './lib/chromium.mjs';
 
@@ -80,14 +79,6 @@ if (cmd === 'list') {
     }
     if (!payload.length) console.log('(no comments)');
   }
-} else if (cmd === 'reply') {
-  const id = opt('id');
-  const text = opt('text');
-  if (!id || !text) {
-    console.error('usage: comments.mjs reply --id th_x --text "..."');
-    process.exit(1);
-  }
-  console.log(JSON.stringify(reply(ROOT, id, text), null, 2));
 } else if (cmd === 'resolve') {
   const id = opt('id');
   if (!id) {
@@ -96,6 +87,6 @@ if (cmd === 'list') {
   }
   console.log(JSON.stringify(resolve(ROOT, id), null, 2));
 } else {
-  console.error('usage: comments.mjs list|reply|resolve');
+  console.error('usage: comments.mjs list|resolve');
   process.exit(1);
 }

@@ -34,7 +34,7 @@ const sum = ([r, g, b]) => r + g + b;
 async function until(predicate, ms = 4000) {
   const end = Date.now() + ms;
   while (Date.now() < end) {
-    if (predicate()) return true;
+    if (await predicate()) return true;
     await sleep(50);
   }
   return false;
@@ -85,13 +85,13 @@ try {
     input.value = '0.8';
     input.dispatchEvent(new Event('input', { bubbles: true }));
   });
-  await page.waitForTimeout(120);
-  const dragged = { old: sum(await px(1000, rowOld)), new: sum(await px(1000, rowNew)) };
-  check(
-    'dragging moves the drawn axis (kernel, not just the DOM)',
-    dragged.new > dragged.old + 20 && dragged.new > base.new + 20,
-    `${dragged.old} / ${dragged.new}`,
-  );
+  // The repaint is a requestAnimationFrame away; a fixed sleep flakes under load.
+  let dragged = { old: 0, new: 0 };
+  const moved = await until(async () => {
+    dragged = { old: sum(await px(1000, rowOld)), new: sum(await px(1000, rowNew)) };
+    return dragged.new > dragged.old + 20 && dragged.new > base.new + 20;
+  }, 4000);
+  check('dragging moves the drawn axis (kernel, not just the DOM)', moved, `${dragged.old} / ${dragged.new}`);
   check('dragging does not write the file yet', read().params?.['first-peoples']?.axisY === undefined);
   await page.screenshot({ path: path.join(ROOT, 'out/ui-params.png') });
 

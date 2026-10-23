@@ -124,24 +124,31 @@ npm run preview   # http://127.0.0.1:4173/preview.html
 
 ## 批注回路
 
-在暂停帧上拖出一个框 → 写一句 → `Send to Claude`，批注以三要素锚定入库：
+在暂停帧上拖出一个框 → 写一句 → 发送。批注有两半，各归其位：
+
+- **钉子**留在片子里：`{ t, rect, elementId }` 加处理状态，拖回那一帧还能看见指的是哪儿；
+- **话**进对话：作为一条人说出的消息（`[批注] 0:03.20 · title` + 正文），走宿主自己的
+  投递路由——agent 空闲就开一个新回合，忙就排队或插入（按宿主的"忙时回车"设置）。
 
 ```jsonc
+// 片子这一侧的记录
 { "anchor": { "t": 3.2, "rect": {"x":150,"y":235,"w":570,"h":100}, "elementId": "pin-…" },
-  "text": "把标题改成更短的说法", "activated": true, "status": "open" }
+  "text": "把标题改成更短的说法", "status": "open", "sentAt": "2026-10-23T16:09:15.129Z" }
 ```
+
+没有 `sentAt` 的是草稿：独立打开预览时没有会话可说话，面板如实显示"未发送"。
 
 ![批注列表](docs/ui-comments.png)
 
-工具契约（当前是 CLI，插件里会变成 `motion_comments`）：
+工具契约（agent 这一侧只看锚点和状态）：
 
 ```bash
 node scripts/comments.mjs list --json --crops   # 列出线程，并为每个线程生成裁剪图
-node scripts/comments.mjs reply --id th_x --text "改好了"
-node scripts/comments.mjs resolve --id th_x
+node scripts/comments.mjs resolve --id th_x     # 改完之后把钉子标成已处理
 ```
 
 `--crops` 会按锚点打开对应时刻，把 `rect` 外扩 20% 截一张图（`out/comments/<id>.png`）——模型看图比读坐标准。
+回复不写进这里：agent 的话说在对话里。
 
 改文本走 `node scripts/texts.mjs set --scene … --slot … --value …`：写 `timeline.json` → 校验 → 下一帧生效，**不重编译**。
 
@@ -155,17 +162,21 @@ dsh plugin --profile web add <repo 路径>   # 本地目录安装（先 npm run 
 - **工具**：`motion_info`、`motion_texts`、`motion_palette`、`motion_comments`、`motion_params`、
   `motion_history`、`motion_reference`、`motion_render`、`motion_export`
 - **入口是对话，不是面板**：在会话里让 agent 做片子 → `motion_render` 一开跑，对话里就出现
-  一张卡片（帧计数、进度条）→ 渲染完成时卡片换成片子本身，右侧预览标签同时自己打开
-- **三个座位，同一部片子**（都是 `/plugins/dsh-motion/app` 的 iframe，只有 `embed` 不同，
+  一张卡片（帧计数、进度条）→ 渲染完成时卡片换成片子本身，右侧的片子栏同时自己打开
+- **两个座位，同一部片子**（都是 `/plugins/dsh-motion/app` 的 iframe，只有 `embed` 不同，
   所以看片与改片不会走成两套行为）：
 
   | 座位 | 位置 | 用途 |
   |---|---|---|
-  | 卡片 | 对话流里 | 这次渲染的成品与进度；「侧边栏」「编辑器」两个按钮 |
-  | 标签 | 右侧栏 | 常驻预览，聊天时一直在；顶部时间码、场景条、文字/参数/导出都在下面 |
-  | 面板 | 主区域 | 全宽编辑器，侧边栏 `Motion` 进入 |
+  | 卡片 | 对话流里 | 这次渲染的成品与进度；一个「查看」按钮 |
+  | 片子栏 | 右侧栏 | 常驻：画面 + 播放条 + 批注钉子，聊天时一直在 |
 
-  右侧栏是 `/app?embed=tab`（窄列上下堆叠），对话卡片是 `/app?embed=card`（只剩片子和播放条）。
+  右侧栏是 `/app?embed=tab&session=<id>`（窄列上下堆叠），对话卡片是 `/app?embed=card`。
+  **片子栏不会替换对话**：没有"打开应用"的入口，也没有主区域面板——片子永远是对话旁边的一栏。
+- **批注就是消息**：在画面上框一块、写一句，面板把它交给插件外壳，外壳用这个会话的身份
+  把话送进对话（作为人说的话，排队等下一回合）。面板里只留下钉子（时刻、区域、元素、
+  处理状态），不再有第二套聊天，也没有 agent 的回复气泡。
+  独立打开预览时没有会话可说话，批注会显示为"未发送"，不会假装发出。
 - **主题**：面板只消费 dsh 的语义 token（`--dsw-alias-*` / `--dsw-specific-*`），
   亮暗色跟随宿主；iframe 不继承变量，所以 client half 在加载时把 token 抄进去
 
@@ -173,7 +184,8 @@ dsh plugin --profile web add <repo 路径>   # 本地目录安装（先 npm run 
 
 ![对话里的渲染卡片](docs/ui-card.png)
 
-渲染进度不是猜的：`motion_render` 把 capture 的 `帧/总帧` 镜像到 `out/render-state.json`，
+渲染进度不是猜的：`motion_render` 把 capture 的 `
+帧/总帧` 镜像到 `out/render-state.json`，
 卡片轮询 `/api/render` 显示，所以“agent 正在做动画”在对话里是看得见的。
 
 ![亮色](docs/ui-sidebar.png)
@@ -186,8 +198,9 @@ dsh plugin --profile web add <repo 路径>   # 本地目录安装（先 npm run 
 ![暗色](docs/ui-sidebar-dark.png)
 
 `npm run gate:plugin` 验证安装与启动；`npm run gate:client` 在真实 dsh web 里验证面板路由、
-场景条跳转、启动器挂载、右侧标签与 iframe 可用；`npm run gate:card` 让真实会话跑一次
-`motion_render`，验证卡片出现在对话里、渲染完自动开右侧标签（需要本机凭据，缺失时跳过）；
+场景条跳转、片子栏从 guide 打开、带着会话身份、对话不被替换；`npm run gate:card` 让真实会话
+跑一次 `motion_render`，验证卡片出现、片子栏自动打开，并让面板发一条批注，验证它作为消息
+落进对话（需要本机凭据，缺失时跳过）；
 `npm run gate:tools` 用真实会话调一次工具，并跑一次“写错 inject”的负控（需要本机凭据，缺失时跳过）。
 
 ![Plugins 页](docs/plugins-page.png)
@@ -199,7 +212,7 @@ dsh plugin --profile web add <repo 路径>   # 本地目录安装（先 npm run 
 | `motion_info` | 时间轴、场景、调色板、节拍摘要 |
 | `motion_texts` | 读写文本槽（写前校验，非法拒绝） |
 | `motion_palette` | 改共享 token 或元素级 override |
-| `motion_comments` | 列出 / 回复 / 解决批注线程（带三要素锚点） |
+| `motion_comments` | 列出批注（带三要素锚点）／把线程标为已处理；回复发生在对话里 |
 | `motion_params` | 列出 / 设置场景参数（越界拒绝，写前留快照） |
 | `motion_history` | 列出 / 恢复 timeline 快照 |
 | `motion_reference` | 读一支参考视频，返回切点 / 运动曲线 / 主色 / 分镜摘要 |

@@ -32,7 +32,7 @@ const PARAMS = paramsHandlers(ROOT);
 async function api(req, res, url) {
   const post = (req.method ?? 'GET').toUpperCase() === 'POST';
   if (url.pathname === '/api/comments') return post ? API.create(req, res) : API.list(req, res);
-  if (post && url.pathname === '/api/comments/reply') return API.reply(req, res);
+  if (post && url.pathname === '/api/comments/sent') return API.sent(req, res);
   if (post && url.pathname === '/api/comments/resolve') return API.resolve(req, res);
   if (url.pathname === '/api/params') return post ? PARAMS.set(req, res) : PARAMS.get(req, res);
   if (post && url.pathname === '/api/texts') return PARAMS.text(req, res);

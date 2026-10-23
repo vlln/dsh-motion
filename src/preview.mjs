@@ -22,7 +22,6 @@ const modeEl = $('mode');
 const popover = $('popover');
 const popT = $('popT');
 const popText = $('popText');
-const popSend = $('popSend');
 const popSubmit = $('popSubmit');
 const popClose = $('popClose');
 const threadsEl = $('threads');
@@ -60,7 +59,11 @@ const knobNote = $('knobNote');
 const undoBtn = $('undo');
 
 // If this page was opened with ?timeline=, writes must land in that same file.
-const requested = new URLSearchParams(location.search).get('timeline');
+const params = new URLSearchParams(location.search);
+const requested = params.get('timeline');
+// The host tells the panel which session it belongs to; without it the panel is
+// a standalone preview and cannot speak.
+const sessionId = params.get('session') ?? '';
 const target = requested && /^(\.\/|\/plugins\/dsh-motion\/)/.test(requested) ? requested : null;
 const body = (payload) => JSON.stringify(target ? { ...payload, timeline: target } : payload);
 
@@ -741,7 +744,6 @@ const comments = createComments({
   popover,
   popT,
   popText,
-  popSend,
   popSubmit,
   popClose,
   threadsEl,
@@ -761,6 +763,7 @@ const comments = createComments({
   onError: (message) => {
     inspector.innerHTML = `<p class="hint">${message}</p>`;
   },
+  session: sessionId,
 });
 
 canvas.addEventListener('click', (e) => {
@@ -828,6 +831,9 @@ window.__PREVIEW__ = {
     refreshAssets();
   },
   pick: (x, y, at = t) => kernel.pick(x, y, at),
+  // Same path the popover uses: store the pin, then say it in the conversation.
+  comment: (payload) => comments.addComment(payload),
+  session: () => sessionId,
   play: () => playBtn.click(),
   scenes: timeline.scenes.map((s) => ({ id: s.id, start: s.start, length: s.length })),
   duration: total,

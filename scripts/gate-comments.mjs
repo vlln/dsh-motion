@@ -63,7 +63,8 @@ check('comment stored', threads.length === 1, `${threads.length} thread(s)`);
 const th = threads[0];
 check('anchor has time', Math.abs(th.anchor.t - 3.2) < 0.05, `${th.anchor.t}`);
 check('anchor has rect', th.anchor.rect && th.anchor.rect.w > 400 && th.anchor.rect.h > 60, JSON.stringify(th.anchor.rect));
-check('thread is activated', th.activated === true);
+// Standalone has no session to speak into: the pin must stay a draft, visibly.
+check('standalone keeps the pin as a draft', !th.sentAt, String(th.sentAt));
 check('thread listed in panel', (await page.textContent('#threadCount')) === '1');
 
 await page.screenshot({ path: path.join(ROOT, 'out/ui-comments.png') });
@@ -102,12 +103,22 @@ try {
 }
 check('tool rejects unknown slot', rejected);
 
-// --- reply + resolve ---
-execFileSync('node', ['scripts/comments.mjs', 'reply', '--id', th.id, '--text', '改好了，见当前帧'], { cwd: ROOT, encoding: 'utf8' });
+// --- the agent closes the thread; replies live in the conversation, not here ---
 execFileSync('node', ['scripts/comments.mjs', 'resolve', '--id', th.id], { cwd: ROOT, encoding: 'utf8' });
 const stored = JSON.parse(fs.readFileSync(path.join(ROOT, 'out/comments.json'), 'utf8')).threads[0];
-check('reply appended', stored.messages.length === 2 && stored.messages[1].role === 'claude');
 check('thread resolved', stored.status === 'resolved');
+
+let replyGone = false;
+try {
+  execFileSync('node', ['scripts/comments.mjs', 'reply', '--id', th.id, '--text', 'x'], {
+    cwd: ROOT,
+    encoding: 'utf8',
+    stdio: 'pipe',
+  });
+} catch {
+  replyGone = true;
+}
+check('the reply channel is gone', replyGone, 'reply exits 0 — the second chat is back');
 
 await browser.close();
 close();

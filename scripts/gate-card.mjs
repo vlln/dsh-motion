@@ -96,6 +96,35 @@ try {
   const header = await page.locator('[data-dshm-card]').first().innerText();
   check('the card reports the film it belongs to', /已渲染|渲染中|渲染失败/.test(header), header.split('\n')[0] ?? '');
 
+  // --- the comment channel: a pin in the panel becomes a message in the chat ---
+  const tabFrame = page.frameLocator('iframe[title="dsh-motion tab"]').first();
+  await tabFrame.locator('#tc').waitFor({ timeout: 30000 });
+  const said = await tabFrame.locator('body').evaluate(async () => {
+    const out = await window.__PREVIEW__.comment({
+      t: 3.2,
+      rect: { x: 200, y: 240, w: 560, h: 96 },
+      text: '把标题再改短一点',
+    });
+    return { ok: out.sent.ok, reason: out.sent.reason ?? null, id: out.thread.id };
+  });
+  check('a comment is delivered to the session', said.ok === true, said.reason ?? said.id);
+
+  // The words must land in the conversation itself, not in a panel store. A busy
+  // agent may hold the message in its queue first, so wait for the page text —
+  // the panel lives in an iframe and does not contribute to it.
+  const landed = await page
+    .waitForFunction(() => document.body.innerText.includes('把标题再改短一点'), null, { timeout: 90000 })
+    .then(() => true)
+    .catch(() => false);
+  const bodyText = await page.evaluate(() => document.body.innerText);
+  check('the comment appears as a message in the conversation', landed, landed ? 'found in chat' : bodyText.slice(-300).replace(/\n/g, ' '));
+  check('the message is marked as a comment', /\[批注\]/.test(bodyText), 'found [批注]');
+
+  // And the pin must record that it was spoken, so it is never shown as a draft.
+  const pins = await (await page.request.get(`${boot.origin}/plugins/dsh-motion/api/comments`)).json();
+  const pin = (pins.threads ?? []).find((thread) => thread.id === said.id);
+  check('the pin is marked sent', Boolean(pin?.sentAt), pin?.sentAt ?? 'missing');
+
   await page.screenshot({ path: path.join(ROOT, 'out/ui-card-dsh.png') });
 } finally {
   await browser?.close();

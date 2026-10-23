@@ -60,11 +60,9 @@ try {
   check('panel scene strip seeks', t >= 8 && t < 15, `${t.toFixed(2)}s`);
   await page.screenshot({ path: path.join(ROOT, 'out/ui-panel-dsh.png') });
 
-  // (b) the sidebar entry inside the real UI
+  // (b) the film column inside the real UI. There is no "open the app" entry:
+  // the panel is a column beside the conversation, never a replacement for it.
   await page.goto(boot.url);
-  const entry = page.locator('[class*="panelRow"]').filter({ hasText: 'Motion' }).first();
-  await entry.waitFor({ timeout: 30000 });
-  check('the sidebar entry is registered', await entry.isVisible(), 'Motion');
 
   // dismiss first-run dialogs (fresh profile shows "Preview Notice" then "Get started")
   for (let i = 0; i < 3; i++) {
@@ -87,29 +85,30 @@ try {
     await page.waitForTimeout(200);
   }
 
-  // (c) the preview tab: the type is listed in the right sidebar's guide, and
-  // picking it opens the film beside the conversation instead of replacing it.
   const openRail = page.getByRole('button', { name: 'Open right sidebar' });
   if (await openRail.isVisible().catch(() => false)) await openRail.click();
   await page.getByText('正在编辑的片子').click({ timeout: 10000 });
   const tabFrame = page.frameLocator('iframe[title="dsh-motion tab"]');
   await tabFrame.locator('#tc').waitFor({ timeout: 20000 });
-  const tabSrc = await page.locator('iframe[title="dsh-motion tab"]').getAttribute('src');
-  check('the preview tab opens from the guide', /embed=tab/.test(tabSrc ?? ''), tabSrc ?? 'missing');
+
+  const tabSrc = (await page.locator('iframe[title="dsh-motion tab"]').getAttribute('src')) ?? '';
+  check('the preview tab opens from the guide', /embed=tab/.test(tabSrc), tabSrc || 'missing');
+  check('the tab carries the session it belongs to', /session=[0-9a-zA-Z_-]{6,}/.test(tabSrc), tabSrc);
+
   const tabTc = await tabFrame.locator('#tc').textContent();
   check('the preview tab renders the film', /^0:0\d\.\d\d$/.test(tabTc ?? ''), tabTc ?? '');
   const tabPanel = await tabFrame.locator('.panel').isVisible();
   check('the narrow tab stacks rather than clipping the panel', tabPanel, 'panel visible under the film');
+
+  // The conversation must still be there, and the panel must agree about whose
+  // session it is showing — otherwise its comments would land somewhere else.
+  const composer = await page.locator('[contenteditable="true"]').first().isVisible();
+  check('the conversation stays beside the film', composer, 'composer visible');
+  const sessionSeen = await tabFrame.locator('body').evaluate(() => window.__PREVIEW__.session());
+  const sessionInUrl = new URL(tabSrc, boot.origin).searchParams.get('session') ?? '';
+  check('the panel knows its session', sessionSeen !== '' && sessionSeen === sessionInUrl, `${sessionSeen} vs ${sessionInUrl}`);
+
   await page.screenshot({ path: path.join(ROOT, 'out/ui-tab-dsh.png') });
-
-  await entry.click({ timeout: 5000 });
-  await page.waitForSelector('[data-dshm-panel]', { timeout: 5000 });
-  check('panel opens in the main area', true);
-
-  const frame = page.frameLocator('iframe[title="dsh-motion preview"]');
-  await frame.locator('#tc').waitFor({ timeout: 20000 });
-  const frameTc = await frame.locator('#tc').textContent();
-  check('iframe preview is live', /^0:0\d\.\d\d$/.test(frameTc ?? ''), frameTc ?? '');
 
   const mediaRes = await page.request.get(`${boot.origin}/plugins/dsh-motion/out/media/index.json`);
   check('media route served by the plugin', mediaRes.status() === 200, String(mediaRes.status()));
@@ -125,7 +124,7 @@ try {
   check('prefix route never serves outside its base', escape.status() !== 200, String(escape.status()));
 
   // relative URLs inside the iframe must land on /plugins/dsh-motion/*, not the host root
-  const inFrame = await frame
+  const inFrame = await tabFrame
     .locator('body')
     .evaluate(async () => {
       const res = await fetch('./api/history');
@@ -137,7 +136,6 @@ try {
     inFrame.status === 200 && inFrame.ok && inFrame.path === '/plugins/dsh-motion/api/history',
     `${inFrame.status} ${inFrame.path}`,
   );
-  await page.screenshot({ path: path.join(ROOT, 'out/ui-sidebar.png') });
 } finally {
   await browser?.close();
   boot?.stop();

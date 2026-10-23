@@ -159,6 +159,8 @@ function buildChips(scenes) {
         suppressChip = false;
         return;
       }
+      // Keyboard activation has no pointer, so it uses the scene's start; a
+      // pointer press was already served by the strip's seek.
       setTime(scene.start + 0.001);
       renderFrame();
     });
@@ -288,6 +290,9 @@ function currentScene(at) {
 
 scenesEl.addEventListener('pointerdown', (e) => {
   if (e.button !== 0) return;
+  // Keep the browser from starting a text selection on the strip. The seek no
+  // longer depends on the click, so cancelling the press costs nothing.
+  if (!e.target.closest('.chip-more')) e.preventDefault();
   // A new press always starts a fresh gesture: clear any pending suppression so a
   // plain click after a drag still seeks.
   suppressChip = false;
@@ -303,9 +308,22 @@ scenesEl.addEventListener('pointermove', (e) => {
   kernel.renderAt(next);
 });
 
-window.addEventListener('pointerup', () => {
-  if (stripDrag?.moved) suppressChip = true;
+window.addEventListener('pointerup', (e) => {
+  const drag = stripDrag;
   stripDrag = null;
+  if (!drag) return;
+  if (drag.moved) {
+    suppressChip = true;
+    return;
+  }
+  // A press without movement is a seek to the pointer — not to the start of the
+  // scene under it, and not a no-op while the film is playing.
+  if (e.button !== 0) return;
+  const next = timeFromStrip(e.clientX, drag.rect);
+  setTime(next);
+  kernel.renderAt(next);
+  if (playing) soundSeek(next);
+  suppressChip = true;
 });
 
 function setTime(next) {
@@ -1140,10 +1158,11 @@ canvas.addEventListener('click', (e) => {
 
 // --- fullscreen ---
 const fullscreenBtn = $('fullscreen');
+const canvasBox = $('canvasBox');
 fullscreenBtn?.addEventListener('click', async () => {
   try {
     if (document.fullscreenElement) await document.exitFullscreen();
-    else await document.documentElement.requestFullscreen();
+    else await canvasBox.requestFullscreen();
   } catch {
     /* the host may not grant it to an embedded frame */
   }

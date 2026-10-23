@@ -40,11 +40,16 @@ const sample = await page.evaluate(() => {
 check('frame 0 is not blank', sample.painted >= 1, `${sample.painted}/5 points painted`);
 
 // --- scene strip ---
-await page.click('[data-scene="cold-war"]');
+const stripBox = await page.locator('#scenes').boundingBox();
+const totalAt = await page.evaluate(() => window.__PREVIEW__.duration);
+const yMid = stripBox.y + stripBox.height / 2;
+await page.mouse.click(stripBox.x + stripBox.width * 0.5, yMid);
 await page.waitForTimeout(120);
-const tChip = await time();
-check('chip click seeks into scene', tChip >= 8 && tChip < 15, `${tChip.toFixed(3)}s · ${await tc()}`);
-check('timecode follows chip seek', (await tc()).startsWith('0:08'), await tc());
+const tHalf = await time();
+check('a click on the strip seeks to the pointer', Math.abs(tHalf - totalAt * 0.5) < 0.2, `${tHalf.toFixed(2)}s vs ${(totalAt * 0.5).toFixed(2)}s`);
+const shown = await tc();
+const [mm, ss] = shown.split(':').map(Number);
+check('timecode follows the strip', Math.abs(mm * 60 + ss - tHalf) < 0.02, `${shown} vs ${tHalf.toFixed(2)}s`);
 const active = await page.getAttribute('[data-scene="cold-war"]', 'aria-current');
 check('active chip highlighted', active === 'true');
 

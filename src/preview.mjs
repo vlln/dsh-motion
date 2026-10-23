@@ -265,12 +265,19 @@ function tick(now) {
   if (!last) last = now;
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
-  let next = t + dt;
+  // With a score, the audio IS the clock: frame-stepping from rAF alone drifts
+  // against it within seconds. Without one, the accumulator is the clock.
+  let next = sound && !sound.paused ? sound.currentTime - audioOffset : t + dt;
+  if (next < 0) next = 0;
   if (next >= total) {
-    if (looping) next = 0;
+    if (looping) {
+      next = 0;
+      soundSeek(0);
+    }
     else {
       next = total - 0.001;
       playing = false;
+      soundPause();
       updatePlayButton();
     }
   }
@@ -278,6 +285,32 @@ function tick(now) {
   kernel.renderAt(t);
   setTime(t);
   if (playing) raf = requestAnimationFrame(tick);
+}
+
+// The film may carry a score. Playback is frame-stepped, so the audio is not
+// "the video's soundtrack" — it is a track kept in sync with the same clock.
+const audioOffset = Number(timeline.audio?.start ?? 0);
+const sound = timeline.audio?.src
+  ? new Audio(new URL(timeline.audio.src, location.href).href)
+  : null;
+if (sound) sound.preload = 'auto';
+
+function soundSeek(at) {
+  if (!sound) return;
+  const next = Math.max(0, at + audioOffset);
+  if (Math.abs(sound.currentTime - next) > 0.05) sound.currentTime = next;
+}
+
+function soundPlay() {
+  if (!sound) return;
+  soundSeek(t);
+  sound.play().catch(() => {
+    /* the browser may refuse before a gesture; the next play click retries */
+  });
+}
+
+function soundPause() {
+  sound?.pause();
 }
 
 function updatePlayButton() {
@@ -297,8 +330,13 @@ playBtn.addEventListener('click', () => {
   playing = !playing;
   last = 0;
   updatePlayButton();
-  if (playing) raf = requestAnimationFrame(tick);
-  else cancelAnimationFrame(raf);
+  if (playing) {
+    raf = requestAnimationFrame(tick);
+    soundPlay();
+  } else {
+    cancelAnimationFrame(raf);
+    soundPause();
+  }
 });
 
 loopBtn.addEventListener('click', () => {
@@ -311,6 +349,7 @@ scrub.addEventListener('input', () => {
   t = Number(scrub.value);
   kernel.renderAt(t);
   setTime(t);
+  if (playing) soundSeek(t);
 });
 
 // --- live changes: the agent writes the same files this panel reads ---
@@ -482,7 +521,8 @@ async function persistScene(patch) {
 }
 
 function syncSceneFields(scene) {
-  sceneCardName.textContent = scene.name;
+  const sceneIndex = timeline.scenes.findIndex((s) => s.id === scene.id) + 1;
+  sceneCardName.textContent = `${sceneIndex} / ${timeline.scenes.length}`;
   sceneLen.value = String(scene.length);
   sceneSpeed.value = String(scene.speed ?? 1);
 }
@@ -890,6 +930,7 @@ window.__PREVIEW__ = {
   // Same path the popover uses: store the pin, then say it in the conversation.
   comment: (payload) => comments.addComment(payload),
   session: () => sessionId,
+  sound: () => (sound ? { src: sound.src, at: sound.currentTime, paused: sound.paused } : null),
   play: () => playBtn.click(),
   scenes: timeline.scenes.map((s) => ({ id: s.id, start: s.start, length: s.length })),
   duration: total,

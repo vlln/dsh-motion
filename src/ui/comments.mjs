@@ -231,12 +231,11 @@ export function createComments({
       if (section && embedded) section.hidden = threads.length === 0;
       threadsEl.innerHTML = threads
         .map((th) => {
-          const resolved = th.status === 'resolved';
-          const label = resolved ? '已处理' : '待处理';
-          const cls = resolved ? 'resolved' : 'open';
+          // No status: a comment is a message the agent already received. The
+          // pin is the anchor, not a ticket that needs closing.
           return `
         <div class="thread" data-id="${th.id}" data-t="${th.anchor.t}" data-rect="${escapeHtml(JSON.stringify(th.anchor.rect ?? null))}">
-          <div class="meta"><span>${fmt(th.anchor.t)}</span><span class="badge ${cls}">${label}</span></div>
+          <div class="meta"><span>${fmt(th.anchor.t)}</span></div>
           <div class="text">${escapeHtml(th.messages?.[0]?.text ?? '')}</div>
         </div>`;
         })

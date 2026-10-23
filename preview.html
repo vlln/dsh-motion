@@ -17,6 +17,48 @@
     </script>
   </head>
   <body>
+    <header class="topbar">
+      <span id="sceneName" class="scene-name">—</span>
+      <span class="spacer"></span>
+
+      <details class="menu" id="project">
+        <summary><span>项目</span></summary>
+        <div class="menu-body">
+          <label class="field"><span>当前</span><select id="projectPick"></select></label>
+          <label class="field"><span>模板</span><select id="projectTemplate"></select></label>
+          <label class="field"><span>名称</span><input id="projectName" placeholder="my-film" /></label>
+          <button id="projectCreate" class="btn" style="width: 100%">新建并打开</button>
+          <p class="hint" id="projectNote" hidden></p>
+        </div>
+      </details>
+
+      <details class="menu" id="export">
+        <summary><span>导出</span></summary>
+        <div class="menu-body">
+          <label class="field"><span>格式</span>
+            <select id="expFormat">
+              <option value="mp4">MP4（含音轨）</option>
+              <option value="gif">GIF（无音频）</option>
+            </select>
+          </label>
+          <label class="field"><span>帧率</span>
+            <select id="expFps">
+              <option value="30">30 fps</option>
+              <option value="60">60 fps</option>
+            </select>
+          </label>
+          <label class="field"><span>2× 超采样</span><input type="checkbox" id="expSs" /></label>
+          <p class="hint" id="expEstimate"></p>
+          <button id="expRun" class="btn" style="width: 100%">导出</button>
+          <p class="hint" id="expResult"></p>
+        </div>
+      </details>
+
+      <span class="tag" id="mode" hidden></span>
+      <span class="dim" id="projectScope" hidden></span>
+      <span class="dim" id="exportScope" hidden></span>
+    </header>
+
     <div class="app">
       <main class="stage-wrap">
         <div class="canvas-box" id="canvasBox">
@@ -36,54 +78,20 @@
       </main>
 
       <aside class="panel">
-        <div class="panel-top">
-          <header class="panel-head">
-            <span id="sceneName" class="scene-name">—</span>
-            <span class="tag" id="mode" hidden></span>
-          </header>
-        </div>
-
         <div class="stale" id="stale" hidden>
           <span>场景代码已更新</span>
           <button id="staleReload" class="btn ghost">刷新</button>
         </div>
 
         <section class="threads" hidden>
-          <h2>批注 <span id="threadCount" class="dim">0</span></h2>
+          <h2>批注 <span id="threadCount" hidden></span></h2>
           <div id="threads" class="thread-list"></div>
         </section>
 
         <section class="inspector" id="inspector"></section>
 
-        <details class="card" id="assets" open hidden>
-          <summary><span>这一帧的素材</span><span class="dim" id="assetScope"></span></summary>
-          <div class="card-body">
-            <div id="assetList" class="asset-list"></div>
-            <p class="hint" id="assetNote" hidden></p>
-          </div>
-        </details>
-
-        <details class="card" id="texts" open hidden>
-          <summary><span>这一帧的文字</span><span class="dim" id="textScope"></span></summary>
-          <div class="card-body">
-            <div id="textList" class="text-list"></div>
-            <p class="hint" id="textNote" hidden></p>
-          </div>
-        </details>
-
-        <details class="card" id="project">
-          <summary><span>项目</span><span class="dim" id="projectScope">—</span></summary>
-          <div class="card-body">
-            <label class="field"><span>当前</span><select id="projectPick"></select></label>
-            <label class="field"><span>模板</span><select id="projectTemplate"></select></label>
-            <label class="field"><span>名称</span><input id="projectName" placeholder="my-film" /></label>
-            <button id="projectCreate" class="btn" style="width: 100%">新建并打开</button>
-            <p class="hint" id="projectNote" hidden></p>
-          </div>
-        </details>
-
-        <details class="card" id="scene">
-          <summary><span>场景</span><span class="dim" id="sceneCardName">—</span></summary>
+        <details class="card" id="scene" open>
+          <summary><span>这一场</span><span class="dim" id="sceneCardName">—</span></summary>
           <div class="card-body">
             <label class="field"><span>段长（秒）</span><input id="sceneLen" type="number" min="0.5" step="0.1" /></label>
             <label class="field"><span>速度</span>
@@ -97,37 +105,29 @@
           </div>
         </details>
 
+        <details class="card" id="texts" open hidden>
+          <summary><span>这一帧的文字</span><span class="dim" id="textScope"></span></summary>
+          <div class="card-body">
+            <div id="textList" class="text-list"></div>
+            <p class="hint" id="textNote" hidden></p>
+          </div>
+        </details>
+
         <details class="card" id="knobs" hidden>
           <summary><span>参数</span><span class="dim" id="knobScene"></span></summary>
           <div class="card-body">
             <div id="knobList" class="knob-list"></div>
-            <p class="hint" id="knobNote"></p>
+            <p class="hint" id="knobNote" hidden></p>
           </div>
         </details>
 
-        <details class="card" id="export">
-          <summary><span>导出</span><span class="dim" id="exportScope"></span></summary>
+        <details class="card" id="assets" open hidden>
+          <summary><span>这一帧的素材</span><span class="dim" id="assetScope"></span></summary>
           <div class="card-body">
-            <label class="field"><span>格式</span>
-              <select id="expFormat">
-                <option value="mp4">MP4（含音轨）</option>
-                <option value="gif">GIF（无音频）</option>
-              </select>
-            </label>
-            <label class="field"><span>帧率</span>
-              <select id="expFps">
-                <option value="30">30 fps</option>
-                <option value="60">60 fps</option>
-              </select>
-            </label>
-            <label class="field"><span>2× 超采样</span><input type="checkbox" id="expSs" /></label>
-            <p class="hint" id="expEstimate"></p>
-            <button id="expRun" class="btn" style="width: 100%">导出</button>
-            <p class="hint" id="expResult"></p>
+            <div id="assetList" class="asset-list"></div>
+            <p class="hint" id="assetNote" hidden></p>
           </div>
         </details>
-
-
       </aside>
     </div>
 

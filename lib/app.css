@@ -34,6 +34,8 @@ html,
 body {
   margin: 0;
   height: 100%;
+  display: flex;
+  flex-direction: column;
   background: var(--bg);
   color: var(--fg);
   font: 14px/1.5 var(--font);
@@ -43,7 +45,8 @@ body {
 .app {
   display: grid;
   grid-template-columns: minmax(0, 1fr) clamp(300px, 26vw, 380px);
-  height: calc(100% - 120px);
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .stage-wrap {
@@ -674,7 +677,6 @@ code {
 [data-embed='tab'] .app {
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr);
-  height: calc(100% - 100px);
 }
 
 [data-embed='tab'] .stage-wrap {
@@ -702,7 +704,6 @@ code {
 
 [data-embed='card'] .app {
   grid-template-columns: minmax(0, 1fr);
-  height: 100%;
 }
 
 [data-embed='card'] .panel {
@@ -793,7 +794,6 @@ code {
   [data-embed='tab'] .app {
     grid-template-columns: minmax(0, 1fr) clamp(240px, 27%, 340px);
     grid-template-rows: minmax(0, 1fr);
-    height: calc(100% - 96px);
   }
 
   [data-embed='tab'] .stage-wrap {
@@ -827,4 +827,81 @@ code {
 .threads[hidden],
 .inspector:empty {
   display: none;
+}
+
+
+/* The document bar: identity and document-level actions live above the work,
+   the way a player keeps its file and Share out of the scene controls. */
+.topbar {
+  flex: none;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 16px;
+  border-bottom: 0.5px solid var(--line);
+  background: var(--bg);
+}
+
+.topbar .spacer {
+  flex: 1;
+}
+
+.menu {
+  position: relative;
+}
+
+.menu > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 8px;
+  color: var(--muted);
+  font: 500 12px/1.2 var(--font);
+  user-select: none;
+}
+
+.menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.menu > summary:hover,
+.menu[open] > summary {
+  background: var(--hover);
+  color: var(--fg);
+}
+
+.menu-body {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  width: 260px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--surface);
+  border: 0.5px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 12px 30px rgb(0 0 0 / 14%);
+  z-index: 30;
+}
+
+[data-embed='card'] .topbar {
+  display: none;
+}
+
+
+/* One primary action in the document bar, the way a Share button reads. */
+#export > summary {
+  background: var(--primary);
+  color: var(--primary-fg);
+  padding: 6px 14px;
+}
+
+#export > summary:hover,
+#export[open] > summary {
+  background: var(--primary);
+  color: var(--primary-fg);
+  opacity: 0.9;
 }

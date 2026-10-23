@@ -60,6 +60,17 @@ await page.mouse.up();
 await page.waitForTimeout(120);
 check('dragging the strip scrubs', Math.abs((await time()) - 3) < 0.25, `${(await time()).toFixed(2)}s · ${await tc()}`);
 
+// --- the section overview above the film ---
+const segCount = await page.locator('.reel-seg').count();
+const sceneCount = await page.evaluate(() => window.__PREVIEW__.scenes().length);
+check('the reel has one pill per scene', segCount === sceneCount, `${segCount} vs ${sceneCount}`);
+await page.locator('.reel-seg').nth(1).click();
+await page.waitForTimeout(120);
+const segStart = await page.evaluate(() => window.__PREVIEW__.scenes()[1].start);
+check('clicking a pill seeks to that scene', Math.abs((await time()) - segStart) < 0.05, `${(await time()).toFixed(2)}s vs ${segStart}`);
+const doneCount = await page.locator('.reel-seg.done').count();
+check('pills fill up to the current scene', doneCount === 2, String(doneCount));
+
 // --- hovering the strip peeks at the frame ---
 await page.mouse.move(strip.x + strip.width * 0.5, y);
 await page.waitForTimeout(250);

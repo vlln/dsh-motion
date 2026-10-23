@@ -51,8 +51,10 @@ body {
 
 .stage-wrap {
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   place-items: center;
-  padding: 20px;
+  gap: 14px;
+  padding: 16px 20px 20px;
   min-width: 0;
   background: var(--dsw-alias-bg-module-platform, var(--surface-2));
 }
@@ -1290,6 +1292,7 @@ body.commenting .canvas-box {
 
 .chip-more {
   flex: none;
+  pointer-events: none;
   width: 20px;
   height: 20px;
   display: grid;
@@ -1308,6 +1311,7 @@ body.commenting .canvas-box {
 .chip:hover .chip-more,
 .chip:focus-within .chip-more {
   opacity: 1;
+  pointer-events: auto;
 }
 
 .chip:not(:hover) .chip-more:not(:focus-visible) {
@@ -1360,4 +1364,53 @@ body.commenting .canvas-box {
 
 .chip-menu button:hover {
   background: var(--hover);
+}
+
+
+/* A section overview, not a second scrubber: one pill per scene, filled up to
+   the one you are watching. The strip at the bottom stays the scrubber. */
+.reel {
+  justify-self: stretch;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.reel-count {
+  flex: none;
+  font: 500 12px/1 var(--font);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.reel-track {
+  flex: 1 1 auto;
+  display: flex;
+  gap: 4px;
+  min-width: 0;
+  max-width: 460px;
+}
+
+.reel-seg {
+  flex: 1 1 0;
+  height: 5px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--line);
+  cursor: pointer;
+  transition: background var(--dur) var(--ease);
+}
+
+.reel-seg.done {
+  background: var(--fg);
+}
+
+.reel-seg:hover {
+  background: var(--muted);
+}
+
+[data-embed='card'] .reel {
+  display: none;
 }

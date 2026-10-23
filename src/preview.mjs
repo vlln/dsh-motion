@@ -179,6 +179,40 @@ function buildChips(scenes) {
 
 buildChips(timeline.scenes);
 
+/** A compact overview of the sections above the film; clicking a pill seeks. */
+const reelEl = $('reel');
+let reel = [];
+
+function buildReel(scenes) {
+  reel = [];
+  reelEl.innerHTML = '';
+  const count = document.createElement('span');
+  count.className = 'reel-count';
+  count.textContent = `1 / ${scenes.length} 段`;
+  const track = document.createElement('div');
+  track.className = 'reel-track';
+  reelEl.append(count, track);
+  scenes.forEach((scene, i) => {
+    const seg = document.createElement('button');
+    seg.type = 'button';
+    seg.className = 'reel-seg';
+    seg.dataset.seg = scene.id;
+    seg.title = scene.name;
+    seg.setAttribute('aria-label', scene.name);
+    seg.addEventListener('click', () => {
+      setTime(scene.start + 0.001);
+      renderFrame();
+    });
+    track.append(seg);
+    reel.push({ seg, scene });
+    void i;
+  });
+  reelEl.dataset.count = String(scenes.length);
+  reelEl.dataset.index = '0';
+}
+
+buildReel(timeline.scenes);
+
 /** Take a reloaded timeline: the clock, the strip and the duration all follow. */
 function adoptTimeline(next) {
   timeline = next;
@@ -186,6 +220,7 @@ function adoptTimeline(next) {
   durEl.textContent = fmt(total);
   if (t > total - 0.001) t = Math.max(0, total - 0.001);
   buildChips(next.scenes);
+  buildReel(next.scenes);
   setTime(t);
 }
 
@@ -279,6 +314,12 @@ function setTime(next) {
   playhead.style.left = `${(t / total) * 100}%`;
   const scene = currentScene(t);
   sceneName.textContent = scene.name;
+  const reelIndex = timeline.scenes.findIndex((s) => s.id === scene.id);
+  if (reelEl.dataset.index !== String(reelIndex)) {
+    reelEl.dataset.index = String(reelIndex);
+    reelEl.firstChild.textContent = `${reelIndex + 1} / ${timeline.scenes.length} 段`;
+    for (const { seg, scene: s } of reel) seg.classList.toggle('done', s.start <= t);
+  }
   for (const { el, scene: s } of chips) {
     el.setAttribute('aria-current', String(s.id === scene.id));
     // Keep the playing scene visible in a strip that scrolls.
@@ -1213,6 +1254,7 @@ window.__PREVIEW__ = {
   get duration() {
     return total;
   },
+  scenes: () => timeline.scenes.map((s) => ({ id: s.id, start: s.start, length: s.length })),
   boxRect: () => box.getBoundingClientRect(),
   comments: async () => (await (await fetch('./api/comments')).json()).threads,
   params: () => ({

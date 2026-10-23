@@ -780,9 +780,13 @@ code {
 /* A wide panel takes the shape the film deserves: the artboard floats with air
    around it, the controls sit in a rail on the right, the strip runs underneath.
    A narrow column keeps the stacked layout above. */
-@media (min-width: 880px) {
+/* Split only when the film still gets a real size. The artboard is 16:9 and
+   width-bound, so the number that matters is the film's width, not the pane's:
+   split requires W - rail - 48 >= ~640. With a 27% rail that lands at 940px;
+   below it, stacking gives the film more room than a rail would. */
+@media (min-width: 940px) {
   [data-embed='tab'] .app {
-    grid-template-columns: minmax(0, 1fr) 320px;
+    grid-template-columns: minmax(0, 1fr) clamp(240px, 27%, 340px);
     grid-template-rows: minmax(0, 1fr);
     height: calc(100% - 96px);
   }

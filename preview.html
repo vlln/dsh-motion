@@ -19,6 +19,11 @@
   <body>
     <header class="topbar">
       <span id="sceneName" class="scene-name">—</span>
+      <div class="stale" id="stale" hidden>
+        <span>场景代码已更新</span>
+        <button id="staleReload" class="btn ghost">刷新</button>
+      </div>
+
       <span class="spacer"></span>
 
       <button id="commentMode" class="icon-btn" aria-pressed="false" aria-label="批注" title="批注：点画面里的对象">
@@ -76,11 +81,6 @@
       </main>
 
       <aside class="panel">
-        <div class="stale" id="stale" hidden>
-          <span>场景代码已更新</span>
-          <button id="staleReload" class="btn ghost">刷新</button>
-        </div>
-
         <section class="threads" hidden>
           <h2>批注 <span id="threadCount" hidden></span></h2>
           <div id="threads" class="thread-list"></div>

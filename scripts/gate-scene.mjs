@@ -35,11 +35,14 @@ const browser = await chromium.launch({ executablePath: findChromium(), args: ['
 try {
   const page = await browser.newPage({ viewport: { width: 1600, height: 900 }, deviceScaleFactor: 1 });
   page.on('pageerror', (e) => console.error('[page error]', e.message));
+  await page.addInitScript(() => localStorage.setItem('dshm:tweaks', '1'));
   await page.goto(`${origin}/preview.html`);
   await page.waitForFunction(() => window.__PREVIEW__?.ready === true, { timeout: 30000 });
 
-  // The card is collapsed by default; open it like a user would.
-  await page.locator('#scene > summary').click();
+  // The card may start open or closed; make sure it is open, like a user would.
+  if (!(await page.locator('#scene').evaluate((el) => el.open))) {
+    await page.locator('#scene > summary').click();
+  }
   const len = page.locator('#sceneLen');
   check('the scene card shows the current length', (await len.inputValue()) === '8', await len.inputValue());
 

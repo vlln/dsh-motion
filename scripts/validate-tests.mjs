@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { validateTimeline } from '../src/validate.mjs';
 import { modules } from '../src/scenes/all.mjs';
 import { createGate } from './lib/gate.mjs';
+import { sceneTime } from '../src/clock.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const base = JSON.parse(fs.readFileSync(path.join(ROOT, 'timeline.json'), 'utf8'));
@@ -61,5 +62,27 @@ expectError(
 
 // 10. missing scene module
 expectError('missing scene module', (t) => (t.scenes[0].id = 'nope'), 'no scene module registered');
+
+// --- the scene clock: trim vs compress ---
+const okTimeline = clone();
+void okTimeline;
+
+const trim = sceneTime({ start: 10, length: 14, speed: 1 }, undefined, 13);
+check('trim: a scene hears its own seconds', Math.abs(trim - 3) < 1e-9, `${trim}`);
+
+const trimmed = sceneTime({ start: 10, length: 2, speed: 1 }, undefined, 12);
+check('trim: a shorter slot still hears 2s', Math.abs(trimmed - 2) < 1e-9, `${trimmed}`);
+
+const compressed = sceneTime({ start: 10, length: 2, speed: 1 }, 14, 12);
+check('compress: 14s of content in a 2s slot runs at 7x', Math.abs(compressed - 14) < 1e-9, `${compressed}`);
+
+const stretched = sceneTime({ start: 0, length: 8, speed: 1 }, 4, 8);
+check('compress: 4s of content in an 8s slot runs at 0.5x', Math.abs(stretched - 4) < 1e-9, `${stretched}`);
+
+const fast = sceneTime({ start: 10, length: 14, speed: 2 }, undefined, 12);
+check('speed multiplies on its own', Math.abs(fast - 4) < 1e-9, `${fast}`);
+
+const both = sceneTime({ start: 10, length: 2, speed: 2 }, 14, 11);
+check('speed and compression multiply', Math.abs(both - 14) < 1e-9, `${both}`);
 
 finish();

@@ -37,6 +37,9 @@ const browser = await chromium.launch({ executablePath: findChromium(), args: ['
 try {
   const page = await browser.newPage({ viewport: { width: 1600, height: 900 }, deviceScaleFactor: 1 });
   page.on('pageerror', (e) => console.error('[page error]', e.message));
+  // The rail is a door now (Tweaks closed by default). A user editing text opens
+  // it first; the gate does the same, so it tests the flow people actually take.
+  await page.addInitScript(() => localStorage.setItem('dshm:tweaks', '1'));
   await page.goto(`${origin}/preview.html`);
   await page.waitForFunction(() => window.__PREVIEW__?.ready === true, { timeout: 30000 });
   await page.evaluate(() => window.__PREVIEW__.setTime(4));
@@ -107,6 +110,7 @@ try {
   // --- the page writes to the timeline it was opened with ---
   const rootAtTour = fs.readFileSync(FILE, 'utf8');
   const tourPage = await browser.newPage({ viewport: { width: 1600, height: 900 }, deviceScaleFactor: 1 });
+  await tourPage.addInitScript(() => localStorage.setItem('dshm:tweaks', '1'));
   await tourPage.goto(`${origin}/preview.html?timeline=./fixtures/timeline-tour.json`);
   await tourPage.waitForFunction(() => window.__PREVIEW__?.ready === true, { timeout: 30000 });
   await tourPage.evaluate(() => window.__PREVIEW__.setTime(2));

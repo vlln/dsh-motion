@@ -65,6 +65,7 @@ try {
 
   const page = await browser.newPage({ viewport: { width: 1600, height: 900 }, deviceScaleFactor: 1 });
   page.on('pageerror', (e) => console.error('[page error]', e.message));
+  await page.addInitScript(() => localStorage.setItem('dshm:tweaks', '1'));
   await page.goto(`${origin}/preview.html`);
   await page.waitForFunction(() => window.__PREVIEW__?.ready === true, { timeout: 30000 });
   await page.evaluate(() => window.__PREVIEW__.setTime(4));

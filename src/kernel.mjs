@@ -6,6 +6,7 @@ import { resolveText, setText as writeText, makeCounter } from './texts.mjs';
 import { checkParam, describeParams, resolveParam } from './params.mjs';
 import { checkValue, describeValues, formatValue, resolveValue } from './values.mjs';
 import { layoutText } from './text.mjs';
+import { sceneTime } from './clock.mjs';
 import { fitRect, frameAt, frameRect } from './media.mjs';
 
 const FONTS = {
@@ -294,7 +295,7 @@ export function createKernel({ timeline, modules }) {
       entry.g.clearRect(0, 0, width, height);
     }
     active = entry.kind === 'canvas2d' ? entry.g : null;
-    entry.module.render(Math.max(0, t - scene.start), entry.ctx);
+    entry.module.render(sceneTime(scene, entry.module.duration, t), entry.ctx);
     lastTime = t;
 
     // composite: scene canvas (device px) -> display canvas (CSS px)
@@ -306,7 +307,7 @@ export function createKernel({ timeline, modules }) {
     if (entry.module.overlay) {
       surface.setTransform(dpr, 0, 0, dpr, 0, 0);
       active = surface;
-      entry.module.overlay(surface, entry.ctx, Math.max(0, t - scene.start));
+      entry.module.overlay(surface, entry.ctx, sceneTime(scene, entry.module.duration, t));
     }
     active = null;
 

@@ -964,6 +964,9 @@ canvas.addEventListener('click', (e) => {
   selected = hit;
   refreshSelection();
   if (hit.slot) {
+    // Clicking a word is a request to edit it: open the rail if it is closed,
+    // so the field it focuses is actually visible.
+    if (!document.body.classList.contains('tweaks')) setTweaks(true);
     const input = textList.querySelector(`input[data-text-scene="${currentScene(t).id}"][data-text-slot="${hit.slot}"]`);
     if (input) {
       input.focus();

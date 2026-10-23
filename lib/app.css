@@ -1124,3 +1124,30 @@ body.commenting .canvas-box {
   gap: 8px;
   margin-top: 4px;
 }
+
+
+/* A stale-code warning belongs to the document bar, not to a rail the user may
+   have closed: it has to be visible exactly when the rail is not. */
+.topbar .stale {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px 3px 10px;
+  border-radius: 999px;
+  background: var(--warn-bg, #fff3dd);
+  color: var(--warn-fg, #7a4a00);
+  font: 500 12px/1 var(--font);
+}
+
+.topbar .stale[hidden] {
+  display: none;
+}
+
+.topbar .stale .btn {
+  height: 22px;
+  padding: 0 8px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-decoration: underline;
+}

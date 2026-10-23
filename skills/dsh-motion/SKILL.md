@@ -54,6 +54,7 @@ dsh-motion export [--gif] [--out out/export.mp4]
 
 ```js
 export const id = 'titlecard';           // 必须和文件名一致
+export const duration = 6;               // 可选：你这条动画的自然时长（秒）
 export const slots = {
   title: { default: '标题', role: 'title', maxChars: 60 },
 };
@@ -73,6 +74,20 @@ export function render(t) {
   });
 }
 ```
+
+### 段长：裁剪还是变速
+
+`render(t)` 里的 `t` 是**这一场自己的秒表**。时间轴里给这一幕多长，决定它怎么走：
+
+| 场景是否声明 `duration` | 时间轴段长变化时 |
+|---|---|
+| 不声明 | **裁剪**：段长 14 改成 2，只播放前 2 秒 |
+| `export const duration = 14` | **变速**：同样 14 秒的内容，用 7 倍速走完 |
+
+声明了 `duration` 的场景，把动作写到自己的自然时长里就行；段长由时间轴控制节奏。
+`speed`（0.5×/1×/2×）在两种模式下都额外乘一次。
+
+节拍类动画（用 `ctx.beats`）在变速后会与音乐对不上，这类场景不要声明 `duration`。
 
 ### 硬规则
 

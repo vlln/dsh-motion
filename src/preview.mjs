@@ -966,7 +966,9 @@ async function refreshHistory() {
     const { snapshots } = await (await fetch('./api/history')).json();
     latestSnapshot = snapshots[0]?.id ?? null;
     undoBtn.disabled = !latestSnapshot;
-    undoBtn.textContent = '回退';
+    // The button is an icon now: never write text into it, or the svg is gone.
+    undoBtn.disabled = !latestSnapshot;
+    undoBtn.setAttribute('aria-label', latestSnapshot ? '回退到上一版' : '没有可回退的版本');
   } catch {
     latestSnapshot = null;
     undoBtn.disabled = true;

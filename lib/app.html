@@ -36,7 +36,7 @@
         <div class="panel-top">
           <header class="panel-head">
             <span id="sceneName" class="scene-name">—</span>
-            <span class="tag" id="mode">paused</span>
+            <span class="tag" id="mode" hidden></span>
           </header>
         </div>
 
@@ -45,20 +45,18 @@
           <button id="staleReload" class="btn ghost">刷新</button>
         </div>
 
-        <section class="threads">
+        <section class="threads" hidden>
           <h2>批注 <span id="threadCount" class="dim">0</span></h2>
-          <div id="threads" class="thread-list"><p class="hint">在画面上拖出一个框，写下要改什么。</p></div>
+          <div id="threads" class="thread-list"></div>
         </section>
 
-        <section class="inspector" id="inspector">
-          <p class="hint">点画面里的元素，看它此刻的几何。</p>
-        </section>
+        <section class="inspector" id="inspector"></section>
 
         <details class="card" id="assets" open hidden>
           <summary><span>这一帧的素材</span><span class="dim" id="assetScope"></span></summary>
           <div class="card-body">
             <div id="assetList" class="asset-list"></div>
-            <p class="hint" id="assetNote">换图即时生效；片段换源需重跑 <code>npm run assets</code>。</p>
+            <p class="hint" id="assetNote" hidden></p>
           </div>
         </details>
 
@@ -66,7 +64,7 @@
           <summary><span>这一帧的文字</span><span class="dim" id="textScope"></span></summary>
           <div class="card-body">
             <div id="textList" class="text-list"></div>
-            <p class="hint" id="textNote">改字即时生效，失焦写入 timeline.json。</p>
+            <p class="hint" id="textNote" hidden></p>
           </div>
         </details>
 
@@ -77,7 +75,7 @@
             <label class="field"><span>模板</span><select id="projectTemplate"></select></label>
             <label class="field"><span>名称</span><input id="projectName" placeholder="my-film" /></label>
             <button id="projectCreate" class="btn" style="width: 100%">新建并打开</button>
-            <p class="hint" id="projectNote">模板只决定第一幕；更多场景由 agent 写。</p>
+            <p class="hint" id="projectNote" hidden></p>
           </div>
         </details>
 
@@ -92,7 +90,7 @@
                 <option value="2">2×</option>
               </select>
             </label>
-            <p class="hint" id="sceneNote">改段长会顺延后面的场景，并更新总时长。</p>
+            <p class="hint" id="sceneNote" hidden></p>
           </div>
         </details>
 
@@ -126,9 +124,7 @@
           </div>
         </details>
 
-        <footer class="panel-foot">
-          <button id="undo" class="btn ghost" disabled title="回到上一次写入前">回退</button>
-        </footer>
+
       </aside>
     </div>
 
@@ -148,6 +144,7 @@
           </svg>
         </button>
         <button id="loop" class="btn ghost" aria-pressed="false" title="循环播放">循环</button>
+        <button id="undo" class="btn ghost" disabled title="回到上一次写入前">回退</button>
         <input id="scrub" class="scrub" type="range" min="0" max="19" step="0.01" value="0" />
       </div>
     </div>

@@ -624,7 +624,7 @@ async function persistText(sceneId, slot, value) {
 function refreshTexts() {
   const items = kernel.texts();
   textsEl.hidden = items.length === 0;
-  textScope.textContent = items.length ? `${items.length} 处` : '';
+  textScope.textContent = '';
 
   const key = items.map((item) => `${item.scene}/${item.slot}`).join('|');
   if (key !== textKey) {
@@ -703,7 +703,7 @@ async function refreshHistory() {
     const { snapshots } = await (await fetch('./api/history')).json();
     latestSnapshot = snapshots[0]?.id ?? null;
     undoBtn.disabled = !latestSnapshot;
-    undoBtn.textContent = latestSnapshot ? `回退（${snapshots.length}）` : '回退';
+    undoBtn.textContent = '回退';
   } catch {
     latestSnapshot = null;
     undoBtn.disabled = true;

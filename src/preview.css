@@ -174,12 +174,17 @@ canvas {
   min-height: 0;
 }
 
-/* Collapsible section: the summary is the header, the body starts flush. */
+/* Sections are rows, not cards: a hairline separates them and nothing draws a
+   box around a single field. */
 .card {
-  border: 0.5px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface);
-  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+}
+
+.card + .card {
+  border-top: 0.5px solid var(--line);
 }
 
 .card > summary {
@@ -188,7 +193,7 @@ canvas {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 9px 12px;
+  padding: 9px 0;
   font: 500 12px/1.4 var(--font);
   color: var(--muted);
   user-select: none;
@@ -221,7 +226,7 @@ canvas {
 }
 
 .card-body {
-  padding: 0 12px 10px;
+  padding: 0 0 10px;
 }
 
 .card-body .hint {
@@ -815,4 +820,11 @@ code {
   .chip .len {
     display: none;
   }
+}
+
+
+/* A section with nothing in it is not drawn at all. */
+.threads[hidden],
+.inspector:empty {
+  display: none;
 }

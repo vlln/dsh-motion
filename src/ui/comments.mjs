@@ -227,6 +227,8 @@ export function createComments({
         threadsEl.innerHTML = '<p class="hint">在画面上拖出一个框，写下要改什么。</p>';
         return;
       }
+      const section = threadsEl.closest('section');
+      if (section && embedded) section.hidden = threads.length === 0;
       threadsEl.innerHTML = threads
         .map((th) => {
           const resolved = th.status === 'resolved';

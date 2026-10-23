@@ -144,19 +144,33 @@ let chips = [];
 function buildChips(scenes) {
   for (const { el } of chips) el.remove();
   chips = scenes.map((scene) => {
-    const el = document.createElement('button');
+    const el = document.createElement('div');
     el.className = 'chip';
     el.dataset.scene = scene.id;
+    el.setAttribute('role', 'button');
+    el.setAttribute('tabindex', '0');
     el.style.flexGrow = String(scene.length);
     el.style.flexBasis = '0';
-    el.innerHTML = `${scene.name} <span class="len">· ${scene.length.toFixed(1)}s</span>`;
-    el.addEventListener('click', () => {
+    el.innerHTML = `<span class="chip-label">${scene.name} <span class="len">· ${scene.length.toFixed(1)}s</span></span>
+      <button class="chip-more" aria-label="这一段的操作" title="这一段的操作">⋯</button>`;
+    el.addEventListener('click', (e) => {
+      if (e.target.closest('.chip-more')) return;
       if (suppressChip) {
         suppressChip = false;
         return;
       }
       setTime(scene.start + 0.001);
       renderFrame();
+    });
+    el.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      setTime(scene.start + 0.001);
+      renderFrame();
+    });
+    el.querySelector('.chip-more').addEventListener('click', (e) => {
+      e.stopPropagation();
+      openChipMenu(scene, el);
     });
     scenesEl.insertBefore(el, playhead);
     return { el, scene };
@@ -174,6 +188,54 @@ function adoptTimeline(next) {
   buildChips(next.scenes);
   setTime(t);
 }
+
+// Per-scene menu: lives in the strip, opens above the chip that owns it.
+const chipMenu = document.createElement('div');
+chipMenu.className = 'chip-menu';
+chipMenu.hidden = true;
+scenesEl.append(chipMenu);
+
+function closeChipMenu() {
+  chipMenu.hidden = true;
+}
+
+function openChipMenu(scene, chipEl) {
+  hoverFrame.hidden = true;
+  hoverAt = -1;
+  chipMenu.innerHTML = `
+    <p class="chip-menu-name">${scene.name}</p>
+    <button id="chipDelete" type="button">删除这一段</button>`;
+  chipMenu.hidden = false;
+  const left = Math.min(
+    Math.max(chipEl.offsetLeft + chipEl.offsetWidth - chipMenu.offsetWidth, 0),
+    scenesEl.clientWidth - chipMenu.offsetWidth,
+  );
+  chipMenu.style.left = `${left}px`;
+  chipMenu.querySelector('#chipDelete').addEventListener('click', async (e) => {
+    e.stopPropagation();
+    closeChipMenu();
+    try {
+      const res = await fetch('./api/scene', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: body({ scene: scene.id, delete: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? res.statusText);
+      kernel.reload(data.timeline);
+      adoptTimeline(data.timeline);
+    } catch (err) {
+      sceneNote.textContent = `删除失败：${err.message}`;
+    }
+  });
+}
+
+window.addEventListener('pointerdown', (e) => {
+  if (!chipMenu.hidden && !e.target.closest('.chip-menu') && !e.target.closest('.chip-more')) closeChipMenu();
+});
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeChipMenu();
+});
 
 // Dragging anywhere on the strip scrubs; a click without movement still jumps
 // to that scene's start (the chip handler), so suppress that click after a drag.
@@ -1081,7 +1143,7 @@ function paintHover(at, clientX) {
 }
 
 scenesEl.addEventListener('pointermove', (e) => {
-  if (stripDrag || playing) {
+  if (stripDrag || playing || !chipMenu.hidden) {
     hoverFrame.hidden = true;
     return;
   }

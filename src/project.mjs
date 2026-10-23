@@ -179,6 +179,33 @@ export async function setProjectScene(root, sceneId, patch, file = 'timeline.jso
   return { scene: timeline.scenes[index], duration: timeline.duration, snapshot: snap };
 }
 
+/**
+ * Remove a scene. The film must keep at least one: a timeline with no scenes has
+ * nothing to render. Later scenes move up, the duration shrinks with them.
+ */
+export async function deleteProjectScene(root, sceneId, file = 'timeline.json') {
+  const timeline = readTimeline(root, file);
+  const index = timeline.scenes.findIndex((s) => s.id === sceneId);
+  if (index === -1) throw new Error(`unknown scene "${sceneId}"`);
+  if (timeline.scenes.length <= 1) throw new Error('a film needs at least one scene');
+
+  timeline.scenes.splice(index, 1);
+  // Drop everything keyed by that scene id, or the file stops validating.
+  for (const key of ['texts', 'params', 'values']) {
+    if (timeline[key] && typeof timeline[key] === 'object') delete timeline[key][sceneId];
+  }
+  if (timeline.overrides && typeof timeline.overrides === 'object') delete timeline.overrides[sceneId];
+
+  let cursor = 0;
+  for (const scene of timeline.scenes) {
+    scene.start = Number(cursor.toFixed(2));
+    cursor += scene.length;
+  }
+  timeline.duration = Number(cursor.toFixed(2));
+  const snap = await writeTimeline(root, timeline, `delete-${sceneId}`, file);
+  return { timeline, snapshot: snap };
+}
+
 export async function setProjectAsset(root, name, src, file = 'timeline.json') {
   const timeline = readTimeline(root, file);
   const spec = timeline.assets?.[name];

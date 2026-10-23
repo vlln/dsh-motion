@@ -74,6 +74,20 @@ try {
   const back = await until(async () => (await page.evaluate(() => window.__PREVIEW__.time())) < 0.01);
   check('prev comes back', back, String(await page.evaluate(() => window.__PREVIEW__.time())));
 
+  // --- a scene can be deleted from its chip menu ---
+  const beforeDelete = read().scenes.length;
+  const doomed = read().scenes[1].id;
+  const target = page.locator(`.chip[data-scene="${doomed}"]`);
+  await target.hover();
+  await target.locator('.chip-more').click();
+  await page.locator('#chipDelete').click();
+  const gone = await until(() => read().scenes.length === beforeDelete - 1);
+  check('a scene can be deleted from its chip menu', gone, `${read().scenes.length} left`);
+  check('the survivors close the gap', read().scenes[0].start === 0 && read().scenes[1].start === read().scenes[0].length, JSON.stringify(read().scenes.map((s) => s.start)));
+  check('the deletion leaves no orphan text', !read().texts?.[doomed], JSON.stringify(Object.keys(read().texts ?? {})));
+  const chipGone = await until(async () => (await page.locator(`.chip[data-scene="${doomed}"]`).count()) === 0, 3000);
+  check('the chip is gone', chipGone);
+
   // --- negative: a bad speed is refused ---
   const bad = await fetch(`${origin}/api/scene`, {
     method: 'POST',

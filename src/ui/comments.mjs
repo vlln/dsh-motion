@@ -260,6 +260,8 @@ export function createComments({
     refreshThreads,
     /** Open the note box for a clicked object (annotate mode). */
     annotateAt: (rect) => openPopover(rect),
+    /** True when a note has a conversation to reach. */
+    available: () => embedded,
     addComment,
     consumeSuppress() {
       const value = suppressClick;

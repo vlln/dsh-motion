@@ -23,11 +23,6 @@
 
       <span class="spacer"></span>
 
-      <button id="commentMode" class="icon-btn" aria-pressed="false" aria-label="批注" title="批注：点画面里的对象">
-        <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-          <path d="M3 3.5h10v6.2H7.4L4.6 12v-2.3H3z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round" />
-        </svg>
-      </button>
       <button id="tweaksToggle" class="icon-btn" aria-pressed="false" aria-label="调整" title="显示/隐藏调整面板">
         <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
           <path d="M2.5 5h11M2.5 11h11" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
@@ -53,7 +48,11 @@
         </div>
       </details>
 
-      <button id="exportOpen" class="export-pill">导出</button>
+      <button id="exportOpen" class="export-pill" aria-label="导出" title="导出">
+        <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <path d="M8 2.6v7.2M5 7l3 3 3-3M3.4 12.4h9.2" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </button>
       <span class="tag" id="mode" hidden></span>
       <span class="dim" id="projectScope" hidden></span>
       <span class="dim" id="exportScope" hidden></span>
@@ -162,8 +161,17 @@
           </svg>
         </button>
         <input id="volume" class="volume" type="range" min="0" max="1" step="0.01" value="0.8" aria-label="音量" />
-        <button id="loop" class="btn ghost" aria-pressed="false" title="循环播放">循环</button>
-        <button id="undo" class="btn ghost" disabled title="回到上一次写入前">回退</button>
+        <button id="loop" class="icon-btn" aria-pressed="false" aria-label="循环播放" title="循环播放">
+          <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+            <path d="M3.2 7.2a4.8 4.8 0 0 1 8-2.6M12.8 8.8a4.8 4.8 0 0 1-8 2.6" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
+            <path d="M11.4 2.4v2.4H9M4.6 13.6v-2.4H7" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+        <button id="undo" class="icon-btn" disabled aria-label="回退" title="回到上一次写入前">
+          <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+            <path d="M6.6 4.2 3.4 7.4l3.2 3.2M3.6 7.4h5.2a3.4 3.4 0 0 1 0 6.8H5.6" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
         <span class="spacer"></span>
         <button id="fullscreen" class="icon-btn" aria-label="全屏" title="全屏">
           <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">

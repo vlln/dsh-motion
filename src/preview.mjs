@@ -1084,7 +1084,7 @@ const comments = createComments({
 // Two modes the human switches on, the way the reference does: the rail is a
 // door (Tweaks), and annotating is a mode (click an object, no drag needed).
 const tweaksBtn = $('tweaksToggle');
-const commentBtn = $('commentMode');
+
 
 function setTweaks(on) {
   document.body.classList.toggle('tweaks', on);
@@ -1105,12 +1105,6 @@ try {
 setTweaks(storedTweaks === '1');
 tweaksBtn?.addEventListener('click', () => setTweaks(!document.body.classList.contains('tweaks')));
 
-commentBtn?.addEventListener('click', () => {
-  const on = !document.body.classList.contains('commenting');
-  document.body.classList.toggle('commenting', on);
-  commentBtn.setAttribute('aria-pressed', String(on));
-});
-
 canvas.addEventListener('click', (e) => {
   if (comments.consumeSuppress()) return; // that click ended a drag, not a pick
   const rect = canvas.getBoundingClientRect();
@@ -1118,23 +1112,21 @@ canvas.addEventListener('click', (e) => {
   const y = ((e.clientY - rect.top) / rect.height) * timeline.height;
   const hit = kernel.pick(x, y, t);
 
-  // In annotate mode a plain click is enough: annotate the object under the
-  // pointer, or the spot itself when nothing is there.
-  if (document.body.classList.contains('commenting')) {
-    comments.annotateAt(hit ? { x: hit.x, y: hit.y, w: hit.w, h: hit.h } : { x: x - 60, y: y - 30, w: 120, h: 60 });
-    return;
-  }
-  if (!hit) {
+  // A click on the film is a request to annotate: the object under the pointer
+  // supplies the box, empty space gets a small one. There is no mode to enter.
+  const target = hit ? { x: hit.x, y: hit.y, w: hit.w, h: hit.h } : { x: x - 60, y: y - 30, w: 120, h: 60 };
+  if (hit) {
+    selected = hit;
+    refreshSelection();
+  } else {
     selected = null;
     selection.hidden = true;
-    inspector.innerHTML = '<p class="hint">这里没有元素。点卡片或时间轴上的圆点。</p>';
-    return;
+    inspector.innerHTML = '';
   }
-  selected = hit;
-  refreshSelection();
-  if (hit.slot) {
-    // Clicking a word is a request to edit it: open the rail if it is closed,
-    // so the field it focuses is actually visible.
+  if (comments.available()) comments.annotateAt(target);
+  if (hit?.slot) {
+    // Clicking a word opens the note AND puts the caret in its field: the field
+    // is the faster edit, so it takes focus back from the note box.
     if (!document.body.classList.contains('tweaks')) setTweaks(true);
     const input = textList.querySelector(`input[data-text-scene="${currentScene(t).id}"][data-text-slot="${hit.slot}"]`);
     if (input) {

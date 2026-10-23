@@ -919,9 +919,6 @@ body:not(.tweaks) .app {
   color: var(--fg);
 }
 
-body.commenting .canvas-box {
-  cursor: crosshair;
-}
 
 
 /* The document bar has three weights, not four styles: quiet icons, one
@@ -1413,4 +1410,44 @@ body.commenting .canvas-box {
 
 [data-embed='card'] .reel {
   display: none;
+}
+
+
+/* Nothing on the strip, the reel or the rail headers is text to select: a press
+   there is a drag, not a highlight. */
+.scenes,
+.reel,
+.card-head,
+.transport {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Icon-only primary action: the same weight as Share, without a word. */
+.export-pill {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--primary-fg);
+  cursor: pointer;
+}
+
+.export-pill svg {
+  width: 16px;
+  height: 16px;
+}
+
+.icon-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.icon-btn:disabled:hover {
+  background: transparent;
+  color: var(--muted);
 }

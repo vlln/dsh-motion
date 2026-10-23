@@ -387,6 +387,34 @@ export function createKernel({ timeline, modules }) {
       timeline.values[sceneId][key] = value;
       return resolveValue(timeline, scene, mod.values, key);
     },
+    /** Assets drawn on the last rendered frame, with their declared source. */
+    assets() {
+      const seen = new Set();
+      return frameNodes
+        .filter((node) => {
+          const id = `${node.kind}:${node.name}`;
+          if (seen.has(id)) return false;
+          seen.add(id);
+          return true;
+        })
+        .map((node) => {
+          const spec = timeline.assets?.[node.name] ?? {};
+          return {
+            name: node.name,
+            kind: node.kind,
+            scene: sceneAt(lastTime).id,
+            src: spec.src ?? '',
+            editable: node.kind === 'image',
+          };
+        });
+    },
+    /** Re-decode every asset after timeline.assets changed. */
+    async reloadAssets() {
+      for (const [sceneId, entry] of mounted) {
+        const mod = byId.get(sceneId);
+        await entry.ctx.preload(mod.assets ?? []);
+      }
+    },
     describeValues(sceneId) {
       const scene = timeline.scenes.find((s) => s.id === sceneId);
       if (!scene) throw new Error(`unknown scene "${sceneId}"`);

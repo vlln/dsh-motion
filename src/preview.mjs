@@ -26,6 +26,10 @@ const popSubmit = $('popSubmit');
 const popClose = $('popClose');
 const threadsEl = $('threads');
 const threadCount = $('threadCount');
+const assetsEl = $('assets');
+const assetList = $('assetList');
+const assetScope = $('assetScope');
+const assetNote = $('assetNote');
 const textsEl = $('texts');
 const textList = $('textList');
 const textScope = $('textScope');
@@ -84,6 +88,7 @@ function setTime(next) {
   refreshSelection();
   buildKnobs(scene);
   refreshTexts();
+  refreshAssets();
 }
 
 function showSelection(hit) {
@@ -162,6 +167,65 @@ scrub.addEventListener('input', () => {
   kernel.renderAt(t);
   setTime(t);
 });
+
+// --- on-screen assets: repoint an image at another file, live ---
+let assetKey = '';
+
+async function persistAsset(name, src) {
+  try {
+    const res = await fetch('./api/assets', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name, src }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? res.statusText);
+    kernel.timeline.assets[name].src = data.src;
+    await kernel.reloadAssets();
+    kernel.renderAt(t);
+    assetNote.textContent = `已保存 · 快照 ${data.snapshot.id.slice(25)}`;
+    await refreshHistory();
+    refreshAssets();
+  } catch (err) {
+    assetNote.textContent = `保存失败：${err.message}`;
+  }
+}
+
+function refreshAssets() {
+  const items = kernel.assets();
+  assetsEl.hidden = items.length === 0;
+  assetScope.textContent = items.length ? `${items.length} 个` : '';
+
+  const key = items.map((item) => `${item.kind}:${item.name}`).join('|');
+  if (key !== assetKey) {
+    assetList.replaceChildren();
+    for (const item of items) {
+      const row = document.createElement('label');
+      row.className = 'asset-row';
+
+      const name = document.createElement('span');
+      name.className = 'slot';
+      name.textContent = `${item.name} · ${item.kind}`;
+
+      const input = document.createElement('input');
+      input.value = item.src;
+      input.disabled = !item.editable;
+      input.dataset.assetName = item.name;
+      input.addEventListener('change', () => persistAsset(item.name, input.value));
+
+      row.append(name, input);
+      assetList.append(row);
+    }
+    assetKey = key;
+    return;
+  }
+
+  for (const input of assetList.querySelectorAll('input')) {
+    if (document.activeElement === input) continue;
+    const item = items.find((i) => i.name === input.dataset.assetName);
+    if (item && input.value !== item.src) input.value = item.src;
+  }
+}
 
 // --- on-screen text: edit what the current frame actually shows ---
 let textKey = '';
@@ -444,6 +508,13 @@ window.__PREVIEW__ = {
   selected: () => selected,
   audit: (t) => kernel.audit(t),
   texts: () => kernel.texts(),
+  assets: () => kernel.assets(),
+  setAssetSrc: async (name, src) => {
+    kernel.timeline.assets[name].src = src;
+    await kernel.reloadAssets();
+    kernel.renderAt(t);
+    refreshAssets();
+  },
   pick: (x, y, at = t) => kernel.pick(x, y, at),
   play: () => playBtn.click(),
   scenes: timeline.scenes.map((s) => ({ id: s.id, start: s.start, length: s.length })),

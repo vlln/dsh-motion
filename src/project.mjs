@@ -104,6 +104,32 @@ export async function setProjectValue(root, sceneId, key, value) {
   return { value, snapshot: snap };
 }
 
+const IMAGE_EXT = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif']);
+
+/**
+ * Point an existing image asset at another file inside the package.
+ * Clips are refused: their sprite sheet was baked by `npm run assets`, so a new
+ * source needs a new bake — changing the path alone would render the old frames.
+ */
+export async function setProjectAsset(root, name, src) {
+  const timeline = readTimeline(root);
+  const spec = timeline.assets?.[name];
+  if (!spec) throw new Error(`unknown asset "${name}" (declared: ${Object.keys(timeline.assets ?? {}).join(', ') || 'none'})`);
+  if (spec.kind !== 'image') {
+    throw new Error(`asset "${name}" is a ${spec.kind}: re-run \`npm run assets\` after changing its source`);
+  }
+
+  const abs = path.resolve(root, src);
+  if (!abs.startsWith(root + path.sep)) throw new Error(`asset path escapes the package: ${src}`);
+  if (!fs.existsSync(abs)) throw new Error(`asset not found: ${src}`);
+  const ext = path.extname(abs).toLowerCase();
+  if (!IMAGE_EXT.has(ext)) throw new Error(`not an image (${ext || 'no extension'}): ${src}`);
+
+  timeline.assets[name] = { ...spec, src };
+  const snap = await writeTimeline(root, timeline, `asset-${name}`);
+  return { name, src, snapshot: snap };
+}
+
 export function history(root) {
   return listSnapshots(root);
 }

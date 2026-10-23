@@ -152,6 +152,11 @@ dsh plugin --profile web add <repo 路径>   # 本地目录安装（先 npm run 
 
 ![亮色](docs/ui-sidebar.png)
 
+面板里可以直接改这一帧的文字与数值：聚焦某个字段时，画面上会框出它对应的区域，
+分区可以折叠，场景条可以拖动定位。
+
+![聚焦](docs/ui-focus.png)
+
 ![暗色](docs/ui-sidebar-dark.png)
 
 `npm run gate:plugin` 验证安装与启动；`npm run gate:client` 在真实 dsh web 里验证面板路由、
@@ -177,7 +182,7 @@ dsh plugin --profile web add <repo 路径>   # 本地目录安装（先 npm run 
 | 界面 | 说明 |
 |---|---|
 | `◐ Motion` 启动器 | 右下角浮层，打开面板 |
-| 面板 | 播放器 / 场景条 / 元素检视 / **这一帧的文字与数值** / **素材换源与重烘** / 参数滑杆 / 批注浮层 |
+| 面板 | 播放器 / 可拖动场景条 / 元素检视 / **这一帧的文字与数值** / **素材换源与重烘** / 参数滑杆（可折叠）/ 批注（点击跳到该时刻） |
 | 入口 | 侧边栏 `Motion`，点开在主区域显示面板 |
 
 ## 参数与回退

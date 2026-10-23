@@ -361,21 +361,31 @@ export function createKernel({ timeline, modules }) {
     },
     /** What the last rendered frame actually put on screen, with slot identity. */
     texts() {
-      return frameText.map((record) => ({
-        scene: record.sceneId,
-        slot: record.slot,
-        kind: record.kind ?? 'text',
-        key: record.key,
-        value: record.value,
-        text: record.text,
-        truncated: record.truncated,
-        box: {
-          x: Math.round(record.box.x),
-          y: Math.round(record.box.y),
-          w: Math.round(record.box.w),
-          h: Math.round(record.box.h),
-        },
-      }));
+      // The declared box is the layout column; the tight box is what the glyphs
+      // actually cover. Highlighting the column looks like a mistake, so report
+      // the tight one (falling back to the column when nothing was drawn).
+      const tight = (record) => {
+        const lines = record.lines ?? [];
+        if (!lines.length) return record.box;
+        const x = Math.min(...lines.map((l) => l.x));
+        const y = Math.min(...lines.map((l) => l.y));
+        const right = Math.max(...lines.map((l) => l.x + l.w));
+        const bottom = Math.max(...lines.map((l) => l.y + l.h));
+        return { x, y, w: right - x, h: bottom - y };
+      };
+      return frameText.map((record) => {
+        const box = tight(record);
+        return {
+          scene: record.sceneId,
+          slot: record.slot,
+          kind: record.kind ?? 'text',
+          key: record.key,
+          value: record.value,
+          text: record.text,
+          truncated: record.truncated,
+          box: { x: Math.round(box.x), y: Math.round(box.y), w: Math.round(box.w), h: Math.round(box.h) },
+        };
+      });
     },
     setValue(sceneId, key, value) {
       const scene = timeline.scenes.find((s) => s.id === sceneId);
@@ -406,6 +416,12 @@ export function createKernel({ timeline, modules }) {
             src: spec.src ?? '',
             editable: node.kind === 'image',
             rebakeable: node.kind === 'clip',
+            box: {
+              x: Math.round(node.box.x),
+              y: Math.round(node.box.y),
+              w: Math.round(node.box.w),
+              h: Math.round(node.box.h),
+            },
           };
         });
     },

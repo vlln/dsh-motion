@@ -13,6 +13,7 @@
         <div class="canvas-box" id="canvasBox">
           <canvas id="stage"></canvas>
           <div class="selection" id="selection" hidden></div>
+          <div class="slot-hl" id="slotHl" hidden></div>
 
           <div class="popover" id="popover" hidden>
             <div class="pop-head">
@@ -51,25 +52,29 @@
           <p class="hint">点画面里的元素，看它此刻的几何。</p>
         </section>
 
-        <section class="assets" id="assets" hidden>
-          <h2>这一帧的素材 <span class="dim" id="assetScope"></span></h2>
-          <div id="assetList" class="asset-list"></div>
-          <p class="hint" id="assetNote">换图即时生效；片段换源需重跑 <code>npm run assets</code>。</p>
-        </section>
-
-        <section class="texts" id="texts" hidden>
-          <h2>这一帧的文字 <span class="dim" id="textScope"></span></h2>
-          <div id="textList" class="text-list"></div>
-          <p class="hint" id="textNote">改字即时生效，失焦写入 timeline.json。</p>
-        </section>
-
-        <section class="knobs" id="knobs" hidden>
-          <div class="knobs-top">
-            <h2>参数 <span class="dim" id="knobScene"></span></h2>
+        <details class="card" id="assets" open hidden>
+          <summary><span>这一帧的素材</span><span class="dim" id="assetScope"></span></summary>
+          <div class="card-body">
+            <div id="assetList" class="asset-list"></div>
+            <p class="hint" id="assetNote">换图即时生效；片段换源需重跑 <code>npm run assets</code>。</p>
           </div>
-          <div id="knobList" class="knob-list"></div>
-          <p class="hint" id="knobNote"></p>
-        </section>
+        </details>
+
+        <details class="card" id="texts" open hidden>
+          <summary><span>这一帧的文字</span><span class="dim" id="textScope"></span></summary>
+          <div class="card-body">
+            <div id="textList" class="text-list"></div>
+            <p class="hint" id="textNote">改字即时生效，失焦写入 timeline.json。</p>
+          </div>
+        </details>
+
+        <details class="card" id="knobs" open hidden>
+          <summary><span>参数</span><span class="dim" id="knobScene"></span></summary>
+          <div class="card-body">
+            <div id="knobList" class="knob-list"></div>
+            <p class="hint" id="knobNote"></p>
+          </div>
+        </details>
 
         <footer class="panel-foot">
           <span id="sceneName" class="dim">—</span>

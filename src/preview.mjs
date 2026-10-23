@@ -8,6 +8,7 @@ const $ = (id) => document.getElementById(id);
 const canvas = $('stage');
 const box = $('canvasBox');
 const selection = $('selection');
+const slotHl = $('slotHl');
 const inspector = $('inspector');
 const tc = $('tc');
 const durEl = $('dur');
@@ -71,6 +72,10 @@ const chips = timeline.scenes.map((scene) => {
   el.style.flexBasis = '0';
   el.innerHTML = `${scene.name} <span class="len">· ${scene.length.toFixed(1)}s</span>`;
   el.addEventListener('click', () => {
+    if (suppressChip) {
+      suppressChip = false;
+      return;
+    }
     setTime(scene.start + 0.001);
     renderFrame();
   });
@@ -78,9 +83,41 @@ const chips = timeline.scenes.map((scene) => {
   return { el, scene };
 });
 
+// Dragging anywhere on the strip scrubs; a click without movement still jumps
+// to that scene's start (the chip handler), so suppress that click after a drag.
+let stripDrag = null;
+let suppressChip = false;
+
+function timeFromStrip(clientX, rect) {
+  const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+  return ratio * (total - 0.001);
+}
+
 function currentScene(at) {
   return timeline.scenes.find((s) => at >= s.start && at < s.start + s.length) ?? timeline.scenes.at(-1);
 }
+
+scenesEl.addEventListener('pointerdown', (e) => {
+  if (e.button !== 0) return;
+  // A new press always starts a fresh gesture: clear any pending suppression so a
+  // plain click after a drag still seeks.
+  suppressChip = false;
+  stripDrag = { x: e.clientX, moved: false, rect: scenesEl.getBoundingClientRect() };
+});
+
+scenesEl.addEventListener('pointermove', (e) => {
+  if (!stripDrag) return;
+  if (!stripDrag.moved && Math.abs(e.clientX - stripDrag.x) < 3) return;
+  stripDrag.moved = true;
+  const next = timeFromStrip(e.clientX, stripDrag.rect);
+  setTime(next);
+  kernel.renderAt(next);
+});
+
+window.addEventListener('pointerup', () => {
+  if (stripDrag?.moved) suppressChip = true;
+  stripDrag = null;
+});
 
 function setTime(next) {
   t = Math.max(0, Math.min(total - 0.001, next));
@@ -94,6 +131,22 @@ function setTime(next) {
   buildKnobs(scene);
   refreshTexts();
   refreshAssets();
+}
+
+// Outline whatever the focused field edits, so "this input" and "that box" are one thing.
+let hlTimer = 0;
+function highlightRect(rect, ms = 0) {
+  clearTimeout(hlTimer);
+  if (!rect || rect.w <= 0 || rect.h <= 0) {
+    slotHl.hidden = true;
+    return;
+  }
+  slotHl.hidden = false;
+  slotHl.style.left = `${(rect.x / timeline.width) * 100}%`;
+  slotHl.style.top = `${(rect.y / timeline.height) * 100}%`;
+  slotHl.style.width = `${(rect.w / timeline.width) * 100}%`;
+  slotHl.style.height = `${(rect.h / timeline.height) * 100}%`;
+  if (ms) hlTimer = setTimeout(() => (slotHl.hidden = true), ms);
 }
 
 function showSelection(hit) {
@@ -247,6 +300,8 @@ function refreshAssets() {
       input.value = item.src;
       input.disabled = !item.editable && !item.rebakeable;
       input.dataset.assetName = item.name;
+      input.addEventListener('focus', () => highlightRect(item.box));
+      input.addEventListener('blur', () => highlightRect(null));
       if (item.editable) input.addEventListener('change', () => persistAsset(item.name, input.value));
 
       line.append(input);
@@ -340,7 +395,9 @@ function refreshTexts() {
         input.max = String(spec.max);
         input.step = String(spec.step);
         input.value = String(item.value);
-        input.addEventListener('input', () => {
+        input.addEventListener('focus', () => highlightRect(item.box));
+      input.addEventListener('blur', () => highlightRect(null));
+      input.addEventListener('input', () => {
           kernel.setValue(item.scene, item.key, Number(input.value));
           kernel.renderAt(t);
           textNote.textContent = '未保存';
@@ -348,6 +405,8 @@ function refreshTexts() {
         input.addEventListener('change', () => persistValue(item.scene, item.key, Number(input.value)));
       } else {
         input.value = item.text;
+        input.addEventListener('focus', () => highlightRect(item.box));
+        input.addEventListener('blur', () => highlightRect(null));
         input.addEventListener('input', () => {
           kernel.setText(item.scene, item.slot, input.value);
           kernel.renderAt(t);
@@ -488,6 +547,7 @@ const comments = createComments({
   kernel,
   fmt,
   getTime: () => t,
+  onHighlight: (rect) => highlightRect(rect, 1600),
   onSeek: (next) => {
     setTime(next);
     renderFrame();

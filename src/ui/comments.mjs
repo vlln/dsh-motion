@@ -21,6 +21,7 @@ export function createComments({
   fmt,
   getTime,
   onSeek,
+  onHighlight,
   onClearSelection,
   onError,
 }) {
@@ -150,14 +151,21 @@ export function createComments({
       threadsEl.innerHTML = threads
         .map(
           (th) => `
-        <div class="thread" data-id="${th.id}" data-t="${th.anchor.t}">
+        <div class="thread" data-id="${th.id}" data-t="${th.anchor.t}" data-rect="${escapeHtml(JSON.stringify(th.anchor.rect ?? null))}">
           <div class="meta"><span>${fmt(th.anchor.t)}</span><span class="badge ${th.status}">${th.status}</span></div>
           <div class="text">${escapeHtml(th.messages[0]?.text ?? '')}</div>
         </div>`,
         )
         .join('');
       for (const el of threadsEl.querySelectorAll('.thread')) {
-        el.addEventListener('click', () => onSeek(Number(el.dataset.t)));
+        el.addEventListener('click', () => {
+          onSeek(Number(el.dataset.t));
+          try {
+            onHighlight?.(JSON.parse(el.dataset.rect));
+          } catch {
+            /* no anchor rect: just seek */
+          }
+        });
       }
     } catch {
       /* preview works without the API */

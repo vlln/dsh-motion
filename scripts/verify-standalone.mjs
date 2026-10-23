@@ -26,6 +26,15 @@ const HOME = process.env.DSH_MOTION_HOME
   : path.join(os.homedir(), '.dsh-motion');
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
+// Structurally refuse the shared home: this host is its own process with its
+// own persistent home, and never a second writer on the main one.
+const MAIN = path.join(os.homedir(), '.dsh');
+if (path.resolve(HOME) === path.resolve(MAIN)) {
+  console.error('refusing to run on ~/.dsh: this host must use a private home.');
+  console.error('pick another DSH_MOTION_HOME; the main GUI keeps its own.');
+  process.exit(1);
+}
+
 const firstRun = !fs.existsSync(path.join(HOME, 'sessions'));
 fs.mkdirSync(HOME, { recursive: true });
 console.log(`home ${HOME}${firstRun ? ' (created)' : ' (reused)'}`);

@@ -712,14 +712,33 @@ expRun.addEventListener('click', async () => {
 });
 
 // --- style: the film's palettes are data, so a style is one lookup away ---
-const styleSection = $('styleSection');
 const styleList = $('styleList');
+const styleAuto = $('styleAuto');
+const railTabs = [...document.querySelectorAll('.rail-tab')];
+const railPanels = [...document.querySelectorAll('.rail-panel')];
 const authoredPalette = new Map(timeline.scenes.map((s) => [s.id, s.palette]));
 let currentStyle = '';
 try {
   currentStyle = localStorage.getItem('dshm:style') ?? '';
 } catch {
   /* private mode */
+}
+
+function setRailTab(name) {
+  for (const tab of railTabs) tab.setAttribute('aria-selected', String(tab.dataset.tab === name));
+  for (const panel of railPanels) panel.hidden = panel.dataset.panel !== name;
+  try {
+    localStorage.setItem('dshm:rail', name);
+  } catch {
+    /* private mode */
+  }
+}
+
+for (const tab of railTabs) tab.addEventListener('click', () => setRailTab(tab.dataset.tab));
+try {
+  setRailTab(localStorage.getItem('dshm:rail') ?? 'tweaks');
+} catch {
+  setRailTab('tweaks');
 }
 
 function applyStyle(name) {
@@ -732,9 +751,10 @@ function applyStyle(name) {
   } catch {
     /* private mode */
   }
-  for (const button of styleList.querySelectorAll('button')) {
+  for (const button of styleList.querySelectorAll('.palette')) {
     button.setAttribute('aria-pressed', String(button.dataset.style === name));
   }
+  styleAuto.hidden = !name;
   // Scenes bake palette colours into sprites at mount, so rebuilding them is the
   // difference between a new style and a new style that does not paint.
   kernel.remount?.();
@@ -742,34 +762,27 @@ function applyStyle(name) {
   refreshSelection();
 }
 
+/** A palette reads as one swatch: its colours side by side, no label needed. */
 function buildStyles() {
-  const names = Object.keys(timeline.palettes ?? {});
-  // One palette is not a choice: the section only exists when the film offers
-  // something to switch to.
-  if (names.length < 2) {
-    styleSection.hidden = true;
-    return;
-  }
-  styleSection.hidden = false;
-  const swatch = (palette, token) =>
-    `<i style="background:${palette[token] ?? '#000'}"></i>`;
-  styleList.innerHTML = [
-    `<button data-style="" aria-pressed="${currentStyle === ''}"><span class="style-dots">${swatch(timeline.palettes.main ?? {}, 'bg')}</span>原样</button>`,
-    ...names.map(
-      (name) =>
-        `<button data-style="${name}" aria-pressed="${currentStyle === name}"><span class="style-dots">${[
-          'bg',
-          'accent',
-          'fg',
-        ]
-          .map((token) => swatch(timeline.palettes[name], token))
-          .join('')}</span>${name}</button>`,
-    ),
-  ].join('');
-  for (const button of styleList.querySelectorAll('button')) {
+  const palettes = timeline.palettes ?? {};
+  const base = palettes.main ?? {};
+  const names = Object.keys(palettes);
+  styleList.innerHTML = names
+    .map((name) => {
+      const merged = { ...base, ...palettes[name] };
+      const dots = ['bg', 'panel', 'accent', 'fg', 'muted']
+        .map((token) => `<i style="background:${merged[token] ?? '#000'}"></i>`)
+        .join('');
+      return `<button class="palette" data-style="${name}" aria-pressed="${currentStyle === name}" aria-label="${name}" title="${name}">${dots}</button>`;
+    })
+    .join('');
+  for (const button of styleList.querySelectorAll('.palette')) {
     button.addEventListener('click', () => applyStyle(button.dataset.style));
   }
+  styleAuto.hidden = !currentStyle;
 }
+
+styleAuto?.addEventListener('click', () => applyStyle(''));
 
 buildStyles();
 applyStyle(currentStyle);

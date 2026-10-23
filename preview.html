@@ -87,17 +87,18 @@
       </main>
 
       <aside class="panel">
+        <div class="rail-tabs" role="tablist">
+          <button class="rail-tab" role="tab" data-tab="tweaks" aria-selected="true">调整</button>
+          <button class="rail-tab" role="tab" data-tab="style" aria-selected="false">风格</button>
+        </div>
+
+        <div class="rail-panel" data-panel="tweaks">
         <section class="threads" hidden>
           <h2>批注 <span id="threadCount" hidden></span></h2>
           <div id="threads" class="thread-list"></div>
         </section>
 
         <section class="inspector" id="inspector"></section>
-
-        <section class="card card-static" id="styleSection">
-          <header class="card-head"><span>风格</span></header>
-          <div class="card-body" id="styleList"></div>
-        </section>
 
         <section class="card card-static" id="scene">
           <header class="card-head">
@@ -145,6 +146,15 @@
             <p class="hint" id="assetNote" hidden></p>
           </div>
         </details>
+
+        </div>
+
+        <div class="rail-panel" data-panel="style" hidden>
+          <p class="rail-label">配色</p>
+          <div id="styleList" class="palette-list"></div>
+          <button id="styleAuto" class="link-btn">恢复片子的原配色</button>
+        </div>
+
       </aside>
     </div>
 

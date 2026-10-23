@@ -33,15 +33,17 @@
       </main>
 
       <aside class="panel">
-        <header class="panel-head">
-          <h1>Motion</h1>
-          <span class="tag" id="mode">paused</span>
-        </header>
+        <div class="panel-top">
+          <header class="panel-head">
+            <h1>Motion</h1>
+            <span class="tag" id="mode">paused</span>
+          </header>
 
-        <section class="readout">
-          <span id="tc" class="tc">0:00.00</span>
-          <span class="dim">/ <span id="dur">0:19.00</span></span>
-        </section>
+          <section class="readout">
+            <span id="tc" class="tc">0:00.00</span>
+            <span class="dim">/ <span id="dur">0:19.00</span></span>
+          </section>
+        </div>
 
         <section class="threads">
           <h2>批注 <span id="threadCount" class="dim">0</span></h2>
@@ -49,7 +51,7 @@
         </section>
 
         <section class="inspector" id="inspector">
-          <p class="hint">点击画面里的元素，查看它在当前时刻的几何。</p>
+          <p class="hint">点画面里的元素，看它此刻的几何。</p>
         </section>
 
         <section class="assets" id="assets" hidden>
@@ -74,7 +76,7 @@
 
         <footer class="panel-foot">
           <span id="sceneName" class="dim">—</span>
-          <button id="undo" class="btn ghost" disabled>回退</button>
+          <button id="undo" class="btn ghost" disabled title="回到上一次写入前">回退</button>
         </footer>
       </aside>
     </div>
@@ -84,13 +86,13 @@
         <div class="playhead" id="playhead"></div>
       </div>
       <div class="transport">
-        <button id="play" class="btn icon" aria-label="play">
+        <button id="play" class="btn icon" aria-label="play" title="播放 / 暂停（空格）">
           <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
             <path class="i-play" d="M5 3.2v9.6l8-4.8z" />
             <path class="i-pause" d="M5.4 3.4h2.2v9.2H5.4zM8.4 3.4h2.2v9.2H8.4z" style="display: none" />
           </svg>
         </button>
-        <button id="loop" class="btn ghost" aria-pressed="false">循环</button>
+        <button id="loop" class="btn ghost" aria-pressed="false" title="循环播放">循环</button>
         <input id="scrub" class="scrub" type="range" min="0" max="19" step="0.01" value="0" />
       </div>
     </div>

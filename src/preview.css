@@ -83,8 +83,22 @@ canvas {
   padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
   overflow: auto;
+}
+
+/* Timecode and title stay put while the sections scroll under them. */
+.panel-top {
+  position: sticky;
+  top: -16px;
+  z-index: 3;
+  margin: -16px -16px 0;
+  padding: 16px 16px 12px;
+  background: var(--panel);
+  border-bottom: 0.5px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .panel-head {
@@ -130,12 +144,12 @@ canvas {
 .assets {
   border: 0.5px solid var(--line);
   border-radius: var(--radius);
-  padding: 12px;
+  padding: 10px 12px;
   background: var(--surface);
 }
 
 .inspector {
-  min-height: 96px;
+  min-height: 72px;
   font: 12px/1.7 var(--mono);
   color: var(--muted);
 }
@@ -252,6 +266,13 @@ canvas {
 
 .btn:hover {
   background: var(--hover);
+}
+
+.btn:focus-visible,
+.chip:focus-visible,
+.thread:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 .btn.icon {

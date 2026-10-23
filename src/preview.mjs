@@ -290,9 +290,11 @@ function currentScene(at) {
 
 scenesEl.addEventListener('pointerdown', (e) => {
   if (e.button !== 0) return;
+  // The chip's ... button and its menu are controls, not strip gestures.
+  if (e.target.closest('.chip-more') || e.target.closest('.chip-menu')) return;
   // Keep the browser from starting a text selection on the strip. The seek no
   // longer depends on the click, so cancelling the press costs nothing.
-  if (!e.target.closest('.chip-more')) e.preventDefault();
+  e.preventDefault();
   // A new press always starts a fresh gesture: clear any pending suppression so a
   // plain click after a drag still seeks.
   suppressChip = false;
@@ -1125,6 +1127,17 @@ try {
 setTweaks(storedTweaks === '1');
 tweaksBtn?.addEventListener('click', () => setTweaks(!document.body.classList.contains('tweaks')));
 
+// Direct manipulation: the cursor tells you what a click will do — a word opens
+// its field (I-beam), anything else opens a note.
+canvas.addEventListener('pointermove', (e) => {
+  if (playing) return;
+  const rect = canvas.getBoundingClientRect();
+  const x = ((e.clientX - rect.left) / rect.width) * timeline.width;
+  const y = ((e.clientY - rect.top) / rect.height) * timeline.height;
+  const hit = kernel.pick(x, y, t);
+  canvas.style.cursor = hit ? (hit.slot ? 'text' : 'pointer') : 'default';
+});
+
 canvas.addEventListener('click', (e) => {
   if (comments.consumeSuppress()) return; // that click ended a drag, not a pick
   const rect = canvas.getBoundingClientRect();
@@ -1143,17 +1156,21 @@ canvas.addEventListener('click', (e) => {
     selection.hidden = true;
     inspector.innerHTML = '';
   }
-  if (comments.available()) comments.annotateAt(target);
   if (hit?.slot) {
-    // Clicking a word opens the note AND puts the caret in its field: the field
-    // is the faster edit, so it takes focus back from the note box.
+    // A word is edited, not annotated: open the rail and put the caret in its
+    // field with the value selected, so typing replaces it.
     if (!document.body.classList.contains('tweaks')) setTweaks(true);
     const input = textList.querySelector(`input[data-text-scene="${currentScene(t).id}"][data-text-slot="${hit.slot}"]`);
     if (input) {
+      // The rail may have been display:none until this click; force layout so the
+      // field exists before focus() is asked to put the caret in it.
+      void input.offsetHeight;
       input.focus();
       input.select();
     }
+    return; // editing the word is the whole gesture; no note box on top
   }
+  if (comments.available()) comments.annotateAt(target);
 });
 
 // --- fullscreen ---

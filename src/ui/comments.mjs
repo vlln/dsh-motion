@@ -218,13 +218,39 @@ export function createComments({
     if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') popSubmit.click();
   });
 
+  /** Every pin that was ever sent keeps its outline on the frame, not in a list. */
+  function paintAnchors(threads) {
+    for (const old of box.querySelectorAll('.anchor')) old.remove();
+    for (const [i, th] of threads.entries()) {
+      const rect = th.anchor?.rect;
+      if (!rect || !(rect.w > 0) || !(rect.h > 0)) continue;
+      const el = document.createElement('div');
+      el.className = 'anchor';
+      el.dataset.id = th.id;
+      el.style.left = `${(rect.x / timeline.width) * 100}%`;
+      el.style.top = `${(rect.y / timeline.height) * 100}%`;
+      el.style.width = `${(rect.w / timeline.width) * 100}%`;
+      el.style.height = `${(rect.h / timeline.height) * 100}%`;
+      const text = escapeHtml(th.messages?.[0]?.text ?? '');
+      el.innerHTML = `
+        <span class="anchor-pin">${i + 1}</span>
+        <span class="anchor-tag"><b>${fmt(th.anchor.t)}</b>${text}</span>`;
+      el.addEventListener('click', () => {
+        onSeek(Number(th.anchor.t));
+        onHighlight?.(rect);
+      });
+      box.append(el);
+    }
+  }
+
   async function refreshThreads() {
     try {
       const data = await (await fetch('./api/comments')).json();
       const threads = data.threads ?? [];
+      paintAnchors(threads);
       threadCount.textContent = String(threads.length);
       if (!threads.length) {
-        threadsEl.innerHTML = '<p class="hint">在画面上拖出一个框，写下要改什么。</p>';
+        threadsEl.innerHTML = '';
         return;
       }
       const section = threadsEl.closest('section');

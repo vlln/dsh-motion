@@ -1636,3 +1636,177 @@ body:not(.tweaks) .app {
   width: min(100vw, calc(100vh * 16 / 9));
   height: min(100vh, calc(100vw * 9 / 16));
 }
+
+
+/* --- annotations on the frame ---------------------------------------------- */
+
+/* A sent note keeps its outline where it was made; hovering tells you what it
+   said. The pin is the anchor, the list in the rail is the history. */
+.anchor {
+  position: absolute;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: var(--radius-sm);
+  /* The outline is a memory aid, not a wall: presses go through it to the film,
+     so a word inside an annotated region is still editable. Only the pin takes
+     the pointer. */
+  pointer-events: none;
+  transition: border-color var(--dur) var(--ease);
+}
+
+.anchor:has(.anchor-pin:hover) {
+  border-color: var(--accent);
+}
+
+.anchor-pin {
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--fg);
+  color: var(--bg);
+  font: 600 10px/20px var(--font);
+  text-align: center;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 25%);
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.anchor-pin::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  bottom: -5px;
+  border: 5px solid transparent;
+  border-top-color: var(--fg);
+}
+
+.anchor-tag {
+  position: absolute;
+  left: -10px;
+  bottom: calc(100% + 6px);
+  max-width: 260px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  background: #0f1115;
+  color: #f2f3f5;
+  font: 11px/1.4 var(--font);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur) var(--ease);
+}
+
+.anchor-tag b {
+  margin-right: 6px;
+  color: #8b929c;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.anchor:has(.anchor-pin:hover) .anchor-tag {
+  opacity: 1;
+}
+
+/* The note box: a small dark card that belongs to the frame, the way the host
+   dark composer does, rather than a second panel. */
+.popover {
+  width: 300px;
+  padding: 10px 12px 8px;
+  border: 0;
+  border-radius: 12px;
+  background: #0f1115;
+  color: #f2f3f5;
+  box-shadow: 0 18px 50px rgb(0 0 0 / 35%);
+}
+
+.pop-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.pop-time {
+  color: #8b929c;
+  font: 500 11px/1 var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.popover .x {
+  color: #8b929c;
+  background: transparent;
+  border: 0;
+}
+
+.pop-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.at-chip {
+  flex: none;
+  margin-top: 3px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: #cfe0ff;
+  font: 500 11px/1.4 var(--font);
+}
+
+.popover textarea {
+  flex: 1;
+  min-height: 44px;
+  padding: 4px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #f2f3f5;
+  font: 13px/1.5 var(--font);
+  resize: none;
+}
+
+.popover textarea::placeholder {
+  color: #6b7280;
+}
+
+.popover textarea:focus,
+.popover textarea:focus-visible {
+  outline: none;
+  box-shadow: none;
+  border: 0;
+}
+
+.pop-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+}
+
+.pop-hint {
+  color: #6b7280;
+  font: 11px/1 var(--font);
+}
+
+.popover .send-btn {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: #2a2d33;
+  color: #f2f3f5;
+  font: 500 14px/1 var(--font);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.popover .send-btn:hover {
+  background: #3a3e45;
+}

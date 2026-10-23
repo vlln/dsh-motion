@@ -68,11 +68,17 @@
 
           <div class="popover" id="popover" hidden>
             <div class="pop-head">
-              <span id="popT">—</span>
+              <span id="popT" class="pop-time">—</span>
               <button id="popClose" class="x" aria-label="close">×</button>
             </div>
-            <textarea id="popText" rows="3" placeholder="这里要改成什么？"></textarea>
-            <button id="popSubmit" class="send-btn">发送到对话</button>
+            <div class="pop-body">
+              <span class="at-chip">@Claude</span>
+              <textarea id="popText" rows="2" placeholder="这里要改成什么？"></textarea>
+            </div>
+            <div class="pop-foot">
+              <span class="pop-hint">⌘↵ 发送</span>
+              <button id="popSubmit" class="send-btn" aria-label="发送" title="发送到对话">↑</button>
+            </div>
           </div>
         </div>
       </main>

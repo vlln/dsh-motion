@@ -1151,3 +1151,68 @@ body.commenting .canvas-box {
   color: inherit;
   text-decoration: underline;
 }
+
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 0;
+  font: 500 12px/1.4 var(--font);
+  color: var(--muted);
+}
+
+.card-static {
+  border-top: 0;
+}
+
+.scene-nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.scene-nav .icon-btn {
+  width: 22px;
+  height: 22px;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.scene-nav .dim {
+  min-width: 34px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.volume {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 72px;
+  height: 14px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.volume::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--line);
+}
+
+.volume::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 11px;
+  height: 11px;
+  margin-top: -4px;
+  border-radius: 50%;
+  background: var(--fg);
+}
+
+/* In a narrow column the slider is the first thing to go; the mute button stays. */
+@media (max-width: 700px) {
+  .volume {
+    display: none;
+  }
+}

@@ -39,10 +39,6 @@ try {
   await page.goto(`${origin}/preview.html`);
   await page.waitForFunction(() => window.__PREVIEW__?.ready === true, { timeout: 30000 });
 
-  // The card may start open or closed; make sure it is open, like a user would.
-  if (!(await page.locator('#scene').evaluate((el) => el.open))) {
-    await page.locator('#scene > summary').click();
-  }
   const len = page.locator('#sceneLen');
   check('the scene card shows the current length', (await len.inputValue()) === '8', await len.inputValue());
 
@@ -60,6 +56,23 @@ try {
 
   const created = listSnapshots(ROOT).filter((s) => !snapsBefore.has(s.id));
   check('the previous timeline is kept', created.some((s) => s.reason === 'scene-first-peoples'), created.map((s) => s.reason).join(', ') || 'none');
+
+  // --- rename, and prev/next through the strip ---
+  const nameInput = page.locator('#sceneNameInput');
+  await nameInput.fill('Renamed scene');
+  await nameInput.dispatchEvent('change');
+  const renamed = await until(() => read().scenes[0].name === 'Renamed scene');
+  check('a scene can be renamed from the panel', renamed, read().scenes[0].name);
+  const chipText = await page.locator('.chip').first().textContent();
+  check('the chip follows the new name', (chipText ?? '').includes('Renamed scene'), chipText ?? '');
+
+  const nextStart = read().scenes[1].start;
+  await page.click('#nextScene');
+  const atNext = await until(async () => Math.abs((await page.evaluate(() => window.__PREVIEW__.time())) - nextStart) < 0.01);
+  check('next jumps to the next scene', atNext, String(await page.evaluate(() => window.__PREVIEW__.time())));
+  await page.click('#prevScene');
+  const back = await until(async () => (await page.evaluate(() => window.__PREVIEW__.time())) < 0.01);
+  check('prev comes back', back, String(await page.evaluate(() => window.__PREVIEW__.time())));
 
   // --- negative: a bad speed is refused ---
   const bad = await fetch(`${origin}/api/scene`, {

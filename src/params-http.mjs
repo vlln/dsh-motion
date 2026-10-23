@@ -71,9 +71,9 @@ export function paramsHandlers(root) {
       json(res, 200, { ok: true, name: out.name, src: out.src, manifest: out.manifest });
     }),
     scene: wrap(async (req, res) => {
-      const { scene, length, speed, timeline } = await readBody(req);
+      const { scene, name, length, speed, timeline } = await readBody(req);
       if (!scene) throw new Error('scene edit needs scene');
-      const out = await setProjectScene(root, scene, { length, speed }, timeline);
+      const out = await setProjectScene(root, scene, { name, length, speed }, timeline);
       json(res, 200, { ok: true, scene: out.scene, duration: out.duration, snapshot: out.snapshot });
     }),
     export: wrap(async (req, res) => {

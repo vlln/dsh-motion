@@ -85,9 +85,17 @@
 
         <section class="inspector" id="inspector"></section>
 
-        <details class="card" id="scene" open>
-          <summary><span>这一场</span><span class="dim" id="sceneCardName">—</span></summary>
+        <section class="card card-static" id="scene">
+          <header class="card-head">
+            <span>这一场</span>
+            <span class="scene-nav">
+              <button id="prevScene" class="icon-btn" aria-label="上一场">‹</button>
+              <span id="sceneCardName" class="dim">—</span>
+              <button id="nextScene" class="icon-btn" aria-label="下一场">›</button>
+            </span>
+          </header>
           <div class="card-body">
+            <label class="field"><span>名称</span><input id="sceneNameInput" maxlength="60" /></label>
             <label class="field"><span>段长（秒）</span><input id="sceneLen" type="number" min="0.5" step="0.1" /></label>
             <label class="field"><span>速度</span>
               <select id="sceneSpeed">
@@ -98,7 +106,7 @@
             </label>
             <p class="hint" id="sceneNote" hidden></p>
           </div>
-        </details>
+        </section>
 
         <details class="card" id="texts" open hidden>
           <summary><span>这一帧的文字</span><span class="dim" id="textScope"></span></summary>
@@ -141,6 +149,14 @@
             <path class="i-pause" d="M5.4 3.4h2.2v9.2H5.4zM8.4 3.4h2.2v9.2H8.4z" style="display: none" />
           </svg>
         </button>
+        <button id="mute" class="icon-btn" aria-label="静音" title="静音">
+          <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+            <path d="M3 6.2h2.4L8 3.6v8.8L5.4 9.8H3z" fill="currentColor" />
+            <path id="muteWaves" d="M10.6 6.2c.9.5 1.4 1.4 1.4 2.4s-.5 1.9-1.4 2.4" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" />
+            <path id="muteSlash" d="M10.4 6.4l2.6 2.6m0-2.6l-2.6 2.6" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" style="display: none" />
+          </svg>
+        </button>
+        <input id="volume" class="volume" type="range" min="0" max="1" step="0.01" value="0.8" aria-label="音量" />
         <button id="loop" class="btn ghost" aria-pressed="false" title="循环播放">循环</button>
         <button id="undo" class="btn ghost" disabled title="回到上一次写入前">回退</button>
         <input id="scrub" class="scrub" type="range" min="0" max="19" step="0.01" value="0" />

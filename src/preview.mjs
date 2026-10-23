@@ -121,7 +121,8 @@ try {
   // Stop this module here: everything below expects a film to exist.
   await new Promise(() => {});
 }
-const { timeline, kernel } = mounted;
+const { kernel } = mounted;
+let timeline = mounted.timeline;
 
 let total = timeline.duration;
 let t = 0;
@@ -167,6 +168,7 @@ buildChips(timeline.scenes);
 
 /** Take a reloaded timeline: the clock, the strip and the duration all follow. */
 function adoptTimeline(next) {
+  timeline = next;
   total = next.duration;
   scrub.max = String(total);
   durEl.textContent = fmt(total);
@@ -313,6 +315,31 @@ const sound = timeline.audio?.src
   ? new Audio(new URL(timeline.audio.src, location.href).href)
   : null;
 if (sound) sound.preload = 'auto';
+
+const muteBtn = $('mute');
+const volume = $('volume');
+
+function setMuted(muted) {
+  if (!sound) return;
+  sound.muted = muted;
+  $('muteWaves').style.display = muted ? 'none' : 'inline';
+  $('muteSlash').style.display = muted ? 'inline' : 'none';
+  muteBtn?.setAttribute('aria-pressed', String(muted));
+  muteBtn?.setAttribute('aria-label', muted ? '取消静音' : '静音');
+}
+
+if (sound) {
+  sound.volume = Number(volume?.value ?? 0.8);
+  setMuted(false);
+  muteBtn?.addEventListener('click', () => setMuted(!sound.muted));
+  volume?.addEventListener('input', () => {
+    sound.volume = Number(volume.value);
+    if (sound.volume > 0 && sound.muted) setMuted(false);
+  });
+} else {
+  if (muteBtn) muteBtn.hidden = true;
+  if (volume) volume.hidden = true;
+}
 
 function soundSeek(at) {
   if (!sound) return;
@@ -573,6 +600,7 @@ async function persistScene(patch) {
 function syncSceneFields(scene) {
   const sceneIndex = timeline.scenes.findIndex((s) => s.id === scene.id) + 1;
   sceneCardName.textContent = `${sceneIndex} / ${timeline.scenes.length}`;
+  if (document.activeElement !== sceneNameInput) sceneNameInput.value = scene.name;
   sceneLen.value = String(scene.length);
   sceneSpeed.value = String(scene.speed ?? 1);
 }
@@ -582,6 +610,54 @@ function buildScene(scene) {
   sceneKey = scene.id;
   syncSceneFields(scene);
 }
+
+const prevSceneBtn = $('prevScene');
+const nextSceneBtn = $('nextScene');
+const sceneNameInput = $('sceneNameInput');
+
+const sceneIndexAt = (at) => timeline.scenes.findIndex((s) => s.id === currentScene(at).id);
+
+prevSceneBtn?.addEventListener('click', () => {
+  const i = sceneIndexAt(t);
+  if (i > 0) {
+    setTime(timeline.scenes[i - 1].start + 0.001);
+    renderFrame();
+  }
+});
+
+nextSceneBtn?.addEventListener('click', () => {
+  const i = sceneIndexAt(t);
+  if (i >= 0 && i < timeline.scenes.length - 1) {
+    setTime(timeline.scenes[i + 1].start + 0.001);
+    renderFrame();
+  }
+});
+
+// Renaming is local to the document: no reflow, so no reload.
+sceneNameInput?.addEventListener('change', async () => {
+  const scene = currentScene(t);
+  const name = sceneNameInput.value.trim();
+  if (!name || name === scene.name) {
+    sceneNameInput.value = scene.name;
+    return;
+  }
+  try {
+    const res = await fetch('./api/scene', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: body({ scene: scene.id, name }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? res.statusText);
+    scene.name = data.scene.name;
+    const chip = chips.find((c) => c.scene.id === scene.id);
+    if (chip) chip.el.innerHTML = `${data.scene.name} <span class="len">· ${data.scene.length.toFixed(1)}s</span>`;
+    sceneName.textContent = data.scene.name;
+  } catch (err) {
+    sceneNote.textContent = `改名失败：${err.message}`;
+    sceneNameInput.value = scene.name;
+  }
+});
 
 sceneLen.addEventListener('change', () => persistScene({ length: Number(sceneLen.value) }));
 sceneSpeed.addEventListener('change', () => persistScene({ speed: Number(sceneSpeed.value) }));
@@ -1020,7 +1096,8 @@ window.__PREVIEW__ = {
   // Same path the popover uses: store the pin, then say it in the conversation.
   comment: (payload) => comments.addComment(payload),
   session: () => sessionId,
-  sound: () => (sound ? { src: sound.src, at: sound.currentTime, paused: sound.paused } : null),
+  sound: () =>
+    sound ? { src: sound.src, at: sound.currentTime, paused: sound.paused, muted: sound.muted, volume: sound.volume } : null,
   play: () => playBtn.click(),
   scenes: timeline.scenes.map((s) => ({ id: s.id, start: s.start, length: s.length })),
   get duration() {

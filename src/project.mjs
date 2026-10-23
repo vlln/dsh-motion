@@ -142,7 +142,7 @@ const IMAGE_EXT = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif']);
  * source needs a new bake — changing the path alone would render the old frames.
  */
 /**
- * Scene-level edits: length and speed. Lengths reflow — scenes are contiguous,
+ * Scene-level edits: name, length and speed. Lengths reflow — scenes are contiguous,
  * so changing one moves every later scene and the total duration with it.
  */
 export async function setProjectScene(root, sceneId, patch, file = 'timeline.json') {
@@ -155,6 +155,12 @@ export async function setProjectScene(root, sceneId, patch, file = 'timeline.jso
     if (!Number.isFinite(length) || length < 0.5) throw new Error(`length must be >= 0.5s (got ${patch.length})`);
     if (length > 600) throw new Error(`length must be <= 600s (got ${length})`);
     timeline.scenes[index].length = Number(length.toFixed(2));
+  }
+  if (patch.name !== undefined) {
+    const name = String(patch.name).trim();
+    if (!name) throw new Error('name must not be empty');
+    if (name.length > 60) throw new Error(`name must be <= 60 chars (got ${name.length})`);
+    timeline.scenes[index].name = name;
   }
   if (patch.speed !== undefined) {
     const speed = Number(patch.speed);

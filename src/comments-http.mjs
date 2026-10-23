@@ -1,7 +1,7 @@
 // Comment API handlers shared by the dev server (scripts/serve.mjs) and the
 // plugin's web routes (lib/index.mjs). One implementation, two mount points.
 
-import { addThread, list, markSent, resolve } from './comments.mjs';
+import { addThread, list, resolve } from './comments.mjs';
 
 const json = (res, code, data) => {
   res.writeHead(code, { 'content-type': 'application/json; charset=utf-8' });
@@ -38,12 +38,6 @@ export function commentsHandlers(root) {
   return {
     list: wrap(async (req, res) => json(res, 200, { threads: list(root) })),
     create: wrap(async (req, res) => json(res, 201, { thread: addThread(root, await readBody(req)) })),
-    // The panel records that its sentence reached the conversation. A pin with
-    // no sentAt is a draft: kept locally, never said out loud.
-    sent: wrap(async (req, res) => {
-      const { id } = await readBody(req);
-      json(res, 200, markSent(root, id));
-    }),
     resolve: wrap(async (req, res) => {
       const { id } = await readBody(req);
       json(res, 200, resolve(root, id));

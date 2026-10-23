@@ -25,12 +25,14 @@ export function createComments({
   onError,
   session = '',
 }) {
-  // A comment is a message. When this page runs inside the host it hands the
-  // sentence to the client half, which speaks it into the session the panel
-  // belongs to; standalone, it can only keep the pin and say so.
+  // A comment is a message. This page hands the sentence to the client half,
+  // which speaks it into the session the panel belongs to. Without a session
+  // there is no reader, so there is no comment surface at all.
   const embedded = window.parent !== window && Boolean(session);
-  // Standalone has nobody to speak to; say so on the button instead of pretending.
-  if (!embedded) popSubmit.textContent = '保存批注';
+  if (!embedded) {
+    const section = threadsEl.closest('section');
+    if (section) section.hidden = true;
+  }
 
   const pendingAcks = new Map();
 
@@ -42,36 +44,36 @@ export function createComments({
     if (settle) settle(data);
   });
 
-  const anchorLabel = (thread) => {
-    const element = thread.anchor?.elementId;
-    const rect = thread.anchor?.rect;
-    if (element) return `${fmt(thread.anchor.t)} · ${element}`;
+  const anchorLabel = (anchor) => {
+    const element = anchor?.elementId;
+    const rect = anchor?.rect;
+    if (element) return `${fmt(anchor.t)} · ${element}`;
     if (rect) {
-      return `${fmt(thread.anchor.t)} · 区域 ${Math.round(rect.x)},${Math.round(rect.y)} ${Math.round(rect.w)}×${Math.round(rect.h)}`;
+      return `${fmt(anchor.t)} · 区域 ${Math.round(rect.x)},${Math.round(rect.y)} ${Math.round(rect.w)}×${Math.round(rect.h)}`;
     }
-    return fmt(thread.anchor?.t ?? 0);
+    return fmt(anchor?.t ?? 0);
   };
 
-  const messageFor = (thread) => `[批注] ${anchorLabel(thread)}\n${thread.messages?.[0]?.text ?? ''}`;
+  const messageFor = ({ anchor, text }) => `[批注] ${anchorLabel(anchor)}\n${text}`;
 
-  /** Hand one stored thread to the conversation; resolves the acknowledgement. */
-  const deliver = (thread) =>
+  /** Hand one sentence to the conversation; resolves the acknowledgement. */
+  const deliver = ({ id, anchor, text }) =>
     new Promise((resolve) => {
       if (!embedded) {
-        resolve({ ok: false, reason: 'standalone' });
+        resolve({ ok: false, reason: '没有会话' });
         return;
       }
       const timer = setTimeout(() => {
-        pendingAcks.delete(thread.id);
-        resolve({ ok: false, reason: 'timeout' });
+        pendingAcks.delete(id);
+        resolve({ ok: false, reason: '会话没有回应' });
       }, 10000);
-      pendingAcks.set(thread.id, (data) => {
+      pendingAcks.set(id, (data) => {
         clearTimeout(timer);
-        pendingAcks.delete(thread.id);
-        resolve(data.ok ? { ok: true } : { ok: false, reason: data.error ?? 'failed' });
+        pendingAcks.delete(id);
+        resolve(data.ok ? { ok: true } : { ok: false, reason: data.error ?? '失败' });
       });
       window.parent.postMessage(
-        { type: 'dshm:comment', id: thread.id, session, text: messageFor(thread) },
+        { type: 'dshm:comment', id, session, text: messageFor({ anchor, text }) },
         location.origin,
       );
     });
@@ -121,6 +123,7 @@ export function createComments({
   };
 
   canvas.addEventListener('mousedown', (e) => {
+    if (!embedded) return; // no session: plain clicks still pick elements
     if (e.button !== 0) return;
     const p = point(e);
     drag = { x0: p.x, y0: p.y, x1: p.x, y1: p.y, moved: false };
@@ -162,27 +165,30 @@ export function createComments({
     selection.hidden = true;
   });
 
-  /** Create the pin, then (when embedded) say it in the conversation. */
+  /**
+   * Say it first, store it only after it was said. A pin with no conversation
+   * behind it would be exactly the silent queue this design removes.
+   */
   async function addComment({ t, rect, text }) {
     const trimmed = String(text ?? '').trim();
     if (!trimmed) throw new Error('批注不能为空');
+    if (!embedded) throw new Error('没有会话，批注无处可发');
+
     const center = rect ? { x: rect.x + rect.w / 2, y: rect.y + rect.h / 2 } : null;
     const hit = center ? kernel.pick(center.x, center.y, t) : null;
+    const anchor = { t, rect, elementId: hit?.id ?? null };
+    const id = `th_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+
+    const sent = await deliver({ id, anchor, text: trimmed });
+    if (!sent.ok) throw new Error(`没有送到对话：${sent.reason}`);
+
     const res = await fetch('./api/comments', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ anchor: { t, rect, elementId: hit?.id ?? null }, text: trimmed }),
+      body: JSON.stringify({ id, anchor, text: trimmed, sentAt: new Date().toISOString() }),
     });
-    if (!res.ok) throw new Error(`批注保存失败：${(await res.json()).error ?? res.status}`);
+    if (!res.ok) throw new Error(`批注已在对话里，但钉子没存下：${(await res.json()).error ?? res.status}`);
     const { thread } = await res.json();
-    const sent = await deliver(thread);
-    if (sent.ok) {
-      await fetch('./api/comments/sent', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ id: thread.id }),
-      });
-    }
     await refreshThreads();
     return { thread, sent };
   }
@@ -224,15 +230,11 @@ export function createComments({
       threadsEl.innerHTML = threads
         .map((th) => {
           const resolved = th.status === 'resolved';
-          const label = resolved ? '已处理' : th.sentAt ? '待处理' : '未发送';
-          const cls = resolved ? 'resolved' : th.sentAt ? 'open' : 'draft';
-          const retry =
-            !resolved && !th.sentAt && embedded
-              ? `<button class="resend" data-send="${th.id}" title="送到对话">发送</button>`
-              : '';
+          const label = resolved ? '已处理' : '待处理';
+          const cls = resolved ? 'resolved' : 'open';
           return `
         <div class="thread" data-id="${th.id}" data-t="${th.anchor.t}" data-rect="${escapeHtml(JSON.stringify(th.anchor.rect ?? null))}">
-          <div class="meta"><span>${fmt(th.anchor.t)}</span><span class="badges"><span class="badge ${cls}">${label}</span>${retry}</span></div>
+          <div class="meta"><span>${fmt(th.anchor.t)}</span><span class="badge ${cls}">${label}</span></div>
           <div class="text">${escapeHtml(th.messages?.[0]?.text ?? '')}</div>
         </div>`;
         })
@@ -247,26 +249,7 @@ export function createComments({
           }
         });
       }
-      for (const button of threadsEl.querySelectorAll('.resend')) {
-        button.addEventListener('click', async (event) => {
-          event.stopPropagation();
-          const id = button.dataset.send;
-          const thread = threads.find((th) => th.id === id);
-          if (!thread) return;
-          button.disabled = true;
-          const sent = await deliver(thread);
-          if (sent.ok) {
-            await fetch('./api/comments/sent', {
-              method: 'POST',
-              headers: { 'content-type': 'application/json' },
-              body: JSON.stringify({ id }),
-            });
-          } else {
-            onError(`没有送到对话：${escapeHtml(sent.reason ?? '失败')}`);
-          }
-          await refreshThreads();
-        });
-      }
+
     } catch {
       /* preview works without the API */
     }

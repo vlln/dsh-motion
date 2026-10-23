@@ -31,13 +31,14 @@ export function save(root, data) {
 
 const now = () => new Date().toISOString();
 
-export function addThread(root, { anchor, text, activated = true }) {
+export function addThread(root, { id, anchor, text, sentAt }) {
   if (!anchor || typeof anchor.t !== 'number') throw new Error('anchor.t is required');
   if (!text || typeof text !== 'string') throw new Error('text is required');
+  if (!sentAt) throw new Error('sentAt is required: a pin exists only after the words went out');
 
   const data = load(root);
   const thread = {
-    id: `th_${crypto.randomBytes(4).toString('hex')}`,
+    id: id ?? `th_${crypto.randomBytes(4).toString('hex')}`,
     anchor: {
       t: Number(anchor.t.toFixed(2)),
       rect: anchor.rect
@@ -50,21 +51,12 @@ export function addThread(root, { anchor, text, activated = true }) {
         : null,
       elementId: anchor.elementId ?? null,
     },
-    activated: Boolean(activated),
     status: 'open',
+    sentAt,
     createdAt: now(),
     messages: [{ role: 'viewer', text, at: now() }],
   };
   data.threads.push(thread);
-  save(root, data);
-  return thread;
-}
-
-export function markSent(root, id) {
-  const data = load(root);
-  const thread = data.threads.find((x) => x.id === id);
-  if (!thread) throw new Error(`unknown thread ${id}`);
-  thread.sentAt = now();
   save(root, data);
   return thread;
 }

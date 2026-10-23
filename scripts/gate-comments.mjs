@@ -1,10 +1,11 @@
 #!/usr/bin/env node
-// Comment loop gate:
-//   drag a box -> write a note -> send to Claude -> tool returns anchor + crop
-//   -> agent edits the text -> the frame changes -> reply + resolve
+// Comment gate: a pin exists only after its sentence reached the conversation.
+//   - standalone panel has no comment surface at all (nobody would read it)
+//   - the API refuses a pin that was never sent
+//   - a sent pin keeps its anchor, lists with a crop, and resolves
+//   - the reply channel is gone: the agent answers in the chat
 
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
@@ -19,10 +20,8 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const sha = (buf) => crypto.createHash('sha256').update(buf).digest('hex');
 const { check, finish } = createGate();
 
-
 const timelinePath = path.join(ROOT, 'timeline.json');
 const timelineBefore = fs.readFileSync(timelinePath, 'utf8');
-const hadMeta = fs.existsSync(path.join(ROOT, '.motion'));
 const snapsBefore = new Set(listSnapshots(ROOT).map((s) => s.id));
 fs.rmSync(path.join(ROOT, 'out/comments.json'), { force: true });
 fs.rmSync(path.join(ROOT, 'out/comments'), { recursive: true, force: true });
@@ -36,45 +35,64 @@ await page.goto(`${origin}/preview.html`);
 await page.waitForFunction(() => window.__PREVIEW__?.ready === true, { timeout: 30000 });
 await page.evaluate(() => window.__PREVIEW__.setTime(3.2));
 
-// --- drag a box over the title ---
+// --- no session, no comment surface ---
+const surface = await page.evaluate(() => {
+  const section = document.querySelector('.threads');
+  return { hidden: section ? section.hidden : 'missing', hasSubmit: Boolean(document.querySelector('#popSubmit')) };
+});
+check('standalone hides the comment surface', surface.hidden === true, JSON.stringify(surface));
+
 const box = await page.evaluate(() => window.__PREVIEW__.boxRect());
-const W = 1920;
-const H = 1080;
-const toClient = (x, y) => ({ x: box.left + (x / W) * box.width, y: box.top + (y / H) * box.height });
+const toClient = (x, y) => ({ x: box.left + (x / 1920) * box.width, y: box.top + (y / 1080) * box.height });
 const p0 = toClient(150, 235);
 const p1 = toClient(720, 335);
 await page.mouse.move(p0.x, p0.y);
 await page.mouse.down();
-await page.mouse.move((p0.x + p1.x) / 2, (p0.y + p1.y) / 2, { steps: 6 });
-await page.mouse.move(p1.x, p1.y, { steps: 6 });
+await page.mouse.move(p1.x, p1.y, { steps: 8 });
 await page.mouse.up();
-await page.waitForTimeout(120);
+await page.waitForTimeout(150);
+check('dragging starts no comment box', (await page.isHidden('#popover')) === true);
 
-check('drag opens the comment popover', (await page.isVisible('#popover')) === true);
-const popTitle = await page.textContent('#popT');
-check('popover shows time and size', /0:03/.test(popTitle) && /×/.test(popTitle), popTitle);
+// --- a pin needs a send ---
+const refused = await page.evaluate(async () => {
+  const res = await fetch('/api/comments', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ anchor: { t: 3.2, rect: { x: 150, y: 235, w: 570, h: 100 } }, text: 'x' }),
+  });
+  return { status: res.status, body: await res.json().catch(() => ({})) };
+});
+check('a pin that was never sent is refused', refused.status === 400 && /sentAt/.test(refused.body.error ?? ''), refused.body.error ?? String(refused.status));
 
-await page.fill('#popText', '把标题改成更短的说法');
-await page.click('#popSubmit');
-await page.waitForTimeout(400);
+// --- a sent pin keeps its anchor ---
+const created = await page.evaluate(async () => {
+  const res = await fetch('/api/comments', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      id: 'th_gate1',
+      anchor: { t: 3.2, rect: { x: 150, y: 235, w: 570, h: 100 } },
+      text: '把标题改成更短的说法',
+      sentAt: new Date().toISOString(),
+    }),
+  });
+  return { status: res.status, body: await res.json().catch(() => ({})) };
+});
+const th = created.body.thread ?? {};
+check('a sent pin is stored', created.status === 201 && th.id === 'th_gate1', `${created.status} ${th.id ?? ''}`);
+check('the anchor keeps time and rect', Math.abs((th.anchor?.t ?? 0) - 3.2) < 0.05 && th.anchor?.rect?.w === 570, JSON.stringify(th.anchor ?? null));
 
-const threads = await page.evaluate(async () => (await (await fetch('/api/comments')).json()).threads);
-check('comment stored', threads.length === 1, `${threads.length} thread(s)`);
-const th = threads[0];
-check('anchor has time', Math.abs(th.anchor.t - 3.2) < 0.05, `${th.anchor.t}`);
-check('anchor has rect', th.anchor.rect && th.anchor.rect.w > 400 && th.anchor.rect.h > 60, JSON.stringify(th.anchor.rect));
-// Standalone has no session to speak into: the pin must stay a draft, visibly.
-check('standalone keeps the pin as a draft', !th.sentAt, String(th.sentAt));
-check('thread listed in panel', (await page.textContent('#threadCount')) === '1');
-
+await page.reload();
+await page.waitForFunction(() => window.__PREVIEW__?.ready === true, { timeout: 30000 });
+check('the pin is listed in the panel', (await page.textContent('#threadCount')) === '1');
 await page.screenshot({ path: path.join(ROOT, 'out/ui-comments.png') });
 
 // --- tool contract: list with crops ---
 const listOut = execFileSync('node', ['scripts/comments.mjs', 'list', '--json', '--crops'], { cwd: ROOT, encoding: 'utf8' });
 const listed = JSON.parse(listOut).threads;
-check('tool lists the thread', listed.length === 1 && listed[0].id === th.id);
+check('the tool lists the pin', listed.length === 1 && listed[0].id === 'th_gate1');
 const cropPath = listed[0].crop;
-check('tool produced a crop', Boolean(cropPath) && fs.existsSync(path.join(ROOT, cropPath)), cropPath ?? 'none');
+check('the tool produced a crop', Boolean(cropPath) && fs.existsSync(path.join(ROOT, cropPath)), cropPath ?? 'none');
 
 // --- agent edits the text; the frame must change ---
 await page.evaluate(() => window.__PREVIEW__.setTime(3.2));
@@ -88,9 +106,8 @@ await page.reload();
 await page.waitForFunction(() => window.__PREVIEW__?.ready === true, { timeout: 30000 });
 await page.evaluate(() => window.__PREVIEW__.setTime(3.2));
 const after = await page.screenshot();
-check('text edit changes the frame', sha(before) !== sha(after), `${sha(before).slice(0, 8)} -> ${sha(after).slice(0, 8)}`);
+check('the text edit changes the frame', sha(before) !== sha(after), `${sha(before).slice(0, 8)} -> ${sha(after).slice(0, 8)}`);
 
-// invalid edit must be rejected by the tool
 let rejected = false;
 try {
   execFileSync('node', ['scripts/texts.mjs', 'set', '--scene', 'first-peoples', '--slot', 'nope', '--value', 'x'], {
@@ -101,12 +118,12 @@ try {
 } catch {
   rejected = true;
 }
-check('tool rejects unknown slot', rejected);
+check('the tool rejects an unknown slot', rejected);
 
-// --- the agent closes the thread; replies live in the conversation, not here ---
+// --- the agent closes the pin; replies live in the conversation ---
 execFileSync('node', ['scripts/comments.mjs', 'resolve', '--id', th.id], { cwd: ROOT, encoding: 'utf8' });
 const stored = JSON.parse(fs.readFileSync(path.join(ROOT, 'out/comments.json'), 'utf8')).threads[0];
-check('thread resolved', stored.status === 'resolved');
+check('the thread resolves', stored.status === 'resolved', stored.status);
 
 let replyGone = false;
 try {
@@ -118,17 +135,9 @@ try {
 } catch {
   replyGone = true;
 }
-check('the reply channel is gone', replyGone, 'reply exits 0 — the second chat is back');
+check('the reply channel is gone', replyGone, replyGone ? 'reply removed' : 'reply still exits 0');
 
 await browser.close();
 close();
-fs.writeFileSync(timelinePath, timelineBefore);  // the gate edits text; restore it
-
-// texts.mjs leaves a snapshot per write; the gate should not accumulate them
-for (const snap of listSnapshots(ROOT)) {
-  if (snapsBefore.has(snap.id)) continue;
-  fs.rmSync(path.join(ROOT, '.motion/snapshots', `${snap.id}.json`), { force: true });
-}
-if (!hadMeta) fs.rmSync(path.join(ROOT, '.motion'), { recursive: true, force: true });
-
+fs.writeFileSync(timelinePath, timelineBefore);
 finish();

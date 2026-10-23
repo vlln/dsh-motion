@@ -101,9 +101,11 @@ check('motion_reference reports a missing file', /no such file/.test(badRef ?? '
 
 // --- the panel routes exist even without a browser ---
 const paths = routes.map((r) => r.path);
-for (const suffix of ['/app', '/api/comments', '/api/comments/sent', '/api/params', '/api/history', '/api/render']) {
+for (const suffix of ['/app', '/api/comments', '/api/params', '/api/history', '/api/render']) {
   check(`panel route ${suffix} is registered`, paths.some((p) => p === `/plugins/dsh-motion${suffix}`), paths.length + ' routes');
 }
+// A pin is stored only after it was said, so the "mark sent" route has no reason to exist.
+check('the mark-sent route is gone', !paths.includes('/plugins/dsh-motion/api/comments/sent'));
 
 dispose();
 

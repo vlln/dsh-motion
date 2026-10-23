@@ -538,32 +538,6 @@ canvas {
   color: var(--muted);
 }
 
-.badge.draft {
-  border-style: dashed;
-  color: var(--dim);
-}
-
-.thread .badges {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.thread .resend {
-  border: 0.5px solid var(--accent);
-  background: transparent;
-  color: var(--accent);
-  border-radius: 999px;
-  font-size: 10px;
-  padding: 1px 8px;
-  cursor: pointer;
-}
-
-.thread .resend:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
 /* --- params --- */
 
 .knobs-top {

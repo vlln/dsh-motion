@@ -31,6 +31,7 @@ const assetsEl = $('assets');
 const assetList = $('assetList');
 const assetScope = $('assetScope');
 const assetNote = $('assetNote');
+const staleEl = $('stale');
 const projectScope = $('projectScope');
 const projectPick = $('projectPick');
 const projectTemplate = $('projectTemplate');
@@ -252,6 +253,55 @@ scrub.addEventListener('input', () => {
   kernel.renderAt(t);
   setTime(t);
 });
+
+// --- live changes: the agent writes the same files this panel reads ---
+// Data can be applied in place; code cannot, because the browser caches the
+// module, so that case only raises a banner.
+const timelineSrc = target ?? './timeline.json';
+let revision = null;
+
+const dataOnly = (value) => JSON.stringify({ ...value, beats: undefined });
+
+async function pollRevision() {
+  try {
+    const query = target ? `?timeline=${encodeURIComponent(target)}` : '';
+    const res = await fetch(`./api/revision${query}`, { cache: 'no-store' });
+    if (!res.ok) return;
+    const next = await res.json();
+    if (!revision) {
+      // First contact: if the file already moved between mount and now, apply it
+      // too — otherwise that edit would be silently adopted as the baseline.
+      revision = next;
+      const latest = await (await fetch(timelineSrc, { cache: 'no-store' })).json();
+      if (dataOnly(latest) !== dataOnly(kernel.timeline)) {
+        kernel.reload(latest);
+        kernel.renderAt(t);
+        setTime(t);
+      }
+      return;
+    }
+
+    if (next.tree !== revision.tree) staleEl.hidden = false;
+    if (next.timeline === revision.timeline) return;
+
+    // Never overwrite a field someone is typing into: try again next tick.
+    const active = document.activeElement;
+    if (active && /^(INPUT|SELECT|TEXTAREA)$/.test(active.tagName)) return;
+
+    revision = next;
+    const latest = await (await fetch(timelineSrc, { cache: 'no-store' })).json();
+    if (dataOnly(latest) === dataOnly(kernel.timeline)) return; // our own write
+    kernel.reload(latest);
+    kernel.renderAt(t);
+    setTime(t);
+  } catch {
+    /* the host may be restarting */
+  }
+}
+
+pollRevision();
+setInterval(pollRevision, 2000);
+$('staleReload').addEventListener('click', () => location.reload());
 
 // --- projects: switch files, or seed a new one from a template ---
 const currentFile = (target ?? './timeline.json').replace(/^\.\//, '');
@@ -768,6 +818,8 @@ window.__PREVIEW__ = {
   selected: () => selected,
   audit: (t) => kernel.audit(t),
   texts: () => kernel.texts(),
+  revision: () => revision,
+  stale: () => !staleEl.hidden,
   assets: () => kernel.assets(),
   setAssetSrc: async (name, src) => {
     kernel.timeline.assets[name].src = src;

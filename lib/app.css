@@ -394,6 +394,28 @@ canvas {
   accent-color: var(--accent);
 }
 
+.stale[hidden] {
+  display: none;
+}
+
+.stale {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 0.5px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  font: 12px/1.4 var(--font);
+  color: var(--fg);
+}
+
+.stale .btn {
+  padding: 2px 8px;
+  font-size: 11px;
+}
+
 /* --- comments --- */
 
 .selection.draft {

@@ -3,6 +3,7 @@
 // The panel API and the agent tools both go through here, so a drag and a tool
 // call cannot drift apart.
 
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -230,6 +231,33 @@ const MAIN_PALETTE = {
   grid: '#243450',
   panel: '#101c33',
 };
+
+const sha = (buf) => crypto.createHash('sha1').update(buf).digest('hex').slice(0, 16);
+
+/**
+ * Two signals the panel polls: the timeline file, and everything that only takes
+ * effect after a real page load (bundled or source scene code).
+ */
+export function revision(root, file = 'timeline.json') {
+  const parts = [];
+  const walk = (dir) => {
+    if (!fs.existsSync(dir)) return;
+    for (const name of fs.readdirSync(dir).sort()) {
+      const abs = path.join(dir, name);
+      const stat = fs.statSync(abs);
+      if (stat.isDirectory()) walk(abs);
+      else if (/\.(mjs|js|css|html)$/.test(name)) parts.push(`${path.relative(root, abs)}:${stat.mtimeMs}:${stat.size}`);
+    }
+  };
+  walk(path.join(root, 'src'));
+  for (const name of ['lib/app.js', 'lib/app.css', 'lib/app.html']) {
+    const abs = path.join(root, name);
+    if (!fs.existsSync(abs)) continue;
+    const stat = fs.statSync(abs);
+    parts.push(`${name}:${stat.mtimeMs}:${stat.size}`);
+  }
+  return { timeline: sha(fs.readFileSync(timelineFile(root, file))), tree: sha(Buffer.from(parts.join('|'))) };
+}
 
 export function listProjects(root) {
   return fs

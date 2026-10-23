@@ -41,6 +41,7 @@ async function api(req, res, url) {
   if (post && url.pathname === '/api/assets/rebake') return PARAMS.rebake(req, res);
   if (post && url.pathname === '/api/scene') return PARAMS.scene(req, res);
   if (post && url.pathname === '/api/export') return PARAMS.export(req, res);
+  if (!post && url.pathname === '/api/revision') return PARAMS.revision(req, res);
   if (!post && url.pathname === '/api/projects') return PARAMS.projects(req, res);
   if (post && url.pathname === '/api/projects') return PARAMS.create(req, res);
   if (url.pathname === '/api/history') return post ? PARAMS.restore(req, res) : PARAMS.history(req, res);

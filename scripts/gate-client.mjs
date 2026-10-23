@@ -60,10 +60,11 @@ try {
   check('panel scene strip seeks', t >= 8 && t < 15, `${t.toFixed(2)}s`);
   await page.screenshot({ path: path.join(ROOT, 'out/ui-panel-dsh.png') });
 
-  // (b) the launcher inside the real UI
+  // (b) the sidebar entry inside the real UI
   await page.goto(boot.url);
-  await page.waitForSelector('[data-dshm-root] .dshm-btn', { timeout: 30000 });
-  check('launcher mounts in the real UI', true);
+  const entry = page.locator('[class*="panelRow"]').filter({ hasText: 'Motion' }).first();
+  await entry.waitFor({ timeout: 30000 });
+  check('the sidebar entry is registered', await entry.isVisible(), 'Motion');
 
   // dismiss first-run dialogs (fresh profile shows "Preview Notice" then "Get started")
   for (let i = 0; i < 3; i++) {
@@ -86,14 +87,9 @@ try {
     await page.waitForTimeout(200);
   }
 
-  try {
-    await page.locator('[data-dshm-root] .dshm-btn').click({ timeout: 3000 });
-  } catch {
-    // still covered by an onboarding mask: dispatch directly, the handler is what we test
-    await page.evaluate(() => document.querySelector('[data-dshm-root] .dshm-btn')?.click());
-  }
-  await page.waitForSelector('[data-dshm-panel]:not([hidden])', { timeout: 5000 });
-  check('panel opens', true);
+  await entry.click({ timeout: 5000 });
+  await page.waitForSelector('[data-dshm-panel]', { timeout: 5000 });
+  check('panel opens in the main area', true);
 
   const frame = page.frameLocator('iframe[title="dsh-motion preview"]');
   await frame.locator('#tc').waitFor({ timeout: 20000 });
@@ -121,7 +117,7 @@ try {
     inFrame.status === 200 && inFrame.ok && inFrame.path === '/plugins/dsh-motion/api/history',
     `${inFrame.status} ${inFrame.path}`,
   );
-  await page.screenshot({ path: path.join(ROOT, 'out/ui-launcher.png') });
+  await page.screenshot({ path: path.join(ROOT, 'out/ui-sidebar.png') });
 } finally {
   await browser?.close();
   boot?.stop();

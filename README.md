@@ -145,9 +145,14 @@ dsh plugin --profile web add <repo 路径>   # 本地目录安装（先 npm run 
 ```
 
 - **工具**：`motion_info`、`motion_texts`、`motion_palette`、`motion_comments`、`motion_render`、`motion_export`
-- **面板**：右下角 `◐ Motion` → iframe 打开 `/plugins/dsh-motion/app`，内容与 standalone 预览同源
+- **入口**：侧边栏的 `Motion`（和 Plugins / Automation tasks 同级），点开在主区域打开面板；
+  面板是 `/plugins/dsh-motion/app` 的 iframe，与 standalone 预览同源
+- **主题**：面板只消费 dsh 的语义 token（`--dsw-alias-*` / `--dsw-specific-*`），
+  亮暗色跟随宿主；iframe 不继承变量，所以 client half 在加载时把 token 抄进去
 
-![面板](docs/ui-launcher.png)
+![亮色](docs/ui-sidebar.png)
+
+![暗色](docs/ui-sidebar-dark.png)
 
 `npm run gate:plugin` 验证安装与启动；`npm run gate:client` 在真实 dsh web 里验证面板路由、
 场景条跳转、启动器挂载与 iframe 可用；`npm run gate:tools` 用真实会话调一次工具，并跑一次
@@ -173,6 +178,7 @@ dsh plugin --profile web add <repo 路径>   # 本地目录安装（先 npm run 
 |---|---|
 | `◐ Motion` 启动器 | 右下角浮层，打开面板 |
 | 面板 | 播放器 / 场景条 / 元素检视 / **这一帧的文字与数值** / **素材换源与重烘** / 参数滑杆 / 批注浮层 |
+| 入口 | 侧边栏 `Motion`，点开在主区域显示面板 |
 
 ## 参数与回退
 
@@ -282,6 +288,7 @@ motion    0+8 段 0.001 | 8+7 段 0.001 | 15+4 段 0.038
 
 ## 已知限制
 
+- 面板入口依赖宿主 client 的 `slots` 服务（侧边栏 + 主区域槽）；更旧的 dsh 若没有该服务，入口不会出现
 - 只有一条音轨，没有旁白轨与 ducking
 - 音频 fit 只实现 `trim`（loop / pad 未实现）
 - 参数只支持数值：颜色走 palette、文案走 slots，没有枚举 / 布尔 / 颜色参数

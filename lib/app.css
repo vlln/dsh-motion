@@ -1190,18 +1190,23 @@ body.commenting .canvas-box {
 }
 
 .volume::-webkit-slider-runnable-track {
-  height: 3px;
-  border-radius: 2px;
+  height: 4px;
+  border-radius: 999px;
   background: var(--line);
 }
 
 .volume::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 11px;
-  height: 11px;
-  margin-top: -4px;
+  width: 10px;
+  height: 10px;
+  margin-top: -3px;
   border-radius: 50%;
   background: var(--fg);
+  box-shadow: 0 0 0 0.5px rgb(0 0 0 / 8%);
+}
+
+.volume:hover::-webkit-slider-runnable-track {
+  background: var(--hover);
 }
 
 /* In a narrow column the slider is the first thing to go; the mute button stays. */
@@ -1249,4 +1254,20 @@ body.commenting .canvas-box {
 
 .transport .spacer {
   flex: 1;
+}
+
+
+/* Secondary controls in the transport read as text, not as boxes: the only
+   filled thing on this row is the play button. */
+.transport .btn.ghost {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 0 8px;
+  height: 28px;
+}
+
+.transport .btn.ghost:hover {
+  background: var(--hover);
+  color: var(--fg);
 }

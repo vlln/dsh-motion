@@ -94,6 +94,21 @@ function showEmptyFilm() {
     <p>在对话里告诉 agent 你想做什么。它会在工作区的 <code>motion/</code> 里建一条，画面会出现在这里。</p>`;
   document.body.append(empty);
   document.body.dataset.empty = 'film';
+
+  // The film can appear while this page is open — the agent is often still
+  // working when the column is opened. Watch for it instead of waiting for a
+  // manual refresh.
+  const timer = setInterval(async () => {
+    try {
+      const res = await fetch('./timeline.json', { cache: 'no-store' });
+      if (res.ok) {
+        clearInterval(timer);
+        location.reload();
+      }
+    } catch {
+      /* the host may be restarting; try again next tick */
+    }
+  }, 2000);
 }
 
 let mounted;

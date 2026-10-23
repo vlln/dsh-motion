@@ -258,6 +258,8 @@ export function createComments({
 
   return {
     refreshThreads,
+    /** Open the note box for a clicked object (annotate mode). */
+    annotateAt: (rect) => openPopover(rect),
     addComment,
     consumeSuppress() {
       const value = suppressClick;

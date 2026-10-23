@@ -862,12 +862,49 @@ const comments = createComments({
   session: sessionId,
 });
 
+// Two modes the human switches on, the way the reference does: the rail is a
+// door (Tweaks), and annotating is a mode (click an object, no drag needed).
+const tweaksBtn = $('tweaksToggle');
+const commentBtn = $('commentMode');
+
+function setTweaks(on) {
+  document.body.classList.toggle('tweaks', on);
+  tweaksBtn?.setAttribute('aria-pressed', String(on));
+  try {
+    localStorage.setItem('dshm:tweaks', on ? '1' : '0');
+  } catch {
+    /* private mode */
+  }
+}
+
+let storedTweaks = '1';
+try {
+  storedTweaks = localStorage.getItem('dshm:tweaks') ?? '0';
+} catch {
+  /* private mode */
+}
+setTweaks(storedTweaks === '1');
+tweaksBtn?.addEventListener('click', () => setTweaks(!document.body.classList.contains('tweaks')));
+
+commentBtn?.addEventListener('click', () => {
+  const on = !document.body.classList.contains('commenting');
+  document.body.classList.toggle('commenting', on);
+  commentBtn.setAttribute('aria-pressed', String(on));
+});
+
 canvas.addEventListener('click', (e) => {
   if (comments.consumeSuppress()) return; // that click ended a drag, not a pick
   const rect = canvas.getBoundingClientRect();
   const x = ((e.clientX - rect.left) / rect.width) * timeline.width;
   const y = ((e.clientY - rect.top) / rect.height) * timeline.height;
   const hit = kernel.pick(x, y, t);
+
+  // In annotate mode a plain click is enough: annotate the object under the
+  // pointer, or the spot itself when nothing is there.
+  if (document.body.classList.contains('commenting')) {
+    comments.annotateAt(hit ? { x: hit.x, y: hit.y, w: hit.w, h: hit.h } : { x: x - 60, y: y - 30, w: 120, h: 60 });
+    return;
+  }
   if (!hit) {
     selected = null;
     selection.hidden = true;

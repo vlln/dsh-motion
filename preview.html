@@ -21,8 +21,27 @@
       <span id="sceneName" class="scene-name">—</span>
       <span class="spacer"></span>
 
+      <button id="commentMode" class="icon-btn" aria-pressed="false" aria-label="批注" title="批注：点画面里的对象">
+        <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <path d="M3 3.5h10v6.2H7.4L4.6 12v-2.3H3z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round" />
+        </svg>
+      </button>
+      <button id="tweaksToggle" class="icon-btn" aria-pressed="false" aria-label="调整" title="显示/隐藏调整面板">
+        <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <path d="M2.5 5h11M2.5 11h11" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
+          <circle cx="6" cy="5" r="1.5" fill="var(--bg)" stroke="currentColor" stroke-width="1.2" />
+          <circle cx="10" cy="11" r="1.5" fill="var(--bg)" stroke="currentColor" stroke-width="1.2" />
+        </svg>
+      </button>
+
       <details class="menu" id="project">
-        <summary><span>项目</span></summary>
+        <summary aria-label="项目" title="项目">
+          <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+            <circle cx="3" cy="8" r="1.2" fill="currentColor" />
+            <circle cx="8" cy="8" r="1.2" fill="currentColor" />
+            <circle cx="13" cy="8" r="1.2" fill="currentColor" />
+          </svg>
+        </summary>
         <div class="menu-body">
           <label class="field"><span>当前</span><select id="projectPick"></select></label>
           <label class="field"><span>模板</span><select id="projectTemplate"></select></label>

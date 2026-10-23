@@ -101,6 +101,11 @@ try {
 
   // 403 from our guard, or 404 if the client normalised the dots away first:
   // either way the file must not be served.
+  const legacy = await page.request.get(`${boot.origin}/plugins/dsh-motion/timeline.json`);
+  check('a timeline file is served by name', legacy.status() === 200, String(legacy.status()));
+  const stray = await page.request.get(`${boot.origin}/plugins/dsh-motion/timeline-hack.json`);
+  check('only timeline-shaped names are served', stray.status() === 404 || stray.status() === 403, String(stray.status()));
+
   const escape = await page.request.get(`${boot.origin}/plugins/dsh-motion/out/%2e%2e/lib/index.mjs`);
   check('prefix route never serves outside its base', escape.status() !== 200, String(escape.status()));
 

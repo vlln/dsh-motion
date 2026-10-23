@@ -16,13 +16,18 @@ import { mux } from './mux.mjs';
 import { findChromium } from './lib/chromium.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const timeline = JSON.parse(fs.readFileSync(path.join(ROOT, 'timeline.json'), 'utf8'));
 const argv = process.argv.slice(2);
 const opt = (k, d) => {
   const i = argv.indexOf(`--${k}`);
   return i === -1 ? d : argv[i + 1];
 };
 const has = (k) => argv.includes(`--${k}`);
+
+// Which timeline to render. The panel passes the file it was opened with, so a
+// fixture or a second project can be exported without touching timeline.json.
+const timelinePath = path.resolve(ROOT, opt('timeline', 'timeline.json'));
+if (!timelinePath.startsWith(ROOT + path.sep)) throw new Error(`timeline escapes the package: ${opt('timeline')}`);
+const timeline = JSON.parse(fs.readFileSync(timelinePath, 'utf8'));
 
 
 const { origin, close } = await startServer();
@@ -40,7 +45,8 @@ const page = await browser.newPage({ viewport: { width: W, height: H }, deviceSc
 page.on('pageerror', (e) => console.error('[page error]', e.message));
 page.on('console', (m) => m.type() === 'error' && console.error('[page]', m.text()));
 
-await page.goto(`${origin}/index.html`);
+const query = timelinePath === path.join(ROOT, 'timeline.json') ? '' : `?timeline=${encodeURIComponent(`./${path.relative(ROOT, timelinePath)}`)}`;
+await page.goto(`${origin}/index.html${query}`);
 await page.waitForFunction(() => window.__MOTION__?.ready === true, null, { timeout: 30000 });
 
 const out = path.resolve(ROOT, opt('out', 'out/out.png'));

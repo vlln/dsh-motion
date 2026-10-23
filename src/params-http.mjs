@@ -2,7 +2,7 @@
 // plugin's web routes (lib/index.mjs). Same reason as comments: one
 // implementation, two mount points.
 
-import { describeProject, history, rebakeAsset, restoreProject, setProjectAsset, setProjectParam, setProjectText, setProjectValue } from './project.mjs';
+import { TEMPLATES, createProject, describeProject, exportProject, history, listProjects, rebakeAsset, restoreProject, setProjectAsset, setProjectParam, setProjectScene, setProjectText, setProjectValue } from './project.mjs';
 
 const json = (res, code, data) => {
   res.writeHead(code, { 'content-type': 'application/json; charset=utf-8' });
@@ -69,6 +69,28 @@ export function paramsHandlers(root) {
       if (!name) throw new Error('rebake needs name');
       const out = await rebakeAsset(root, name, src, timeline);
       json(res, 200, { ok: true, name: out.name, src: out.src, manifest: out.manifest });
+    }),
+    scene: wrap(async (req, res) => {
+      const { scene, length, speed, timeline } = await readBody(req);
+      if (!scene) throw new Error('scene edit needs scene');
+      const out = await setProjectScene(root, scene, { length, speed }, timeline);
+      json(res, 200, { ok: true, scene: out.scene, duration: out.duration, snapshot: out.snapshot });
+    }),
+    export: wrap(async (req, res) => {
+      const { format, fps, supersample, timeline } = await readBody(req);
+      const out = await exportProject(root, { format, fps, supersample, file: timeline });
+      json(res, 200, { ok: true, ...out });
+    }),
+    projects: wrap(async (req, res) =>
+      json(res, 200, {
+        projects: listProjects(root),
+        templates: Object.entries(TEMPLATES).map(([id, spec]) => ({ id, ...spec })),
+      }),
+    ),
+    create: wrap(async (req, res) => {
+      const { name, template } = await readBody(req);
+      const out = await createProject(root, { name, template });
+      json(res, 200, { ok: true, ...out });
     }),
     history: wrap(async (req, res) => json(res, 200, { snapshots: history(root) })),
     restore: wrap(async (req, res) => {

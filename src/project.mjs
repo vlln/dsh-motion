@@ -117,6 +117,38 @@ const IMAGE_EXT = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif']);
  * Clips are refused: their sprite sheet was baked by `npm run assets`, so a new
  * source needs a new bake — changing the path alone would render the old frames.
  */
+/**
+ * Scene-level edits: length and speed. Lengths reflow — scenes are contiguous,
+ * so changing one moves every later scene and the total duration with it.
+ */
+export async function setProjectScene(root, sceneId, patch, file = 'timeline.json') {
+  const timeline = readTimeline(root, file);
+  const index = timeline.scenes.findIndex((s) => s.id === sceneId);
+  if (index === -1) throw new Error(`unknown scene "${sceneId}"`);
+
+  if (patch.length !== undefined) {
+    const length = Number(patch.length);
+    if (!Number.isFinite(length) || length < 0.5) throw new Error(`length must be >= 0.5s (got ${patch.length})`);
+    if (length > 600) throw new Error(`length must be <= 600s (got ${length})`);
+    timeline.scenes[index].length = Number(length.toFixed(2));
+  }
+  if (patch.speed !== undefined) {
+    const speed = Number(patch.speed);
+    if (![0.5, 1, 2].includes(speed)) throw new Error(`speed must be 0.5 | 1 | 2 (got ${patch.speed})`);
+    timeline.scenes[index].speed = speed;
+  }
+
+  let cursor = 0;
+  for (const scene of timeline.scenes) {
+    scene.start = Number(cursor.toFixed(2));
+    cursor += scene.length;
+  }
+  timeline.duration = Number(cursor.toFixed(2));
+
+  const snap = await writeTimeline(root, timeline, `scene-${sceneId}`, file);
+  return { scene: timeline.scenes[index], duration: timeline.duration, snapshot: snap };
+}
+
 export async function setProjectAsset(root, name, src, file = 'timeline.json') {
   const timeline = readTimeline(root, file);
   const spec = timeline.assets?.[name];
@@ -175,6 +207,127 @@ export async function rebakeAsset(root, name, src, file = 'timeline.json') {
 
   const manifest = JSON.parse(fs.readFileSync(path.join(root, 'out/media', `${name}.json`), 'utf8'));
   return { name, src: target, manifest };
+}
+
+/**
+ * Render the finished file and return where it landed. The panel calls this with
+ * the timeline it is looking at; the file name carries a timestamp so repeated
+ * exports do not overwrite each other.
+ */
+/** Scene modules that can seed a new project, with what each one needs. */
+export const TEMPLATES = {
+  'first-peoples': { title: '时间轴示例', note: '一条时间轴 + 双泳道卡片', length: 6 },
+  'data-lab': { title: '数据与图表', note: '数字槽 + 条形', length: 4 },
+  'media-lab': { title: '素材与实拍', note: '图片 + 视频帧（需要 out/fixtures）', length: 4 },
+  'text-lab': { title: '文字版式', note: '中文断行 + 多行', length: 4 },
+};
+
+const MAIN_PALETTE = {
+  bg: '#0b1426',
+  fg: '#f2f2f0',
+  accent: '#e0b040',
+  muted: '#8b98ad',
+  grid: '#243450',
+  panel: '#101c33',
+};
+
+export function listProjects(root) {
+  return fs
+    .readdirSync(root)
+    .filter((name) => /^timeline.*\.json$/.test(name))
+    .sort()
+    .map((name) => {
+      try {
+        const timeline = JSON.parse(fs.readFileSync(path.join(root, name), 'utf8'));
+        return { file: name, scenes: timeline.scenes?.length ?? 0, duration: timeline.duration ?? 0 };
+      } catch {
+        return { file: name, scenes: 0, duration: 0 };
+      }
+    });
+}
+
+/** Create a new timeline file from a template and return its name. */
+export async function createProject(root, { name, template }) {
+  const spec = TEMPLATES[template];
+  if (!spec) throw new Error(`unknown template "${template}" (available: ${Object.keys(TEMPLATES).join(', ')})`);
+  const slug = String(name ?? '').trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '');
+  if (!slug || slug.length > 40) throw new Error('name must be 1–40 chars of letters, digits or dashes');
+
+  const file = `timeline-${slug}.json`;
+  const abs = path.join(root, file);
+  if (fs.existsSync(abs)) throw new Error(`${file} already exists`);
+
+  const mods = await modules();
+  if (!mods.some((m) => m.id === template)) throw new Error(`no scene module registered for "${template}"`);
+
+  const length = spec.length;
+  const timeline = {
+    width: 1920,
+    height: 1080,
+    fps: 60,
+    duration: length,
+    palettes: { main: { ...MAIN_PALETTE } },
+    assets:
+      template === 'media-lab'
+        ? {
+            plate: { kind: 'image', src: 'out/fixtures/plate.png' },
+            clipA: { kind: 'clip', src: 'out/fixtures/clip.mp4', fps: 24 },
+          }
+        : undefined,
+    overrides: {},
+    texts: {},
+    values: {},
+    scenes: [{ id: template, name: spec.title, start: 0, length, palette: 'main', speed: 1 }],
+  };
+  if (!timeline.assets) delete timeline.assets;
+
+  assertValid(timeline, mods);
+  fs.writeFileSync(abs, `${JSON.stringify(timeline, null, 2)}\n`);
+  return { file, template, duration: length };
+}
+
+export async function exportProject(root, opts = {}) {
+  const file = opts.file ?? 'timeline.json';
+  const timeline = readTimeline(root, file);
+  const format = opts.format ?? 'mp4';
+  if (!['mp4', 'gif'].includes(format)) throw new Error(`format must be mp4 or gif (got ${format})`);
+
+  const fps = Number(opts.fps ?? timeline.fps ?? 60);
+  if (!(fps >= 1 && fps <= 120)) throw new Error(`fps must be 1..120 (got ${opts.fps})`);
+  const supersample = Math.max(1, Math.min(2, Number(opts.supersample ?? 1)));
+
+  const base = path.basename(file, '.json');
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const mp4 = `out/exports/${base}-${stamp}${format === 'gif' ? '-src' : ''}.mp4`;
+  const started = Date.now();
+
+  execFileSync(
+    process.execPath,
+    ['scripts/capture.mjs', '--video', '--timeline', file, '--out', mp4, '--fps', String(fps), '--supersample', String(supersample), ...(format === 'gif' ? ['--no-audio'] : [])],
+    { cwd: root, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 },
+  );
+
+  let rel = mp4;
+  if (format === 'gif') {
+    rel = mp4.replace(/-src\.mp4$/, '.gif');
+    execFileSync(
+      'ffmpeg',
+      ['-loglevel', 'error', '-y', '-i', path.join(root, mp4), '-vf', 'fps=15,scale=960:-1:flags=lanczos,split[a][b];[a]palettegen[p];[b][p]paletteuse', '-loop', '0', path.join(root, rel)],
+      { cwd: root },
+    );
+    fs.rmSync(path.join(root, mp4), { force: true });
+  }
+
+  const abs = path.join(root, rel);
+  return {
+    path: rel,
+    format,
+    fps,
+    supersample,
+    bytes: fs.statSync(abs).size,
+    ms: Date.now() - started,
+    duration: timeline.duration,
+  };
 }
 
 export function history(root) {

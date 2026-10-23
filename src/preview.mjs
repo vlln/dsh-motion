@@ -31,6 +31,23 @@ const assetsEl = $('assets');
 const assetList = $('assetList');
 const assetScope = $('assetScope');
 const assetNote = $('assetNote');
+const projectScope = $('projectScope');
+const projectPick = $('projectPick');
+const projectTemplate = $('projectTemplate');
+const projectName = $('projectName');
+const projectCreate = $('projectCreate');
+const projectNote = $('projectNote');
+const exportScope = $('exportScope');
+const expFormat = $('expFormat');
+const expFps = $('expFps');
+const expSs = $('expSs');
+const expEstimate = $('expEstimate');
+const expRun = $('expRun');
+const expResult = $('expResult');
+const sceneCardName = $('sceneCardName');
+const sceneLen = $('sceneLen');
+const sceneSpeed = $('sceneSpeed');
+const sceneNote = $('sceneNote');
 const textsEl = $('texts');
 const textList = $('textList');
 const textScope = $('textScope');
@@ -129,6 +146,8 @@ function setTime(next) {
   for (const { el, scene: s } of chips) el.setAttribute('aria-current', String(s.id === scene.id));
   refreshSelection();
   buildKnobs(scene);
+  buildScene(scene);
+  syncExportEstimate();
   refreshTexts();
   refreshAssets();
 }
@@ -233,6 +252,140 @@ scrub.addEventListener('input', () => {
   kernel.renderAt(t);
   setTime(t);
 });
+
+// --- projects: switch files, or seed a new one from a template ---
+const currentFile = (target ?? './timeline.json').replace(/^\.\//, '');
+
+async function loadProjects() {
+  try {
+    const data = await (await fetch('./api/projects')).json();
+    projectPick.replaceChildren();
+    for (const project of data.projects) {
+      const option = document.createElement('option');
+      option.value = project.file;
+      option.textContent = `${project.file} · ${project.scenes} 幕 · ${project.duration}s`;
+      option.selected = project.file === currentFile;
+      projectPick.append(option);
+    }
+    projectTemplate.replaceChildren();
+    for (const template of data.templates) {
+      const option = document.createElement('option');
+      option.value = template.id;
+      option.textContent = `${template.title}（${template.note}）`;
+      projectTemplate.append(option);
+    }
+    projectScope.textContent = currentFile;
+  } catch {
+    projectNote.textContent = '读取项目列表失败。';
+  }
+}
+
+projectPick.addEventListener('change', () => {
+  location.href = `?timeline=./${projectPick.value}`;
+});
+
+projectCreate.addEventListener('click', async () => {
+  projectCreate.disabled = true;
+  try {
+    const res = await fetch('./api/projects', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: projectName.value, template: projectTemplate.value }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? res.statusText);
+    location.href = `?timeline=./${data.file}`;
+  } catch (err) {
+    projectNote.textContent = `新建失败：${err.message}`;
+  } finally {
+    projectCreate.disabled = false;
+  }
+});
+
+// --- export: the panel should be where a film leaves ---
+function estimateExport() {
+  const fps = Number(expFps.value);
+  const ss = expSs.checked ? 2 : 1;
+  const gif = expFormat.value === 'gif';
+  // Rates are measured on this repo's demo (1080p, crf 18): ~0.22 MB/s at 60fps.
+  const mb = gif ? 0.9 * total * (fps / 60) : 0.22 * total * (fps / 60) * (ss === 2 ? 1.15 : 1);
+  const secs = Math.round(total * (fps / 60) * 1.2 * (ss === 2 ? 3.4 : 1));
+  return `约 ${mb.toFixed(1)} MB · 约 ${secs} 秒`;
+}
+
+function syncExportEstimate() {
+  // The summary is what you see while the card is folded, so it carries the
+  // price of the export rather than the frame rate.
+  exportScope.textContent = estimateExport();
+  expEstimate.textContent = `${total.toFixed(1)}s · ${expFps.value}fps · 估算按示例片实测速率`;
+}
+
+expFps.addEventListener('change', syncExportEstimate);
+expFormat.addEventListener('change', syncExportEstimate);
+expSs.addEventListener('change', syncExportEstimate);
+
+expRun.addEventListener('click', async () => {
+  expRun.disabled = true;
+  const started = Date.now();
+  const tick = setInterval(() => {
+    expResult.textContent = `渲染中… ${Math.round((Date.now() - started) / 1000)}s`;
+  }, 500);
+  try {
+    const res = await fetch('./api/export', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: body({
+        format: expFormat.value,
+        fps: Number(expFps.value),
+        supersample: expSs.checked ? 2 : 1,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? res.statusText);
+    expResult.textContent = `完成 · ${data.path} · ${(data.bytes / 1e6).toFixed(1)} MB · ${(data.ms / 1000).toFixed(0)}s`;
+  } catch (err) {
+    expResult.textContent = `导出失败：${err.message}`;
+  } finally {
+    clearInterval(tick);
+    expRun.disabled = false;
+  }
+});
+
+// --- scene level: length and speed (structural, so the shell reloads) ---
+let sceneKey = '';
+
+async function persistScene(patch) {
+  const scene = currentScene(t);
+  try {
+    const res = await fetch('./api/scene', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: body({ scene: scene.id, ...patch }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? res.statusText);
+    sceneNote.textContent = `已保存 · 总时长 ${data.duration}s，正在刷新…`;
+    setTimeout(() => location.reload(), 350);
+  } catch (err) {
+    sceneNote.textContent = `保存失败：${err.message}`;
+    syncSceneFields(scene);
+  }
+}
+
+function syncSceneFields(scene) {
+  sceneCardName.textContent = scene.name;
+  sceneLen.value = String(scene.length);
+  sceneSpeed.value = String(scene.speed ?? 1);
+}
+
+function buildScene(scene) {
+  if (sceneKey === scene.id) return;
+  sceneKey = scene.id;
+  syncSceneFields(scene);
+}
+
+sceneLen.addEventListener('change', () => persistScene({ length: Number(sceneLen.value) }));
+sceneSpeed.addEventListener('change', () => persistScene({ speed: Number(sceneSpeed.value) }));
 
 // --- on-screen assets: repoint an image at another file, live ---
 let assetKey = '';
@@ -603,6 +756,7 @@ renderFrame();
 
 comments.refreshThreads();
 refreshHistory();
+loadProjects();
 
 window.__PREVIEW__ = {
   ready: true,

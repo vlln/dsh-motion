@@ -71,11 +71,59 @@
           </div>
         </details>
 
-        <details class="card" id="knobs" open hidden>
+        <details class="card" id="project">
+          <summary><span>项目</span><span class="dim" id="projectScope">—</span></summary>
+          <div class="card-body">
+            <label class="field"><span>当前</span><select id="projectPick"></select></label>
+            <label class="field"><span>模板</span><select id="projectTemplate"></select></label>
+            <label class="field"><span>名称</span><input id="projectName" placeholder="my-film" /></label>
+            <button id="projectCreate" class="btn" style="width: 100%">新建并打开</button>
+            <p class="hint" id="projectNote">模板只决定第一幕；更多场景由 agent 写。</p>
+          </div>
+        </details>
+
+        <details class="card" id="scene">
+          <summary><span>场景</span><span class="dim" id="sceneCardName">—</span></summary>
+          <div class="card-body">
+            <label class="field"><span>段长（秒）</span><input id="sceneLen" type="number" min="0.5" step="0.1" /></label>
+            <label class="field"><span>速度</span>
+              <select id="sceneSpeed">
+                <option value="0.5">0.5×</option>
+                <option value="1">1×</option>
+                <option value="2">2×</option>
+              </select>
+            </label>
+            <p class="hint" id="sceneNote">改段长会顺延后面的场景，并更新总时长。</p>
+          </div>
+        </details>
+
+        <details class="card" id="knobs" hidden>
           <summary><span>参数</span><span class="dim" id="knobScene"></span></summary>
           <div class="card-body">
             <div id="knobList" class="knob-list"></div>
             <p class="hint" id="knobNote"></p>
+          </div>
+        </details>
+
+        <details class="card" id="export">
+          <summary><span>导出</span><span class="dim" id="exportScope"></span></summary>
+          <div class="card-body">
+            <label class="field"><span>格式</span>
+              <select id="expFormat">
+                <option value="mp4">MP4（含音轨）</option>
+                <option value="gif">GIF（无音频）</option>
+              </select>
+            </label>
+            <label class="field"><span>帧率</span>
+              <select id="expFps">
+                <option value="30">30 fps</option>
+                <option value="60">60 fps</option>
+              </select>
+            </label>
+            <label class="field"><span>2× 超采样</span><input type="checkbox" id="expSs" /></label>
+            <p class="hint" id="expEstimate"></p>
+            <button id="expRun" class="btn" style="width: 100%">导出</button>
+            <p class="hint" id="expResult"></p>
           </div>
         </details>
 

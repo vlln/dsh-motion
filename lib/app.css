@@ -97,6 +97,13 @@ canvas {
   overflow: auto;
 }
 
+/* The panel scrolls; its sections must keep their height instead of being
+   squeezed to fit. Without this, a short column (the sidebar tab) collapses
+   every text input into a 2px stripe. */
+.panel > * {
+  flex: none;
+}
+
 /* Timecode and title stay put while the sections scroll under them. */
 .panel-top {
   position: sticky;
@@ -639,4 +646,75 @@ code {
   background: var(--surface-2);
   border-radius: 4px;
   padding: 0 3px;
+}
+
+/* Two other homes for the same panel. A tab in the right sidebar is one narrow
+   column: the film keeps the full width and the panel stacks under it, so every
+   control survives at ~380px instead of being clipped off the side. A card in
+   the conversation is the film and nothing else — transport included, chrome not. */
+[data-embed='tab'] .app {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  height: calc(100% - 100px);
+}
+
+[data-embed='tab'] .stage-wrap {
+  padding: 10px;
+}
+
+[data-embed='tab'] .canvas-box {
+  width: 100%;
+}
+
+[data-embed='tab'] .panel {
+  border-left: 0;
+  border-top: 0.5px solid var(--line);
+}
+
+[data-embed='tab'] .timeline {
+  height: 100px;
+  padding: 8px 10px 10px;
+  gap: 8px;
+}
+
+[data-embed='tab'] .scenes {
+  height: 32px;
+}
+
+[data-embed='card'] .app {
+  grid-template-columns: minmax(0, 1fr);
+  height: 100%;
+}
+
+[data-embed='card'] .panel {
+  display: none;
+}
+
+[data-embed='card'] .stage-wrap {
+  padding: 0;
+  background: transparent;
+}
+
+[data-embed='card'] .canvas-box {
+  width: 100%;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* The transport floats over the film instead of stealing 44px from a card that
+   is exactly 16:9 inside its own border. */
+[data-embed='card'] .timeline {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 44px;
+  padding: 6px 10px;
+  gap: 0;
+  border-top: 0;
+  background: linear-gradient(to top, rgb(0 0 0 / 62%), rgb(0 0 0 / 0%));
+}
+
+[data-embed='card'] .scenes {
+  display: none;
 }

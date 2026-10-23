@@ -87,6 +87,21 @@ try {
     await page.waitForTimeout(200);
   }
 
+  // (c) the preview tab: the type is listed in the right sidebar's guide, and
+  // picking it opens the film beside the conversation instead of replacing it.
+  const openRail = page.getByRole('button', { name: 'Open right sidebar' });
+  if (await openRail.isVisible().catch(() => false)) await openRail.click();
+  await page.getByText('正在编辑的片子').click({ timeout: 10000 });
+  const tabFrame = page.frameLocator('iframe[title="dsh-motion tab"]');
+  await tabFrame.locator('#tc').waitFor({ timeout: 20000 });
+  const tabSrc = await page.locator('iframe[title="dsh-motion tab"]').getAttribute('src');
+  check('the preview tab opens from the guide', /embed=tab/.test(tabSrc ?? ''), tabSrc ?? 'missing');
+  const tabTc = await tabFrame.locator('#tc').textContent();
+  check('the preview tab renders the film', /^0:0\d\.\d\d$/.test(tabTc ?? ''), tabTc ?? '');
+  const tabPanel = await tabFrame.locator('.panel').isVisible();
+  check('the narrow tab stacks rather than clipping the panel', tabPanel, 'panel visible under the film');
+  await page.screenshot({ path: path.join(ROOT, 'out/ui-tab-dsh.png') });
+
   await entry.click({ timeout: 5000 });
   await page.waitForSelector('[data-dshm-panel]', { timeout: 5000 });
   check('panel opens in the main area', true);

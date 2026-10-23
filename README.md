@@ -152,11 +152,29 @@ npm run build:client                      # 打包面板（three 内联，约 1.
 dsh plugin --profile web add <repo 路径>   # 本地目录安装（先 npm run link 供 SDK）
 ```
 
-- **工具**：`motion_info`、`motion_texts`、`motion_palette`、`motion_comments`、`motion_render`、`motion_export`
-- **入口**：侧边栏的 `Motion`（和 Plugins / Automation tasks 同级），点开在主区域打开面板；
-  面板是 `/plugins/dsh-motion/app` 的 iframe，与 standalone 预览同源
+- **工具**：`motion_info`、`motion_texts`、`motion_palette`、`motion_comments`、`motion_params`、
+  `motion_history`、`motion_reference`、`motion_render`、`motion_export`
+- **入口是对话，不是面板**：在会话里让 agent 做片子 → `motion_render` 一开跑，对话里就出现
+  一张卡片（帧计数、进度条）→ 渲染完成时卡片换成片子本身，右侧预览标签同时自己打开
+- **三个座位，同一部片子**（都是 `/plugins/dsh-motion/app` 的 iframe，只有 `embed` 不同，
+  所以看片与改片不会走成两套行为）：
+
+  | 座位 | 位置 | 用途 |
+  |---|---|---|
+  | 卡片 | 对话流里 | 这次渲染的成品与进度；「侧边栏」「编辑器」两个按钮 |
+  | 标签 | 右侧栏 | 常驻预览，聊天时一直在；顶部时间码、场景条、文字/参数/导出都在下面 |
+  | 面板 | 主区域 | 全宽编辑器，侧边栏 `Motion` 进入 |
+
+  右侧栏是 `/app?embed=tab`（窄列上下堆叠），对话卡片是 `/app?embed=card`（只剩片子和播放条）。
 - **主题**：面板只消费 dsh 的语义 token（`--dsw-alias-*` / `--dsw-specific-*`），
   亮暗色跟随宿主；iframe 不继承变量，所以 client half 在加载时把 token 抄进去
+
+![右侧预览标签](docs/ui-tab.png)
+
+![对话里的渲染卡片](docs/ui-card.png)
+
+渲染进度不是猜的：`motion_render` 把 capture 的 `帧/总帧` 镜像到 `out/render-state.json`，
+卡片轮询 `/api/render` 显示，所以“agent 正在做动画”在对话里是看得见的。
 
 ![亮色](docs/ui-sidebar.png)
 
@@ -168,8 +186,9 @@ dsh plugin --profile web add <repo 路径>   # 本地目录安装（先 npm run 
 ![暗色](docs/ui-sidebar-dark.png)
 
 `npm run gate:plugin` 验证安装与启动；`npm run gate:client` 在真实 dsh web 里验证面板路由、
-场景条跳转、启动器挂载与 iframe 可用；`npm run gate:tools` 用真实会话调一次工具，并跑一次
-“写错 inject”的负控（需要本机凭据，缺失时跳过）。
+场景条跳转、启动器挂载、右侧标签与 iframe 可用；`npm run gate:card` 让真实会话跑一次
+`motion_render`，验证卡片出现在对话里、渲染完自动开右侧标签（需要本机凭据，缺失时跳过）；
+`npm run gate:tools` 用真实会话调一次工具，并跑一次“写错 inject”的负控（需要本机凭据，缺失时跳过）。
 
 ![Plugins 页](docs/plugins-page.png)
 

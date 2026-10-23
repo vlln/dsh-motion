@@ -6,6 +6,12 @@
     <title>dsh-motion · preview</title>
     <link rel="icon" href="data:," />
     <link rel="stylesheet" href="./src/preview.css" />
+    <!-- Same panel, three homes: the full page, the right-sidebar tab (`embed=tab`),
+         and the card in the conversation (`embed=card`). Set before first paint so
+         the layout never flashes its fuller self inside a narrow column. -->
+    <script>
+      document.documentElement.dataset.embed = new URLSearchParams(location.search).get('embed') || '';
+    </script>
     <script type="importmap">
       { "imports": { "three": "/node_modules/three/build/three.module.js" } }
     </script>

@@ -26,7 +26,10 @@ export async function mountMotion({ canvas, width, height, dpr = window.devicePi
     /* the page renders without a beat grid */
   }
 
-  const modules = await loadModules(timeline.scenes.map((s) => s.id), './scenes');
+  // Absolute, because a dynamic import resolves against the importing module
+  // (src/mount.mjs in dev, app.js in the built panel), not the page.
+  const scenesBase = new URL('scenes/', location.href).href;
+  const modules = await loadModules(timeline.scenes.map((s) => s.id), scenesBase);
   assertTimeline(timeline, modules);
 
   const kernel = createKernel({ timeline, modules });

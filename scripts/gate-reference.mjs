@@ -9,7 +9,6 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { createGate } from './lib/gate.mjs';
-import { loadTools } from './lib/surface.mjs';
 import { linkSdk } from './lib/dsh.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -130,25 +129,6 @@ analyze('out/ref-a.mp4', 'out/reference-det2.json');
 const one = fs.readFileSync(path.join(OUT, 'reference-det1.json'), 'utf8');
 const two = fs.readFileSync(path.join(OUT, 'reference-det2.json'), 'utf8');
 check('two runs produce identical JSON', one === two, `${one.length} bytes`);
-
-// --- the tool returns what the CLI returns ---
-try {
-  linkSdk(ROOT);
-} catch {
-  /* offline: a missing link surfaces when the entry imports dsh-tools */
-}
-const surface = await loadTools(ROOT);
-const toolRaw = await surface.tools.get('motion_reference').execute({
-  path: 'out/ref-a.mp4',
-  out: 'out/reference-tool.json',
-});
-const toolJson = JSON.parse(toolRaw);
-check(
-  'motion_reference returns the same analysis',
-  toolJson.duration === ref.duration && toolJson.cuts.length === 2 && toolJson.segments.length === 3,
-  `tool: ${toolJson.cuts.length} cuts`,
-);
-surface.dispose();
 
 // --- negative: a path that is not there fails loudly ---
 let code = 0;

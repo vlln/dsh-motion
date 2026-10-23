@@ -1,10 +1,11 @@
 #!/usr/bin/env node
-// Tool-surface gate: every tool the plugin registers must actually run.
-// A tool can be registered, documented, and still throw on first call (motion_comments
-// once called an unimported function). This gate drives the real Cordis entry with a
-// fake context — no model, no browser — and executes every read-only path.
+// Surface gate: the plugin's whole agent-facing surface is a skill and a
+// command — no tools. This drives the real Cordis entry with a fake context and
+// checks that, plus the two artefacts the surface is made of.
 
+import fs from 'node:fs';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { createGate } from './lib/gate.mjs';
 import { linkSdk } from './lib/dsh.mjs';
@@ -13,104 +14,53 @@ import { loadTools } from './lib/surface.mjs';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const { check, finish } = createGate();
 
-// The entry imports @deepseek-ai/dsh-tools; make sure the local link exists.
 try {
   linkSdk(ROOT);
 } catch {
-  /* the gates run offline; a missing link surfaces on import below */
+  /* offline: a missing link surfaces on import */
 }
 
 const { tools, routes, dispose } = await loadTools(ROOT);
 
-const expected = [
-  'motion_project', 'motion_scene', 'motion_info', 'motion_texts', 'motion_palette',
-  'motion_comments', 'motion_params', 'motion_history', 'motion_reference', 'motion_render',
-  'motion_export',
-];
-const missing = expected.filter((name) => !tools.has(name));
-check('every declared tool is registered', missing.length === 0, missing.join(', ') || `${tools.size} tools`);
+// --- no tool surface ---
+check('the plugin registers no tools', tools.size === 0, [...tools.keys()].join(', ') || 'none');
 
-const shapeless = [...tools.values()].filter((t) => typeof t.execute !== 'function' || !t.description || !t.parameters);
-check('every tool has an execute, a description and parameters', shapeless.length === 0, shapeless.map((t) => t.name).join(', '));
-
-const run = async (name, args) => {
-  const tool = tools.get(name);
-  if (!tool) throw new Error(`no such tool: ${name}`);
-  return tool.execute(args);
-};
-
-// --- read-only paths: these must return data, not throw ---
-// One broken tool should not abort the report, so each call is attempted separately.
-const attempt = async (name, args) => {
-  try {
-    return { ok: true, value: await run(name, args) };
-  } catch (err) {
-    return { ok: false, error: err.message };
-  }
-};
-
-const info = await attempt('motion_info', {});
-const infoData = info.ok ? JSON.parse(info.value) : null;
-check(
-  'motion_info returns the timeline',
-  Boolean(infoData && infoData.duration === 19 && infoData.scenes.length === 3),
-  infoData ? `${infoData.duration}s · ${infoData.scenes.length} scenes` : info.error,
-);
-
-const comments = await attempt('motion_comments', { action: 'list' });
-const threads = comments.ok ? JSON.parse(comments.value).threads : null;
-check('motion_comments list returns threads', Array.isArray(threads), threads ? `${threads.length} threads` : comments.error);
-
-const params = await attempt('motion_params', { action: 'list' });
-const knobScene = params.ok ? JSON.parse(params.value).scenes.find((s) => s.id === 'first-peoples') : null;
-check('motion_params lists knobs with values', knobScene?.knobs.length === 6, knobScene ? `${knobScene.knobs.length} knobs` : params.error);
-
-const history = await attempt('motion_history', { action: 'list' });
-const snaps = history.ok ? JSON.parse(history.value).snapshots : null;
-check('motion_history lists snapshots', Array.isArray(snaps), snaps ? `${snaps.length} snapshots` : history.error);
-
-const title = await attempt('motion_texts', { action: 'get', scene: 'first-peoples', slot: 'title' });
-check('motion_texts get returns a value', title.ok && typeof title.value === 'string' && title.value.length > 0, title.ok ? JSON.stringify(title.value) : title.error);
-
-// --- writes that must be refused before touching the file ---
-const refused = async (name, args) => {
-  try {
-    await run(name, args);
-    return null;
-  } catch (err) {
-    return err.message;
-  }
-};
-
-const outOfRange = await refused('motion_params', { action: 'set', scene: 'first-peoples', key: 'axisY', value: 5 });
-check('motion_params refuses an out-of-range value', /0\.45\.\.0\.82/.test(outOfRange ?? ''), outOfRange ?? 'accepted');
-
-const noId = await refused('motion_comments', { action: 'resolve', id: '' });
-check('motion_comments refuses a resolve without an id', /needs id/.test(noId ?? ''), noId ?? 'accepted');
-
-// The reply channel is gone: a comment is answered in the conversation.
-const noReply = await refused('motion_comments', { action: 'reply', id: 'th_x', text: 'x' });
-check('motion_comments refuses the removed reply action', /list or resolve/.test(noReply ?? ''), noReply ?? 'accepted');
-
-const ghostTool = await refused('motion_history', { action: 'restore', id: '../timeline' });
-check('motion_history refuses a traversal id', /bad snapshot id/.test(ghostTool ?? ''), ghostTool ?? 'accepted');
-
-// motion_reference runs the same script the reference gate drives; here we only
-// prove the wiring fails loudly on a bad path (the happy path is gate:reference).
-const badRef = await refused('motion_reference', { path: 'out/definitely-missing.mp4' });
-check('motion_reference reports a missing file', /no such file/.test(badRef ?? ''), badRef ?? 'accepted');
-
-// --- the film is mounted per session, not at the package root ---
+// --- the film is mounted per session ---
 const paths = routes.map((r) => r.path);
-check(
-  'the session mount is registered',
-  paths.includes('/plugins/dsh-motion/p'),
-  paths.join(', ') || 'none',
-);
-// A film used to be served straight from the package; a sessionless /app would
-// be exactly the demo-as-project mistake this mount removes.
+check('the session mount is registered', paths.includes('/plugins/dsh-motion/p'), paths.join(', ') || 'none');
 check('no package-root app route is left', !paths.includes('/plugins/dsh-motion/app'));
 
 dispose();
+
+// --- the skill is the manual, and complete enough to work from ---
+const skillFile = path.join(ROOT, 'skills/dsh-motion/SKILL.md');
+check('the skill file exists', fs.existsSync(skillFile), skillFile);
+const skill = fs.existsSync(skillFile) ? fs.readFileSync(skillFile, 'utf8') : '';
+const front = /^---\n([\s\S]*?)\n---\n/.exec(skill);
+check('the skill has frontmatter', Boolean(front), front ? 'parsed' : 'missing');
+check('the skill is named dsh-motion', /name:\s*dsh-motion/.test(front?.[1] ?? ''), front?.[1]?.split('\n')[0] ?? '');
+check('the skill routes on animation work', /description:/.test(front?.[1] ?? '') && /动画/.test(front?.[1] ?? ''));
+for (const command of ['dsh-motion init', 'dsh-motion validate', 'dsh-motion render', 'dsh-motion export']) {
+  check(`the skill teaches \`${command}\``, skill.includes(command), command);
+}
+check('the skill states the determinism rule', /不读时钟/.test(skill) && /同一个 `t`/.test(skill));
+check('the skill documents the scene contract', /export const id/.test(skill) && /export function render/.test(skill));
+
+// --- the command exists and answers ---
+const bin = path.join(ROOT, 'bin/dsh-motion.mjs');
+check('the cli exists', fs.existsSync(bin), bin);
+const mode = fs.statSync(bin).mode;
+check('the cli is executable', (mode & 0o111) !== 0, mode.toString(8));
+
+const run = spawnSync(process.execPath, [bin], { encoding: 'utf8' });
+const usage = `${run.stdout ?? ''}${run.stderr ?? ''}`;
+check('the cli prints usage without a film', /init\|validate\|render\|export/.test(usage), usage.split('\n')[0] ?? '');
+
+const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+check(
+  'the package declares the command',
+  pkg.bin?.['dsh-motion'] === './bin/dsh-motion.mjs',
+  JSON.stringify(pkg.bin ?? null),
+);
 
 finish();

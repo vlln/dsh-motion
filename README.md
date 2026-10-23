@@ -160,9 +160,9 @@ npm run build:client                      # 打包面板（three 内联，约 1.
 dsh plugin --profile web add <repo 路径>   # 本地目录安装（先 npm run link 供 SDK）
 ```
 
-- **工具**：`motion_project`、`motion_scene`、`motion_info`、`motion_texts`、`motion_palette`、
-  `motion_comments`、`motion_params`、`motion_history`、`motion_reference`、`motion_render`、
-  `motion_export`
+- **没有工具面。** agent 通过 skill 学这个库，然后像写代码一样工作：在工作区里写
+  `motion/timeline.json` 和 `motion/scenes/*.mjs`，自己跑 `dsh-motion` 命令看结果。
+  插件只提供三样东西：内核与命令、skill 文本、对话旁边的预览面板。
 - **一部片子住在会话的工作区里**，不在插件的安装目录里：
 
   ```
@@ -226,23 +226,18 @@ dsh plugin --profile web add <repo 路径>   # 本地目录安装（先 npm run 
 
 ## 能力面
 
-| 工具 | 说明 |
-|---|---|
-| `motion_info` | 时间轴、场景、调色板、节拍摘要 |
-| `motion_texts` | 读写文本槽（写前校验，非法拒绝） |
-| `motion_palette` | 改共享 token 或元素级 override |
-| `motion_comments` | 列出批注（带三要素锚点）／把线程标为已处理；回复发生在对话里 |
-| `motion_params` | 列出 / 设置场景参数（越界拒绝，写前留快照） |
-| `motion_history` | 列出 / 恢复 timeline 快照 |
-| `motion_reference` | 读一支参考视频，返回切点 / 运动曲线 / 主色 / 分镜摘要 |
-| `motion_render` | 接触表（stills）或 MP4（video） |
-| `motion_export` | 导出 `mp4` 或 `gif`（GIF 从成片转码，无音频） |
+agent 用的是命令，不是工具：
 
-| 界面 | 说明 |
-|---|---|
-| `◐ Motion` 启动器 | 右下角浮层，打开面板 |
-| 面板 | 播放器 / 可拖动场景条 / 元素检视 / **外部改动自动跟随** / **这一帧的文字与数值** / **素材换源与重烘** / **项目与模板** / **段长与速度** / 参数滑杆 / **导出（含体积与耗时预估）** / 批注（点击跳到该时刻） |
-| 入口 | 侧边栏 `Motion`，点开在主区域显示面板 |
+```bash
+dsh-motion init [--title "标题"] [--length 6]
+dsh-motion validate
+dsh-motion render --stills 0,3,6 [--cols 3]
+dsh-motion render --video [--out out/film.mp4]
+dsh-motion export [--gif] [--out out/export.mp4]
+```
+
+`skills/dsh-motion/SKILL.md` 是完整的手册：目录布局、时间轴字段、场景模块契约
+（`id` / `slots` / `render(t)`）、`ctx` 能用的原语、确定性规则、常见错误。
 
 ## 参数与回退
 

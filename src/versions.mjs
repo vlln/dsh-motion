@@ -14,14 +14,10 @@ const meta = (root) => path.join(dir(root), 'index.json');
 const timelineFile = (root) => path.join(root, 'timeline.json');
 const scenesDir = (root) => path.join(root, 'scenes');
 
-export function listVersions(root, { includeSafety = false } = {}) {
+export function listVersions(root) {
   try {
     const index = JSON.parse(fs.readFileSync(meta(root), 'utf8'));
-    const all = Array.isArray(index.versions) ? index.versions : [];
-    // The list is edits only. A safety copy is undo scratch, and a row written
-    // before 'kind' existed is not a version either — the list must never show
-    // "切到 v2 之前" as if it were a name someone chose.
-    return includeSafety ? all : all.filter((v) => v.kind === 'edit');
+    return Array.isArray(index.versions) ? index.versions : [];
   } catch {
     return [];
   }
@@ -85,10 +81,9 @@ export function isDirty(root) {
 }
 
 /** Write one version of the working tree. `title` is what the user will read. */
-export function createVersion(root, { title, kind = 'edit' } = {}) {
+export function createVersion(root, { title } = {}) {
   if (!fs.existsSync(timelineFile(root))) throw new Error('no film here (timeline.json missing)');
-  // ids count every record, hidden ones included, so they never get reused
-  const versions = listVersions(root, { includeSafety: true });
+  const versions = listVersions(root);
   const id = `v${versions.length + 1}`;
   const at = new Date().toISOString();
   const timeline = JSON.parse(fs.readFileSync(timelineFile(root), 'utf8'));
@@ -97,7 +92,6 @@ export function createVersion(root, { title, kind = 'edit' } = {}) {
     id,
     at,
     title: String(title ?? '').trim() || `版本 ${id}`,
-    kind,
     mtime: filmMtime(root),
     timeline,
     scenes,
@@ -105,7 +99,7 @@ export function createVersion(root, { title, kind = 'edit' } = {}) {
   fs.mkdirSync(dir(root), { recursive: true });
   fs.writeFileSync(path.join(dir(root), `${id}.json`), `${JSON.stringify(record, null, 2)}\n`);
   // newest first, so the panel renders top-down without sorting
-  saveIndex(root, [{ id, at, title: record.title, kind: record.kind, mtime: record.mtime }, ...versions], id);
+  saveIndex(root, [{ id, at, title: record.title, mtime: record.mtime }, ...versions], id);
   return { id, at, title: record.title };
 }
 
@@ -131,7 +125,6 @@ export function useVersion(root, id) {
   if (current && !same) {
     const safety = JSON.parse(JSON.stringify(record));
     safety.id = `safety-${Date.now()}`;
-    safety.kind = 'safety';
     safety.timeline = current.timeline;
     safety.scenes = current.scenes;
     fs.mkdirSync(path.join(dir(root), 'safety'), { recursive: true });

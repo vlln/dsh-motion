@@ -13,7 +13,8 @@
       document.documentElement.dataset.embed = new URLSearchParams(location.search).get('embed') || '';
     </script>
     <script type="importmap">
-      { "imports": { "three": "/node_modules/three/build/three.module.js" } }
+      { "imports": { "three": "/node_modules/three/build/three.module.js",
+        "three/examples/": "/node_modules/three/examples/" } }
     </script>
   </head>
   <body>

@@ -169,7 +169,8 @@
 让"画得像"比"画得平"省事。一次调用，把已经画好的形整体重画成材料。
 
 - `src/medium.mjs`：`broken`（顺方向场的弯笔）／`charcoal`（炭笔夜景）／`silk`（墨与绢）／
-  `print`（网点）／`glass`（屏幕反光）；纯函数、可种子化、接受任意 CanvasImageSource；
+  `print`（网点）／`film`（光晕+颗粒+暗角，唯一不重画的通道）；纯函数、可种子化；
+- 笔触尺寸随画幅（`size`）；暗笔画不描厚涂边，否则夜戏糊成毛皮；
 - 场景里 `ctx.medium.broken(src, { angle, density })`，返回新画布，`render(t)` 只 `drawImage`；
 - 性能：静态部分在 `mount()` 里过一次材质，动的东西画在它上面。
 
@@ -178,7 +179,7 @@
   覆盖率 100%、网点落在格子上、密度翻倍笔触翻倍；
 - 真实链路渲染：同一场景左半原始、右半过材质，边缘密度 0.19 → **2.66**（14×）；
 - 1080p 整幅过一遍：10.6k 笔，一次渲染（含起浏览器）2.2 秒；
-- 一张六格对照图：原始 / broken / charcoal / silk / print / broken+film。
+- 一张对照图：原始 / broken / charcoal / silk / print / broken+film。
 
 ### M12 · 拿来通道 ✅（2026-10-24）
 

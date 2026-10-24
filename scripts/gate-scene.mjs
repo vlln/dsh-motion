@@ -91,6 +91,21 @@ try {
   const chipGone = await until(async () => (await page.locator(`.chip[data-scene="${doomed}"]`).count()) === 0, 3000);
   check('the chip is gone', chipGone);
 
+  // --- palettes: recolour a token, refuse a bad colour ---
+  const paletteOk = await fetch(`${origin}/api/palette`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ name: 'cold', tokens: { accent: '#22aa55' } }),
+  });
+  check('a palette token can be recoloured', paletteOk.status === 200, String(paletteOk.status));
+  check('the colour lands in the file', read().palettes.cold.accent === '#22aa55', read().palettes.cold.accent);
+  const paletteBad = await fetch(`${origin}/api/palette`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ name: 'cold', tokens: { accent: 'red' } }),
+  });
+  check('a non-hex colour is refused', paletteBad.status === 400, String((await paletteBad.json()).error));
+
   // --- negative: a bad speed is refused ---
   const bad = await fetch(`${origin}/api/scene`, {
     method: 'POST',

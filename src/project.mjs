@@ -118,6 +118,27 @@ export async function setProjectText(root, sceneId, slot, value, file = 'timelin
   return { value: String(value), snapshot: snap };
 }
 
+/**
+ * Edit one palette token. A style the user can recolour is still the film's data,
+ * so this writes the timeline with a snapshot like every other edit.
+ */
+export async function setProjectPalette(root, name, tokens, file = 'timeline.json') {
+  const timeline = readTimeline(root, file);
+  if (!timeline.palettes?.[name]) throw new Error(`unknown palette "${name}"`);
+
+  const clean = {};
+  for (const [token, value] of Object.entries(tokens ?? {})) {
+    const hex = String(value).trim();
+    if (!/^#[0-9a-f]{6}$/i.test(hex)) throw new Error(`palette token "${token}" must be a #rrggbb colour (got ${value})`);
+    clean[token] = hex.toLowerCase();
+  }
+  if (!Object.keys(clean).length) throw new Error('palette edit needs at least one token');
+
+  timeline.palettes[name] = { ...timeline.palettes[name], ...clean };
+  const snap = await writeTimeline(root, timeline, `palette-${name}`, file);
+  return { palette: timeline.palettes[name], snapshot: snap };
+}
+
 export async function setProjectValue(root, sceneId, key, value, file = 'timeline.json') {
   const timeline = readTimeline(root, file);
   const scene = timeline.scenes.find((s) => s.id === sceneId);

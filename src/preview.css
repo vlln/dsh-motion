@@ -1909,3 +1909,70 @@ body.annotating .canvas-box {
   text-decoration: none;
   cursor: default;
 }
+
+
+/* Colour editor under the palettes: one row per token, hex plus a picker. */
+.palette-editor {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 0.5px solid var(--line);
+}
+
+.token-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.token-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.token-name {
+  flex: 0 0 64px;
+  color: var(--muted);
+  font: 12px/1 var(--mono);
+}
+
+.token-hex {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--input);
+  color: var(--fg);
+  font: 12px/1 var(--mono);
+  text-transform: lowercase;
+}
+
+.token-hex:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.token-color {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.token-color::-webkit-color-swatch-wrapper {
+  padding: 2px;
+}
+
+.token-color::-webkit-color-swatch {
+  border: 0;
+  border-radius: 5px;
+}

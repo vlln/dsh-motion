@@ -714,6 +714,12 @@ expRun.addEventListener('click', async () => {
 // --- style: the film's palettes are data, so a style is one lookup away ---
 const styleList = $('styleList');
 const styleAuto = $('styleAuto');
+const paletteEditor = $('paletteEditor');
+const paletteTokens = $('paletteTokens');
+const paletteName = $('paletteName');
+const paletteNote = $('paletteNote');
+const palettePickHint = $('palettePickHint');
+const TOKEN_ORDER = ['bg', 'panel', 'grid', 'accent', 'fg', 'muted'];
 const railTabs = [...document.querySelectorAll('.rail-tab')];
 const railPanels = [...document.querySelectorAll('.rail-panel')];
 const authoredPalette = new Map(timeline.scenes.map((s) => [s.id, s.palette]));
@@ -756,11 +762,94 @@ function applyStyle(name) {
   }
   styleAuto.disabled = !name;
   styleAuto.textContent = name ? '恢复片子的原配色' : '片子自带的配色';
+  renderPaletteEditor(name);
   // Scenes bake palette colours into sprites at mount, so rebuilding them is the
   // difference between a new style and a new style that does not paint.
   kernel.remount?.();
   kernel.renderAt(t);
   refreshSelection();
+}
+
+/** Which colours this palette actually uses, merged with the base so the list
+ *  shows effective values, not just the overridden ones. */
+function paletteTokensOf(name) {
+  const base = timeline.palettes?.main ?? {};
+  const own = timeline.palettes?.[name] ?? {};
+  const merged = { ...base, ...own };
+  const extra = Object.keys(merged).filter((token) => !TOKEN_ORDER.includes(token)).sort();
+  return [...TOKEN_ORDER.filter((token) => token in merged), ...extra].map((token) => ({
+    token,
+    value: merged[token],
+    own: token in own,
+  }));
+}
+
+function renderPaletteEditor(name) {
+  const has = Boolean(name && timeline.palettes?.[name]);
+  paletteEditor.hidden = !has;
+  palettePickHint.hidden = has;
+  if (!has) return;
+  paletteName.textContent = name;
+  paletteTokens.innerHTML = paletteTokensOf(name)
+    .map(
+      ({ token, value }) => `
+      <div class="token-row" data-token="${token}">
+        <span class="token-name">${token}</span>
+        <input class="token-hex" data-token="${token}" value="${value}" maxlength="7" spellcheck="false" />
+        <input class="token-color" data-token="${token}" type="color" value="${value}" />
+      </div>`,
+    )
+    .join('');
+  for (const row of paletteTokens.querySelectorAll('.token-row')) {
+    const token = row.dataset.token;
+    const hex = row.querySelector('.token-hex');
+    const chip = row.querySelector('.token-color');
+    const commit = (value) => {
+      const normal = String(value).trim().startsWith('#') ? String(value).trim() : `#${String(value).trim()}`;
+      if (!/^#[0-9a-f]{6}$/i.test(normal)) {
+        paletteNote.hidden = false;
+        paletteNote.textContent = '颜色要写成 #rrggbb';
+        return;
+      }
+      paletteNote.hidden = true;
+      applyToken(name, token, normal.toLowerCase());
+      hex.value = normal.toLowerCase();
+      chip.value = normal.toLowerCase();
+    };
+    hex.addEventListener('change', () => commit(hex.value));
+    chip.addEventListener('input', () => {
+      hex.value = chip.value;
+      kernel.setPalette({ [name]: { [token]: chip.value } });
+      kernel.renderAt(t);
+    });
+    chip.addEventListener('change', () => commit(chip.value));
+  }
+}
+
+/** Recolour one token: repaint now, write the film after. */
+async function applyToken(name, token, hex) {
+  kernel.setPalette({ [name]: { [token]: hex } });
+  kernel.remount?.();
+  kernel.renderAt(t);
+  buildStyles();
+  for (const button of styleList.querySelectorAll('.palette')) {
+    button.setAttribute('aria-pressed', String(button.dataset.style === currentStyle));
+  }
+  try {
+    const res = await fetch('./api/palette', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: body({ name, tokens: { [token]: hex } }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      paletteNote.hidden = false;
+      paletteNote.textContent = `没写进片子：${data.error ?? res.status}（重启宿主后生效）`;
+    }
+  } catch (error) {
+    paletteNote.hidden = false;
+    paletteNote.textContent = `没写进片子：${error.message}`;
+  }
 }
 
 /** A palette reads as one swatch: its colours side by side, no label needed. */
@@ -782,6 +871,7 @@ function buildStyles() {
   }
   styleAuto.disabled = !currentStyle;
   styleAuto.textContent = currentStyle ? '恢复片子的原配色' : '片子自带的配色';
+  renderPaletteEditor(currentStyle);
 }
 
 styleAuto?.addEventListener('click', () => applyStyle(''));

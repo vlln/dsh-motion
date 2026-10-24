@@ -521,8 +521,30 @@ export const SAMPLES = [
       g.fill();
       g.stroke();
       g.fillStyle = '#173b36';
+      // The reader is actually reading: digits arrive one at a time, and a
+      // block caret marks where it is.
       g.font = `600 ${Math.max(6, h * 0.038)}px ${MONO}`;
-      g.fillText(String(num).replace(/(\d{3})(?=\d)/g, '$1 '), w * 0.58, h * 0.362);
+      const chipDigits = String(num).replace(/(\d{3})(?=\d)/g, '$1 ');
+      const startAt = 1.15;
+      let dx = w * 0.58;
+      let caret = null;
+      for (let i = 0; i < chipDigits.length; i++) {
+        const ch = chipDigits[i];
+        const advance = g.measureText(ch).width;
+        const p = clamp01((t - startAt - i * 0.045) / 0.1);
+        if (p > 0 && ch !== ' ') {
+          g.globalAlpha = p;
+          g.fillStyle = '#26221b';
+          g.fillText(ch, dx, h * 0.362);
+          g.globalAlpha = 1;
+        }
+        if (p < 1 && !caret) caret = [dx, advance];
+        dx += advance;
+      }
+      if (caret) {
+        g.fillStyle = 'rgba(61,139,134,0.6)';
+        g.fillRect(caret[0], h * 0.336, Math.max(2, caret[1] * 0.8), h * 0.032);
+      }
       g.restore();
 
       label(g, 'MICROCHIP NUMBER', w * 0.56, h * 0.24, Math.max(4.5, h * 0.019), 'rgba(61,139,134,0.95)', span(t, 1.1, 1.5), '0.12em');
@@ -592,6 +614,16 @@ export const SAMPLES = [
       g.moveTo(w * 0.06, h * 0.045);
       g.lineTo(w * 0.16, h * 0.05);
       g.stroke();
+      // the beam it is reading with
+      g.save();
+      g.globalAlpha = span(t, 0.95, 1.15) * (1 - span(t, 2.2, 2.5));
+      g.strokeStyle = 'rgba(61,139,134,0.28)';
+      g.lineWidth = Math.max(1.2, w * 0.003);
+      g.beginPath();
+      g.moveTo(w * 0.1, h * 0.05);
+      g.lineTo(w * 0.58, -h * 0.14);
+      g.stroke();
+      g.restore();
       g.restore();
 
       label(g, '2', w * 0.07, h * 0.94, Math.max(4.5, h * 0.018), 'rgba(29,26,22,0.4)', 1, '0.1em');
@@ -1267,7 +1299,8 @@ export const SAMPLES = [
       const cx = w * 0.6 + Math.sin(t * 0.22) * w * 0.005;
       const cy = h * 0.44;
       const R = Math.min(w * 0.19, h * 0.19);
-      const rot = 0.15 + Math.sin(t * 0.3) * 0.02;
+      // the prism is being turned: the fan opens and closes with it
+      const rot = 0.15 + Math.sin(t * 0.45) * 0.075;
       const ca = Math.cos(rot);
       const sa = Math.sin(rot);
       const P = (x, y) => [cx + x * ca - y * sa, cy + x * sa + y * ca];

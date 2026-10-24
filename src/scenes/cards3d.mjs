@@ -40,6 +40,7 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { FilmPass } from 'three/examples/jsm/postprocessing/FilmPass.js';
 
 export const id = 'cards3d';
 export const kind = 'webgl';
@@ -374,6 +375,8 @@ export function mount(context) {
   composer.addPass(new RenderPass(scene, camera));
   const bloom = new UnrealBloomPass(new Vector3(ctx.width, ctx.height), 0.34, 0.6, 0.86);
   composer.addPass(bloom);
+  // Grain, so the 3D shot sits in the same emulsion as the 2D tiles.
+  composer.addPass(new FilmPass(0.34, false));
   composer.addPass(new OutputPass());
 }
 

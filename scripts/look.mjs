@@ -142,6 +142,9 @@ const report = {
   // Only the extreme is a defect: almost the whole frame one colour means
   // nothing was drawn. Everything else is a judgement call for the film.
   empty: stats.flatness > 0.85 && stats.texture < 5,
+  // Local detail is the fairer signal across bright and dark frames: a painted
+  // night still has strokes in it. Under 8 the frame reads as graphics.
+  detailed: stats.texture >= 8,
 };
 fs.writeFileSync(path.join(FILM, 'out/look/report.json'), `${JSON.stringify(report, null, 2)}\n`);
 
@@ -160,10 +163,19 @@ if (flag('json')) {
   const line = (label, m) => `${label} solid ${m.flatness.toFixed(2)} · texture ${m.texture.toFixed(1)}`;
   console.log(`look · ${report.at}s · ${line('mine', stats)}`);
   if (refStats) console.log(`       ${line('ref ', refStats)} · colour distance ${spread}`);
+  // The yardstick, measured on the three exemplars and the reference. A number
+  // with nothing to compare it to is not a judgement.
+  const YARD = { graphics: 8, exemplars: '14–26', reference: 39 };
   if (report.empty) {
-    console.log('  almost the whole frame is one colour: nothing was drawn, or nothing survived the grade.');
-  } else if (refStats && refStats.texture > stats.texture * 1.8) {
+    console.log('  almost the whole frame is one colour: this reads as a fill, not as a picture.');
+  }
+  if (refStats && refStats.texture > stats.texture * 1.8) {
     console.log(`  the reference has ${(refStats.texture / stats.texture).toFixed(1)}x the local detail of this frame.`);
+  }
+  if (!report.detailed) {
+    console.log(`  local detail ${stats.texture.toFixed(1)}: under ${YARD.graphics} reads as graphics, not as paint.`);
+    console.log(`  the exemplars measure ${YARD.exemplars}; the reference ${YARD.reference}.`);
+    console.log('  a material pass (ctx.medium.broken) on the drawn frame, or a borrowed plate, is what changes it.');
   }
 }
 

@@ -6,6 +6,12 @@
 // them, and a sample can opt out with `look.finish === false`.
 //
 // Everything here is a pure function of (t, w, h): no clock, no random().
+//
+// `look.medium` picks the treatment: 'film' (halation + heavy grain), 'print'
+// (two-impression halftone), 'screen' (glass sheen), 'photo' (the default grade),
+// 'paper' (no post — the sample brought its own stock).
+
+import { halftone } from './medium.mjs';
 
 const cache = new Map();
 
@@ -103,7 +109,9 @@ export function finish(g, w, h, t, look = {}) {
   g.restore();
 
   // 2. Split tone: warm on the light side, cool in the shadow. Two low-alpha
-  //    washes with soft-light, not a colour cast over everything.
+  //    washes with soft-light, not a colour cast over everything. Printed stock
+  //    already carries its own colour, so it skips this.
+  if (look.medium !== 'print') {
   g.save();
   g.globalCompositeOperation = 'soft-light';
   const warm = g.createLinearGradient(0, 0, w, h);
@@ -113,6 +121,7 @@ export function finish(g, w, h, t, look = {}) {
   g.fillStyle = warm;
   g.fillRect(0, 0, w, h);
   g.restore();
+  }
 
   // 3. Key light from above. Only on dark grounds — on paper it just fogs.
   if (dark) {
@@ -141,6 +150,48 @@ export function finish(g, w, h, t, look = {}) {
   g.fillStyle = vig;
   g.fillRect(0, 0, w, h);
   g.restore();
+
+  // 4b. Medium-specific treatment, before the grain.
+  if (look.medium === 'film') {
+    // Halation: the bright parts bleed warm into the emulsion around them.
+    g.save();
+    g.globalCompositeOperation = 'screen';
+    g.globalAlpha = 0.28;
+    const halo = g.createRadialGradient(w * 0.5, h * 0.45, min * 0.1, w * 0.5, h * 0.5, Math.max(w, h) * 0.7);
+    halo.addColorStop(0, 'rgba(255, 186, 128, 0.30)');
+    halo.addColorStop(0.6, 'rgba(255, 150, 110, 0.08)');
+    halo.addColorStop(1, 'rgba(255, 150, 110, 0)');
+    g.fillStyle = halo;
+    g.fillRect(0, 0, w, h);
+    g.restore();
+  }
+  if (look.medium === 'print') {
+    // The dot screen is what says "printed"; a full second impression reads as
+    // a ghost of the animation, so the ink only gets a darker edge instead.
+    halftone(g, w, h, { cell: Math.max(3, w * 0.0042), alpha: dark ? 0.05 : 0.08 });
+    g.save();
+    g.globalCompositeOperation = 'multiply';
+    g.globalAlpha = 0.14;
+    const edge = g.createLinearGradient(0, 0, w, h);
+    edge.addColorStop(0, 'rgba(196, 178, 146, 0.5)');
+    edge.addColorStop(0.5, 'rgba(255,255,255,0)');
+    edge.addColorStop(1, 'rgba(196, 178, 146, 0.5)');
+    g.fillStyle = edge;
+    g.fillRect(0, 0, w, h);
+    g.restore();
+  }
+  if (look.medium === 'screen') {
+    // Glass over a panel: one soft diagonal reflection, nothing else.
+    g.save();
+    g.globalCompositeOperation = 'screen';
+    const sheen = g.createLinearGradient(0, 0, w * 0.9, h);
+    sheen.addColorStop(0, 'rgba(255,255,255,0.07)');
+    sheen.addColorStop(0.35, 'rgba(255,255,255,0.012)');
+    sheen.addColorStop(0.55, 'rgba(255,255,255,0)');
+    g.fillStyle = sheen;
+    g.fillRect(0, 0, w, h);
+    g.restore();
+  }
 
   // 5. Grain, tiled and offset by the frame so it moves.
   const tiles = grain();

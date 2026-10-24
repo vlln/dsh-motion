@@ -164,7 +164,7 @@ export const SAMPLES = [
     ratio: 16 / 9,
     template: 'desk',
     featured: true,
-    look: LOOKS.desk,
+    look: { ...LOOKS.desk, medium: 'photo' },
     prompt: brief(
       '复刻这个动效：暖色房间里一台笔记本电脑，屏幕里是浏览器里的产品界面，四张半透明步骤卡从下方依次浮到前景，顶部一条胶囊写着这次要做什么',
       '要求：背景有景深、卡片有柔和投影和轻微视差、卡片依次错开 0.15 秒；暖调配色，不要荧光。',
@@ -402,7 +402,7 @@ export const SAMPLES = [
     tag: '信息图解',
     ratio: 4 / 3,
     template: 'guide',
-    look: LOOKS.paper,
+    look: { ...LOOKS.paper, medium: 'print' },
     prompt: brief(
       '复刻这个动效：一本手绘动物图鉴的对页——米色纸、青色标题条、等宽小标签配衬线数值、虚线引线指向一只插画猫，右边是芯片编号与位置，一台青色扫描器扫过并读出编号',
       '要求：手绘感（粗糙边、纸纹、轻微错位）、只有青绿和蓝灰两种主色、引线和数字依次出现；不要渐变大色块。',
@@ -615,30 +615,36 @@ export const SAMPLES = [
     tag: '场景叙事',
     ratio: 3 / 4,
     template: 'tree',
-    look: { bg: '#0a0a0b', ink: '#ececea', dim: 'rgba(236,236,234,0.45)' },
+    look: { bg: '#efe7d4', ink: '#2b2620', dim: 'rgba(43,38,32,0.55)', medium: 'paper', finish: false },
     prompt: brief(
-      '复刻这个动效：黑底上一棵树从一个点长出来，枝干逐段生长，末梢的金色叶点随后一盏盏亮起，右上角一轮暗月',
-      '要求：只用金色、墨黑和一点月光；生长要有先后，不要一帧全亮。',
+      '复刻这个动效：绢本水墨，一棵树立在纸上，枝干用湿笔从下往上长出来，末梢的墨点随后一个个落上去，右上角一轮淡墨月，左下角一枚朱文小印',
+      '要求：墨色要有浓淡和飞白，纸要有纤维；整幅只用墨、纸和一点朱红；生长要有先后，不要一帧全干。',
     ),
     draw(g, w, h, t) {
-      ground(g, w, h, this.look);
-      const mx = w * 0.78;
-      const my = h * 0.15;
-      const mr = Math.min(w, h) * 0.065;
-      const halo = g.createRadialGradient(mx, my, mr * 0.4, mx, my, mr * 5);
-      halo.addColorStop(0, 'rgba(232, 232, 230, 0.14)');
-      halo.addColorStop(1, 'rgba(232, 232, 230, 0)');
-      g.fillStyle = halo;
-      g.fillRect(0, 0, w, h);
-      g.fillStyle = 'rgba(232, 232, 230, 0.85)';
+      paper(g, w, h, { base: [239, 231, 212], seed: 17, mottle: 14, grain: 8 });
+      const mx = w * 0.76;
+      const my = h * 0.14;
+      const mr = Math.min(w, h) * 0.062;
+      // the moon is a pale wash of ink, not a lit disc
+      g.save();
+      g.globalAlpha = 0.16;
+      g.fillStyle = '#5b5244';
+      g.beginPath();
+      g.arc(mx, my, mr * 1.06, 0, TAU);
+      g.fill();
+      g.restore();
+      g.globalAlpha = 0.05;
+      g.fillStyle = '#8a7d66';
       g.beginPath();
       g.arc(mx, my, mr, 0, TAU);
       g.fill();
+      g.globalAlpha = 1;
 
-      const glow = g.createRadialGradient(w * 0.5, h * 0.38, 0, w * 0.5, h * 0.38, w * 0.42);
-      glow.addColorStop(0, 'rgba(227, 189, 99, 0.08)');
-      glow.addColorStop(1, 'rgba(227, 189, 99, 0)');
-      g.fillStyle = glow;
+      // wet wash under the trunk: ink pooling where the brush pressed
+      const wash = g.createRadialGradient(w * 0.5, h * 0.9, 0, w * 0.5, h * 0.9, w * 0.09);
+      wash.addColorStop(0, 'rgba(43,38,32,0.20)');
+      wash.addColorStop(1, 'rgba(43,38,32,0)');
+      g.fillStyle = wash;
       g.fillRect(0, 0, w, h);
 
       const grow = span(t, 0.25, 2.5);
@@ -651,9 +657,11 @@ export const SAMPLES = [
         if (p <= 0) return;
         const ex = x + Math.cos(angle) * len * p;
         const ey = y + Math.sin(angle) * len * p;
-        g.strokeStyle = '#e3bd63';
-        g.globalAlpha = depth > 3 ? 0.85 : 0.55;
-        g.lineWidth = Math.max(0.6, depth * 0.3);
+        g.strokeStyle = '#2b2620';
+        g.globalAlpha = depth > 3 ? 0.85 : 0.6;
+        g.lineWidth = Math.max(0.8, depth * 0.62);
+        g.shadowColor = 'rgba(43,38,32,0.45)';
+        g.shadowBlur = depth > 3 ? 2.2 : 1;
         g.beginPath();
         g.moveTo(x, y);
         g.lineTo(ex, ey);
@@ -674,9 +682,9 @@ export const SAMPLES = [
         const p = clamp01((leaf - i * 0.006) * 2.6);
         if (p <= 0) continue;
         const [tx, ty] = tips[i];
-        const r = Math.max(0.8, w * 0.006 * (0.6 + 0.4 * p));
-        g.fillStyle = '#e3bd63';
-        g.globalAlpha = 0.35 + 0.55 * p;
+        const r = Math.max(1, w * 0.007 * (0.6 + 0.4 * p));
+        g.fillStyle = noise(i + 41) > 0.88 ? '#a8442a' : '#2b2620';
+        g.globalAlpha = 0.4 + 0.5 * p;
         g.beginPath();
         g.arc(tx, ty, r, 0, TAU);
         g.fill();
@@ -696,7 +704,7 @@ export const SAMPLES = [
     tag: '界面演示',
     ratio: 16 / 9,
     template: 'board',
-    look: LOOKS.night,
+    look: { ...LOOKS.night, medium: 'screen' },
     prompt: brief(
       '复刻这个动效：深色空间里一块排行榜屏幕，整体轻微透视倾斜，四行「名次 / 名字 / 分数」，榜首一行绿色高亮，第二名在第三秒反超，镜头缓慢推近',
       '要求：四周有明显暗角和柔光、屏幕有边框和表头、文字在小尺寸下也能读清（宁少勿小）；节奏是缓慢推近，不是快速切换。',
@@ -991,7 +999,7 @@ export const SAMPLES = [
     tag: '文字排版',
     template: 'kinetic',
     ratio: 16 / 9,
-    look: LOOKS.lime,
+    look: { ...LOOKS.lime, medium: 'print' },
     prompt: brief(
       '复刻这个动效：亮黄绿底上三行超大黑色无衬线字「MAKE / IT / MOVE」，每行从遮罩里向上推出、逐行错开，最后一条细线划过',
       '要求：字距收紧、字重 700、留白极大；只用黑色，不要阴影和渐变。',
@@ -1031,7 +1039,7 @@ export const SAMPLES = [
     tag: '场景叙事',
     ratio: 16 / 9,
     template: 'orbit',
-    look: LOOKS.navy,
+    look: { ...LOOKS.navy, medium: 'film' },
     prompt: brief(
       '复刻这个动效：深色星场里一颗气态行星，环带从它身后穿过、被球体遮住一半，背光的一侧有细亮的边界光，四周有极淡的星云，镜头缓慢横移',
       '要求：星球要真的被光照着（明暗交界、边缘光、大气辉光），环带要有厚度和前后遮挡；星点细、不要五角星。',

@@ -1053,8 +1053,8 @@ export const SAMPLES = [
     template: 'orbit',
     look: { ...LOOKS.navy, medium: 'film' },
     prompt: brief(
-      '复刻这个动效：深色星场里一颗气态行星，环带从它身后穿过、被球体遮住一半，背光的一侧有细亮的边界光，四周有极淡的星云，镜头缓慢横移',
-      '要求：星球要真的被光照着（明暗交界、边缘光、大气辉光），环带要有厚度和前后遮挡；星点细、不要五角星。',
+      '复刻这个动效：深色星场里一颗气态行星，一颗小卫星从左到右穿过它的disk、在云层上投下一个模糊的影子，环带被球体遮住一半，背光侧有细亮的边界光',
+      '要求：星球要真的被光照着（明暗交界、边缘光、大气辉光），环带要有厚度和前后遮挡，影子要跟着卫星走；星点细、不要五角星。',
     ),
     draw(g, w, h, t) {
       const look = this.look;
@@ -1064,6 +1064,12 @@ export const SAMPLES = [
       const cx = w * 0.63 + drift;
       const cy = h * 0.53;
       const r = Math.min(h * 0.30, w * 0.19);
+      // A transit: the moon crosses the disc in one loop, and its shadow
+      // travels with it — that is the event this shot is about.
+      const moonT = clamp01(t / LOOP_SECONDS);
+      const mx = cx + r * (1.9 - moonT * 3.5);
+      const my = cy - r * 0.34 - Math.sin(moonT * Math.PI) * r * 0.1;
+      const mr = r * 0.1;
 
       // --- nebula: two very wide, very faint washes
       g.save();
@@ -1167,6 +1173,16 @@ export const SAMPLES = [
       }
       g.globalAlpha = 1;
       // a shadow cast by the rings, a band across the ball
+      // the moon's shadow on the cloud deck
+      if (mx > cx - r && mx < cx + r) {
+        const sd = g.createRadialGradient(mx + r * 0.2, my + r * 0.26, 0, mx + r * 0.2, my + r * 0.26, mr * 1.5);
+        sd.addColorStop(0, 'rgba(4, 6, 12, 0.55)');
+        sd.addColorStop(1, 'rgba(4, 6, 12, 0)');
+        g.fillStyle = sd;
+        g.beginPath();
+        g.ellipse(mx + r * 0.2, my + r * 0.26, mr * 1.5, mr * 1.5, 0, 0, TAU);
+        g.fill();
+      }
       for (const [dy, a, ry2] of [
         [-r * 0.02, 0.10, r * 0.22],
         [r * 0.02, 0.08, r * 0.19],
@@ -1213,10 +1229,7 @@ export const SAMPLES = [
       drawRings(true);
       g.restore();
 
-      // --- a moon, small and cold, on the far side
-      const mx = cx + r * 1.95;
-      const my = cy - r * 1.02;
-      const mr = r * 0.11;
+      // --- the moon on its way across
       const moon = g.createRadialGradient(mx - mr * 0.4, my - mr * 0.4, 0, mx, my, mr);
       moon.addColorStop(0, '#dbe4f6');
       moon.addColorStop(0.7, '#5b6684');

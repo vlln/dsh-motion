@@ -270,61 +270,32 @@ let threeModule;
 const loadThree = () => (threeModule ??= import('three'));
 
 /**
- * The one WebGL study: eight posters on a ring, turning in front of a blue field.
- * Same lazy three chunk the 3D film scenes load, so the gallery proves the path
- * rather than describing it.
+ * A WebGL tile: the sample brings its own scene builder, the gallery brings the
+ * renderer and the clock. Same three chunk the 3D film scenes load.
  */
-async function makeCarousel(canvas, sample) {
+async function makeGL(canvas, sample) {
   const THREE = await loadThree();
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(40, 16 / 9, 0.1, 60);
-  camera.position.set(0, 0.05, 7.4);
-  camera.lookAt(0, 0, 0);
-  const group = new THREE.Group();
-  scene.add(group);
-
-  const count = 8;
-  const radius = 2.3;
-  const materials = [];
-  for (let i = 0; i < count; i++) {
-    const face = document.createElement('canvas');
-    face.width = 256;
-    face.height = 320;
-    sample.panel(face.getContext('2d'), 256, 320, i);
-    const texture = new THREE.CanvasTexture(face);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
-    const plane = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.88), material);
-    const angle = (i / count) * Math.PI * 2;
-    plane.position.set(Math.sin(angle) * radius, 0, Math.cos(angle) * radius);
-    plane.rotation.y = angle;
-    group.add(plane);
-    materials.push(material);
-  }
-
-  let w = 0;
-  let h = 0;
-  const resize = () => {
-    const rect = canvas.getBoundingClientRect();
-    if (!rect.width || !rect.height) return;
-    if (Math.abs(rect.width - w) < 0.5 && Math.abs(rect.height - h) < 0.5) return;
-    w = rect.width;
-    h = rect.height;
-    renderer.setSize(w, h, false);
-    camera.aspect = w / h;
-    camera.updateProjectionMatrix();
-  };
-  resize();
-
+  const rect = canvas.getBoundingClientRect();
+  const player = sample.build({
+    THREE,
+    renderer,
+    width: Math.max(1, rect.width),
+    height: Math.max(1, rect.height),
+  });
+  let w = rect.width;
+  let h = rect.height;
+  player.resize(Math.max(1, w), Math.max(1, h));
   return {
     render(t) {
-      resize();
-      const env = Math.min(1, t / 0.5) * Math.min(1, (LOOP_SECONDS - t) / 0.55);
-      for (const material of materials) material.opacity = env;
-      group.rotation.y = t * 0.42;
-      renderer.render(scene, camera);
+      const now = canvas.getBoundingClientRect();
+      if (Math.abs(now.width - w) > 0.5 || Math.abs(now.height - h) > 0.5) {
+        w = now.width;
+        h = now.height;
+        player.resize(Math.max(1, w), Math.max(1, h));
+      }
+      player.render(t);
     },
   };
 }
@@ -335,7 +306,7 @@ function playOne(canvas, sample) {
     let raf = 0;
     let start = performance.now();
     let gl = null;
-    makeCarousel(canvas, sample).then((player) => {
+    makeGL(canvas, sample).then((player) => {
       gl = player;
       const tick = (now) => {
         gl.render(((now - start) / 1000) % LOOP_SECONDS);
@@ -416,7 +387,7 @@ function playTiles(root, tiles) {
   const wake = (item) => {
     if (item.sample.engine !== 'webgl' || item.gl || item.waking) return;
     item.waking = true;
-    makeCarousel(item.canvas, item.sample).then((player) => {
+    makeGL(item.canvas, item.sample).then((player) => {
       item.gl = player;
     });
   };

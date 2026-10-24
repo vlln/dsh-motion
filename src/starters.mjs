@@ -646,10 +646,9 @@ export const SAMPLES = [
     backdrop: 'radial-gradient(circle at 50% 42%, #2a63d8 0%, #123a94 55%, #07194a 100%)',
     look: { bg: '#123a94', ink: '#ffffff', dim: 'rgba(255,255,255,0.6)' },
     prompt: brief(
-      '复刻这个动效：蓝色渐变背景里，八张海报围成一个圈缓慢自转，像展示台；每张海报的正面朝向圆心外侧，转到正面时最清晰',
+      '复刻这个动效：蓝色渐变背景里，八张海报围成一个圈缓慢自转，像展示台；每张海报的正面朝向圆心外侧',
       '要求：真 3D（WebGL 场景，kind: webgl），带透视和远近大小，海报纹理由 canvas 画出来；转速慢，不要抖动。',
     ),
-    /** One poster face; drawn once per panel onto its texture. */
     panel(g, w, h, i) {
       const looks = [
         { bg: '#2a1052', ink: '#f4ead8', accent: '#8d6bff' },
@@ -663,7 +662,7 @@ export const SAMPLES = [
       g.strokeStyle = 'rgba(255,255,255,0.14)';
       g.lineWidth = 2;
       g.strokeRect(0.6, 0.6, w - 1.2, h - 1.2);
-
+      g.textAlign = 'center';
       if (i % 4 === 0) {
         g.fillStyle = look.accent;
         g.beginPath();
@@ -671,7 +670,6 @@ export const SAMPLES = [
         g.fill();
         g.fillStyle = look.ink;
         g.font = `500 ${h * 0.16}px ${SERIF}`;
-        g.textAlign = 'center';
         g.fillText('BD', w / 2, h * 0.56);
         g.font = `500 ${h * 0.03}px ${MONO}`;
         g.fillText('ATELIER', w / 2, h * 0.62);
@@ -689,6 +687,7 @@ export const SAMPLES = [
         g.arc(w * 0.38, h * 0.44, w * 0.035, 0, TAU);
         g.fill();
       } else if (i % 4 === 2) {
+        g.textAlign = 'left';
         g.fillStyle = look.ink;
         g.font = `500 ${h * 0.035}px ${MONO}`;
         g.letterSpacing = '0.14em';
@@ -697,16 +696,8 @@ export const SAMPLES = [
         g.fillStyle = look.accent;
         const bars = [0.3, 0.45, 0.6, 0.78, 0.95];
         bars.forEach((b, k) => {
-          const bw = w * 0.1;
-          const x = w * 0.1 + k * bw * 1.35;
-          g.fillRect(x, h * 0.72 - h * 0.4 * b, bw, h * 0.4 * b);
+          g.fillRect(w * 0.1 + k * w * 0.135, h * 0.72 - h * 0.4 * b, w * 0.1, h * 0.4 * b);
         });
-        g.strokeStyle = 'rgba(255,255,255,0.5)';
-        g.lineWidth = 1;
-        g.beginPath();
-        g.moveTo(w * 0.1, h * 0.72);
-        g.lineTo(w * 0.86, h * 0.72);
-        g.stroke();
       } else {
         const grad = g.createLinearGradient(0, 0, w, h);
         grad.addColorStop(0, look.accent);
@@ -718,6 +709,177 @@ export const SAMPLES = [
         g.arc(w * 0.38, h * 0.4, w * 0.1, 0, TAU);
         g.fill();
       }
+    },
+    /** Built by the gallery's WebGL player; returns a render(t). */
+    build({ THREE, renderer, width, height }) {
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 60);
+      camera.position.set(0, 0.05, 7.4);
+      camera.lookAt(0, 0, 0);
+      const group = new THREE.Group();
+      scene.add(group);
+      const count = 8;
+      const radius = 2.3;
+      const posters = [];
+      for (let i = 0; i < count; i++) {
+        const face = document.createElement('canvas');
+        face.width = 256;
+        face.height = 320;
+        this.panel(face.getContext('2d'), 256, 320, i);
+        const texture = new THREE.CanvasTexture(face);
+        texture.colorSpace = THREE.SRGBColorSpace;
+        const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+        const plane = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.88), material);
+        const angle = (i / count) * Math.PI * 2;
+        plane.position.set(Math.sin(angle) * radius, 0, Math.cos(angle) * radius);
+        plane.rotation.y = angle;
+        group.add(plane);
+        posters.push(material);
+      }
+      return {
+        resize(w, h) {
+          renderer.setSize(w, h, false);
+          camera.aspect = w / h;
+          camera.updateProjectionMatrix();
+        },
+        render(t) {
+          const env = Math.min(1, t / 0.5) * Math.min(1, (LOOP_SECONDS - t) / 0.55);
+          for (const material of posters) material.opacity = env;
+          group.rotation.y = t * 0.42;
+          renderer.render(scene, camera);
+        },
+      };
+    },
+  },
+
+  {
+    id: 'cards3d',
+    title: '立体卡片',
+    tag: '界面演示',
+    ratio: 4 / 5,
+    engine: 'webgl',
+    backdrop: 'radial-gradient(circle at 50% 40%, #1a1a1d 0%, #0a0a0b 70%)',
+    look: { bg: '#0a0a0b', ink: '#f2f2f2', dim: 'rgba(242,242,242,0.5)' },
+    prompt: brief(
+      '复刻这个动效：深色舞台上三张有厚度、带倒角的卡片微微转动，金属边缘吃光，脚下有投影',
+      '要求：真 3D（WebGL）、PBR 材质、真实阴影与反射；不要平面矩形和贴图冒充。',
+    ),
+    build({ THREE, renderer, width, height }) {
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color('#0a0a0b');
+      const camera = new THREE.PerspectiveCamera(36, width / height, 0.1, 60);
+      camera.position.set(0, 0.5, 7);
+      camera.lookAt(0, 0, 0);
+
+      scene.add(new THREE.HemisphereLight(0xffffff, 0x08080a, 0.4));
+      const key = new THREE.DirectionalLight(0xffffff, 2.6);
+      key.position.set(3, 6, 4);
+      key.castShadow = true;
+      key.shadow.mapSize.set(1024, 1024);
+      scene.add(key);
+      const rim = new THREE.PointLight(0xffffff, 24, 18);
+      rim.position.set(-3, 1.5, -2);
+      scene.add(rim);
+
+      const floor = new THREE.Mesh(
+        new THREE.PlaneGeometry(40, 40),
+        new THREE.MeshStandardMaterial({ color: 0x0b0b0c, roughness: 0.45, metalness: 0.3 }),
+      );
+      floor.rotation.x = -Math.PI / 2;
+      floor.position.y = -1.5;
+      floor.receiveShadow = true;
+      scene.add(floor);
+
+      const shape = new THREE.Shape();
+      const w = 1.02;
+      const h = 1.56;
+      const r = 0.16;
+      shape.moveTo(-w / 2 + r, -h / 2);
+      shape.lineTo(w / 2 - r, -h / 2);
+      shape.quadraticCurveTo(w / 2, -h / 2, w / 2, -h / 2 + r);
+      shape.lineTo(w / 2, h / 2 - r);
+      shape.quadraticCurveTo(w / 2, h / 2, w / 2 - r, h / 2);
+      shape.lineTo(-w / 2 + r, h / 2);
+      shape.quadraticCurveTo(-w / 2, h / 2, -w / 2, h / 2 - r);
+      shape.lineTo(-w / 2, -h / 2 + r);
+      shape.quadraticCurveTo(-w / 2, -h / 2, -w / 2 + r, -h / 2);
+      const geom = new THREE.ExtrudeGeometry(shape, {
+        depth: 0.07,
+        bevelEnabled: true,
+        bevelThickness: 0.025,
+        bevelSize: 0.025,
+        bevelSegments: 4,
+        curveSegments: 24,
+      });
+      geom.center();
+      const material = new THREE.MeshStandardMaterial({
+        color: 0x1c1c20,
+        metalness: 0.75,
+        roughness: 0.3,
+        emissive: 0x0d0d10,
+      });
+
+      const faceTexture = (count) => {
+        const cv = document.createElement('canvas');
+        cv.width = 256;
+        cv.height = 392;
+        const g = cv.getContext('2d');
+        g.fillStyle = '#0c0c0d';
+        g.fillRect(0, 0, 256, 392);
+        const screen = g.createLinearGradient(0, 40, 0, 190);
+        screen.addColorStop(0, '#6f6f6f');
+        screen.addColorStop(1, '#1d1d1d');
+        g.fillStyle = screen;
+        g.beginPath();
+        g.roundRect(22, 40, 212, 150, 16);
+        g.fill();
+        g.fillStyle = 'rgba(255,255,255,0.95)';
+        g.font = '500 44px -apple-system, system-ui, sans-serif';
+        g.fillText(String(count), 22, 296);
+        g.fillStyle = 'rgba(255,255,255,0.42)';
+        g.font = '400 22px -apple-system, system-ui, sans-serif';
+        g.fillText('Views', 22, 330);
+        const tex = new THREE.CanvasTexture(cv);
+        tex.colorSpace = THREE.SRGBColorSpace;
+        return tex;
+      };
+
+      const cards = [];
+      [-1.15, 0, 1.15].forEach((x, i) => {
+        const holder = new THREE.Group();
+        holder.position.set(x, i % 2 ? -0.12 : 0.12, i % 2 ? 0.1 : -0.1);
+        holder.rotation.y = -x * 0.16;
+        const body = new THREE.Mesh(geom, material);
+        body.castShadow = true;
+        body.receiveShadow = true;
+        holder.add(body);
+        const face = new THREE.Mesh(
+          new THREE.PlaneGeometry(0.94, 1.44),
+          new THREE.MeshBasicMaterial({ map: faceTexture([15038, 518797, 9864421][i]), toneMapped: false }),
+        );
+        face.position.z = 0.09;
+        holder.add(face);
+        scene.add(holder);
+        cards.push({ holder, base: holder.rotation.y, phase: i * 0.8 });
+      });
+
+      return {
+        resize(w, h) {
+          renderer.setSize(w, h, false);
+          camera.aspect = w / h;
+          camera.updateProjectionMatrix();
+        },
+        render(t) {
+          const env = Math.min(1, t / 0.5) * Math.min(1, (LOOP_SECONDS - t) / 0.55);
+          for (const card of cards) {
+            card.holder.rotation.y = card.base + Math.sin(t * 0.7 + card.phase) * 0.28;
+            card.holder.scale.setScalar(0.55 + env * 0.45);
+          }
+          camera.position.x = Math.sin(t * 0.25) * 0.4;
+          camera.lookAt(0, 0, 0);
+          renderer.render(scene, camera);
+        },
+      };
     },
   },
 

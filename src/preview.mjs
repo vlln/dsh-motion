@@ -87,28 +87,31 @@ function showEmptyFilm() {
 
   const empty = document.createElement('div');
   empty.className = 'explore';
+  const featured = SAMPLES.find((s) => s.featured) ?? SAMPLES[0];
+  const rest = SAMPLES.filter((s) => s !== featured);
+  const tile = (sample, extra = '') => `
+    <button class="tile${extra}" data-id="${sample.id}" data-tag="${sample.tag}"
+            aria-label="${sample.title}" style="--tile-bg:${sample.look.bg};--tile-ink:${sample.look.ink}">
+      <span class="tile-shot" style="aspect-ratio:${sample.ratio.toFixed(4)}">
+        <canvas aria-hidden="true"></canvas>
+        <span class="tile-dur">0:0${LOOP_SECONDS}</span>
+      </span>
+      ${extra ? '' : `<span class="tile-title">${sample.title}</span>`}
+    </button>`;
+
   empty.innerHTML = `
     <header class="explore-head">
-      <h1>探索动效 <span class="explore-count">${SAMPLES.length}</span></h1>
-      <p>工作区还没有片子。点开一个看它怎么动，复制提示词，或者让 agent 复刻。</p>
+      <h1>探索动效</h1>
+      <span class="explore-count">${SAMPLES.length} 段</span>
     </header>
+    ${tile(featured, ' tile-feature')}
     <nav class="explore-tabs" aria-label="动效分类">
       ${CATEGORIES.map(
         (tag, i) => `<button class="tab" data-tag="${tag}" aria-pressed="${i === 0}">${tag}</button>`,
       ).join('')}
     </nav>
     <div class="masonry">
-      ${SAMPLES.map(
-        (sample) => `
-        <button class="tile" data-id="${sample.id}" data-tag="${sample.tag}">
-          <span class="tile-shot" style="aspect-ratio:${sample.ratio.toFixed(4)}">
-            <canvas aria-hidden="true"></canvas>
-            <span class="tile-dur">0:0${LOOP_SECONDS}</span>
-          </span>
-          <span class="tile-title">${sample.title}</span>
-          <span class="tile-tag">${sample.tag}</span>
-        </button>`,
-      ).join('')}
+      ${rest.map((s) => tile(s)).join('')}
     </div>
     <div class="sheet" hidden>
       <div class="sheet-dismiss" data-close></div>
@@ -135,9 +138,8 @@ function showEmptyFilm() {
   document.body.append(empty);
   document.body.dataset.empty = 'film';
 
-  const grid = empty.querySelector('.masonry');
   const tiles = [...empty.querySelectorAll('.tile')];
-  const players = playTiles(grid, tiles);
+  const players = playTiles(empty, tiles);
 
   // Categories are a filter, not a new page: keep the scroll position.
   for (const tab of empty.querySelectorAll('.tab')) {

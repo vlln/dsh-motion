@@ -281,10 +281,21 @@ canvas {
   height: 120px;
   border-top: 0.5px solid var(--line);
   background: var(--panel);
-  padding: 12px 16px 14px;
+  padding: 10px 16px 12px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
+}
+
+/* The strip is the timeline, so it sits at the very bottom edge; the transport
+   (play, loop, undo, clock, volume, fullscreen) lives above it. */
+.timeline > .transport {
+  order: 0;
+}
+
+.timeline > .scenes {
+  order: 1;
+  margin-top: auto;
 }
 
 /* Scene chips size to their content and scroll sideways when the column is
@@ -880,9 +891,13 @@ body:not(.tweaks) .app {
   height: 16px;
 }
 
-.icon-btn:hover,
-.icon-btn[aria-pressed='true'] {
+.icon-btn:hover {
   background: var(--hover);
+  color: var(--fg);
+}
+
+.icon-btn[aria-pressed='true'] {
+  background: var(--active);
   color: var(--fg);
 }
 
@@ -1426,9 +1441,13 @@ body:not(.tweaks) .app {
   color: var(--muted);
 }
 
-.icon-btn:hover,
-.icon-btn[aria-pressed='true'] {
+.icon-btn:hover {
   background: var(--hover);
+  color: var(--fg);
+}
+
+.icon-btn[aria-pressed='true'] {
+  background: var(--active);
   color: var(--fg);
 }
 
@@ -1758,6 +1777,15 @@ body.annotating .canvas-box {
   color: var(--fg);
 }
 
+/* One focus ring, one pressed fill, one selected ring — everywhere. */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .rail-label {
   margin: 2px 0 8px;
   color: var(--muted);
@@ -1799,7 +1827,7 @@ body.annotating .canvas-box {
 }
 
 .palette[aria-pressed='true'] {
-  box-shadow: 0 0 0 0.5px rgb(0 0 0 / 8%), 0 0 0 2px var(--fg);
+  box-shadow: 0 0 0 0.5px rgb(0 0 0 / 8%), 0 0 0 2px var(--accent);
 }
 
 

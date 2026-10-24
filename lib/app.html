@@ -148,33 +148,14 @@
     </div>
 
     <div class="timeline">
-      <div class="scenes" id="scenes">
-        <div class="playhead" id="playhead"></div>
-        <div class="hover-frame" id="hoverFrame" hidden>
-          <canvas id="hoverCanvas" width="192" height="108"></canvas>
-          <span id="hoverTime" class="hover-time"></span>
-        </div>
-      </div>
       <div class="transport">
-        <span class="readout">
-          <span id="tc" class="tc">0:00.00</span>
-          <span class="dim">/ <span id="dur">0:19.00</span></span>
-        </span>
-        <button id="play" class="btn icon" aria-label="play" title="播放 / 暂停（空格）">
+        <button id="play" class="icon-btn" aria-label="play" title="播放 / 暂停（空格）">
           <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
             <path class="i-play" d="M5 3.2v9.6l8-4.8z" />
             <path class="i-pause" d="M5.4 3.4h2.2v9.2H5.4zM8.4 3.4h2.2v9.2H8.4z" style="display: none" />
           </svg>
         </button>
-        <button id="mute" class="icon-btn" aria-label="静音" title="静音">
-          <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-            <path d="M3 6.2h2.4L8 3.6v8.8L5.4 9.8H3z" fill="currentColor" />
-            <path id="muteWaves" d="M10.6 6.2c.9.5 1.4 1.4 1.4 2.4s-.5 1.9-1.4 2.4" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" />
-            <path id="muteSlash" d="M10.4 6.4l2.6 2.6m0-2.6l-2.6 2.6" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" style="display: none" />
-          </svg>
-        </button>
-        <input id="volume" class="volume" type="range" min="0" max="1" step="0.01" value="0.8" aria-label="音量" />
-        <button id="loop" class="icon-btn" aria-pressed="false" aria-label="循环播放" title="循环播放">
+        <button id="loop" class="icon-btn" aria-pressed="true" aria-label="循环播放" title="循环播放">
           <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
             <path d="M3.2 7.2a4.8 4.8 0 0 1 8-2.6M12.8 8.8a4.8 4.8 0 0 1-8 2.6" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
             <path d="M11.4 2.4v2.4H9M4.6 13.6v-2.4H7" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
@@ -185,15 +166,36 @@
             <path d="M6.6 4.2 3.4 7.4l3.2 3.2M3.6 7.4h5.2a3.4 3.4 0 0 1 0 6.8H5.6" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         </button>
+
+        <span class="readout">
+          <span id="tc" class="tc">0:00.00</span>
+          <span class="dim">/ <span id="dur">0:19.00</span></span>
+        </span>
+
         <span class="spacer"></span>
+
+        <button id="mute" class="icon-btn" aria-label="静音" title="静音">
+          <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+            <path d="M3 6.2h2.4L8 3.6v8.8L5.4 9.8H3z" fill="currentColor" />
+            <path id="muteWaves" d="M10.6 6.2c.9.5 1.4 1.4 1.4 2.4s-.5 1.9-1.4 2.4" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" />
+            <path id="muteSlash" d="M10.4 6.4l2.6 2.6m0-2.6l-2.6 2.6" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" style="display: none" />
+          </svg>
+        </button>
+        <input id="volume" class="volume" type="range" min="0" max="1" step="0.01" value="0.8" aria-label="音量" />
         <button id="fullscreen" class="icon-btn" aria-label="全屏" title="全屏">
           <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
             <path d="M3 6V3h3M13 6V3H10M3 10v3h3M13 10v3h-3" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         </button>
       </div>
+      <div class="scenes" id="scenes">
+        <div class="playhead" id="playhead"></div>
+        <div class="hover-frame" id="hoverFrame" hidden>
+          <canvas id="hoverCanvas" width="192" height="108"></canvas>
+          <span id="hoverTime" class="hover-time"></span>
+        </div>
+      </div>
     </div>
-
 
     <div class="modal" id="exportModal" hidden>
       <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="exportTitle">

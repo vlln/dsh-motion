@@ -7,6 +7,7 @@ import { checkParam, describeParams, resolveParam } from './params.mjs';
 import { checkValue, describeValues, formatValue, resolveValue } from './values.mjs';
 import { layoutText } from './text.mjs';
 import { sceneTime } from './clock.mjs';
+import { paint } from './paint.mjs';
 import { fitRect, frameAt, frameRect } from './media.mjs';
 
 import { fontStack, resolveFont } from './fonts.mjs';
@@ -48,6 +49,9 @@ export function createKernel({ timeline, modules }) {
     if (!mod) throw new Error(`scene module "${scene.id}" is not registered`);
 
     const media = { images: new Map(), clips: new Map() };
+    // Drawing verbs a scene may use, or ignore: smoothPath, capsule, wash,
+    // strokeOutline, grain. Pure functions, so render(t) stays pure.
+    const verbs = paint;
 
     /** Shared text painter: drawText and drawValue differ only in where the string comes from. */
     const paintText = (value, opts = {}) => {
@@ -112,6 +116,8 @@ export function createKernel({ timeline, modules }) {
     };
 
     return {
+      /** Drawing verbs: smoothPath, capsule, wash, strokeOutline, grain. */
+      paint: verbs,
       /** Load every asset the scene declared. Called by the kernel before mount(). */
       async preload(names = []) {
         for (const name of names) {

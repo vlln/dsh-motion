@@ -489,6 +489,7 @@ dsh-motion check && dsh-motion render --stills 0,3
 | `prism` | 2D | 光：光束、玻璃棱镜、光谱扇面 |
 | `orbit` | 2D | 星场、气态行星、环带前后遮挡 |
 | `tree` | 2D | 线描生长、粒子 |
+| `plate` | 2D | **一张公版画当世界 + 一个小演员**（拿，不画） |
 | `cards3d` | WebGL | 真三维：倒角卡片、PBR、投影地面、泛光 |
 
 四个角色是**默认值，不是封闭集合**：片子可以在 `timeline.fonts` 里自定任意角色

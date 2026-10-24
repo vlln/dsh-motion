@@ -111,12 +111,15 @@ export function createFilmFromTemplate(root, id) {
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, '.gitignore'), 'out/\n.snapshots/\n');
   fs.copyFileSync(path.join(src, 'timeline.json'), timeline);
-  const scenes = path.join(src, 'scenes');
-  if (fs.existsSync(scenes)) {
-    fs.mkdirSync(path.join(dir, 'scenes'), { recursive: true });
-    for (const file of fs.readdirSync(scenes).filter((f) => f.endsWith('.mjs'))) {
-      fs.copyFileSync(path.join(scenes, file), path.join(dir, 'scenes', file));
-    }
+  // scenes are code, assets are files, fonts are files: all three travel with
+  // the template, or the film it makes is broken on arrival.
+  for (const sub of ['scenes', 'assets', 'fonts']) {
+    const from = path.join(src, sub);
+    if (!fs.existsSync(from)) continue;
+    fs.cpSync(from, path.join(dir, sub), { recursive: true });
+  }
+  for (const file of ['CREDITS.md']) {
+    if (fs.existsSync(path.join(src, file))) fs.copyFileSync(path.join(src, file), path.join(dir, file));
   }
   const film = JSON.parse(fs.readFileSync(timeline, 'utf8'));
   return { dir, timeline, film };

@@ -174,15 +174,6 @@ canvas {
   font-size: 12px;
 }
 
-/* The inspector is a read-out, not a card: an empty one should not draw a box
-   the size of a paragraph. */
-.inspector {
-  border: 0;
-  background: transparent;
-  padding: 0;
-  min-height: 0;
-}
-
 /* Sections are rows, not cards: a hairline separates them and nothing draws a
    box around a single field. */
 .card {
@@ -268,27 +259,6 @@ canvas {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 1px var(--accent);
-}
-
-.inspector {
-  font: 12px/1.7 var(--mono);
-  color: var(--muted);
-}
-
-.inspector strong {
-  color: var(--fg);
-  font-weight: 600;
-}
-
-.inspector .row {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.inspector .hint {
-  margin: 0;
-  font-family: var(--font);
 }
 
 .threads h2 {
@@ -824,8 +794,7 @@ code {
 
 
 /* A section with nothing in it is not drawn at all. */
-.threads[hidden],
-.inspector:empty {
+.threads[hidden] {
   display: none;
 }
 

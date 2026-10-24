@@ -86,7 +86,7 @@ const headLeft = await page.evaluate(() => parseFloat(document.getElementById('p
 const expectedLeft = ((await time()) / 19) * 100;
 check('playhead position tracks time', Math.abs(headLeft - expectedLeft) < 0.05, `${headLeft}% vs ${expectedLeft.toFixed(3)}%`);
 
-// --- element inspector (coordinates from scene layout, not from pick()) ---
+// --- picking an element outlines it (no numbers in the rail) ---
 const W = 1920;
 const H = 1080;
 const axisY = H * 0.68;
@@ -104,12 +104,11 @@ await page.evaluate(() => window.__PREVIEW__.setTime(4));
 await page.mouse.click(clickX, clickY);
 await page.waitForTimeout(80);
 
-const inspectorText = await page.textContent('#inspector');
 const boxHidden = await page.evaluate(() => document.getElementById('selection').hidden);
 const picked = await page.evaluate(() => window.__PREVIEW__.selected());
 check('click selects an element', Boolean(picked), picked ? picked.id : 'none');
-check('inspector shows geometry', /x \/ y/.test(inspectorText) && /w × h/.test(inspectorText));
 check('selection box visible', boxHidden === false);
+check('no coordinate dump in the rail', (await page.locator('#inspector').count()) === 0);
 
 await page.screenshot({ path: path.join(ROOT, 'out/ui-selection.png') });
 

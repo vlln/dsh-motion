@@ -1,4 +1,4 @@
-// Standalone preview: player + scene strip + read-only element inspector.
+// Standalone preview: player + scene strip + annotation overlay.
 // Same kernel the capture script uses — if it looks right here, it exports right.
 
 import { mountMotion } from './mount.mjs';
@@ -9,7 +9,6 @@ const canvas = $('stage');
 const box = $('canvasBox');
 const selection = $('selection');
 const slotHl = $('slotHl');
-const inspector = $('inspector');
 const tc = $('tc');
 const durEl = $('dur');
 const playBtn = $('play');
@@ -405,17 +404,10 @@ function refreshSelection() {
   if (!hit || hit.id !== selected.id) {
     selected = null;
     selection.hidden = true;
-    inspector.innerHTML = '<p class="hint">该时刻这个元素不可见。再点一次画面里的元素试试。</p>';
     return;
   }
   selected = hit;
   showSelection(hit);
-  inspector.innerHTML = `
-    <div class="row"><span>id</span><strong>${hit.id}</strong></div>
-    <div class="row"><span>t</span><span>${hit.at.toFixed(2)}s</span></div>
-    <div class="row"><span>x / y</span><span>${hit.x} , ${hit.y}</span></div>
-    <div class="row"><span>w × h</span><span>${hit.w} × ${hit.h}</span></div>
-    <div class="row"><span>label</span><span>${hit.label ?? '—'}</span></div>`;
 }
 
 function renderFrame() {
@@ -1293,7 +1285,7 @@ const comments = createComments({
     selected = null;
   },
   onError: (message) => {
-    inspector.innerHTML = `<p class="hint">${message}</p>`;
+    console.error('[comments]', message);
   },
   session: sessionId,
 });
@@ -1305,6 +1297,12 @@ const annotateBtn = $('annotateMode');
 function setAnnotating(on) {
   document.body.classList.toggle('annotating', on);
   annotateBtn?.setAttribute('aria-pressed', String(on));
+  if (!on) {
+    // Turning the mode off ends the gesture: no half-finished box, no note card.
+    comments.cancelDraft();
+    selected = null;
+    selection.hidden = true;
+  }
   comments.refreshAnchors();
 }
 
@@ -1363,7 +1361,6 @@ canvas.addEventListener('click', (e) => {
   } else {
     selected = null;
     selection.hidden = true;
-    inspector.innerHTML = '';
   }
   if (document.body.classList.contains('annotating')) {
     // Annotating is a mode: a click or a drag marks a region, and text editing

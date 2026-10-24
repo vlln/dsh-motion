@@ -23,7 +23,11 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const until = async (predicate, ms = 6000) => {
   const end = Date.now() + ms;
   while (Date.now() < end) {
-    if (predicate()) return true;
+    try {
+      if (await predicate()) return true;
+    } catch {
+      /* the page can be torn down under a poll; treat it as "not yet" */
+    }
     await sleep(50);
   }
   return false;

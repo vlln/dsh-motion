@@ -160,11 +160,14 @@ export function createComments({
     suppressClick = true;
   });
 
-  popClose.addEventListener('click', () => {
+  function cancelDraft() {
     popover.hidden = true;
     pending = null;
     selection.hidden = true;
-  });
+    selection.classList.remove('draft');
+  }
+
+  popClose.addEventListener('click', cancelDraft);
 
   /**
    * Say it first, store it only after it was said. A pin with no conversation
@@ -304,6 +307,8 @@ export function createComments({
 
   return {
     refreshThreads,
+    /** Drop a draft box and its note card (leaving annotate mode does this). */
+    cancelDraft,
     /** Re-evaluate which outlines belong on this frame. */
     refreshAnchors: () => paintAnchors(),
     /** Open the note box for a clicked object (annotate mode). */

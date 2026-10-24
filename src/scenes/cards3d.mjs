@@ -372,7 +372,7 @@ export function mount(context) {
   composer = new EffectComposer(renderer);
   composer.setSize(ctx.width, ctx.height);
   composer.addPass(new RenderPass(scene, camera));
-  const bloom = new UnrealBloomPass(new Vector3(ctx.width, ctx.height), 0.5, 0.55, 0.8);
+  const bloom = new UnrealBloomPass(new Vector3(ctx.width, ctx.height), 0.34, 0.6, 0.86);
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
 }

@@ -22,7 +22,7 @@
     "link": "node scripts/dev-link.mjs",
     "build:client": "node scripts/build-client.mjs",
     "gate:client": "node scripts/gate-client.mjs",
-    "check": "npm run validate && npm run gates && npm run gate:audio && npm run gate:ui && npm run gate:layout && npm run gate:comments && npm run gate:params && npm run gate:surface && npm run gate:reference && npm run gate:text && npm run gate:media && npm run gate:tweaks && npm run gate:scale && npm run gate:values && npm run gate:assets && npm run gate:scene && npm run gate:export && npm run gate:project && npm run gate:live && npm run gate:split && npm run gate:client && npm run gate:plugin && npm run gate:frames && npm run gate:fonts && npm run gate:beats && npm run gate:templates && npm run gate:poster",
+    "check": "npm run validate && npm run gates && npm run gate:audio && npm run gate:ui && npm run gate:layout && npm run gate:comments && npm run gate:params && npm run gate:surface && npm run gate:reference && npm run gate:text && npm run gate:media && npm run gate:tweaks && npm run gate:scale && npm run gate:values && npm run gate:assets && npm run gate:scene && npm run gate:export && npm run gate:project && npm run gate:live && npm run gate:split && npm run gate:client && npm run gate:bundle && npm run gate:plugin && npm run gate:frames && npm run gate:fonts && npm run gate:beats && npm run gate:templates && npm run gate:poster",
     "gate:split": "node scripts/gate-split.mjs",
     "gate:film": "node scripts/gate-film.mjs",
     "gate:layout": "node scripts/gate-layout.mjs",
@@ -44,7 +44,8 @@
     "gate:fonts": "node scripts/gate-fonts.mjs",
     "gate:beats": "node scripts/gate-beats.mjs",
     "gate:templates": "node scripts/gate-templates.mjs",
-    "gate:poster": "node scripts/gate-poster.mjs"
+    "gate:poster": "node scripts/gate-poster.mjs",
+    "gate:bundle": "node scripts/gate-bundle.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.28.2",

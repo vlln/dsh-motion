@@ -37,8 +37,10 @@ const { origin, close } = await startServer(0, { project: PROJECT });
 const exe = findChromium();
 const browser = await chromium.launch({ executablePath: exe, args: ['--hide-scrollbars'] });
 
-const W = Number(opt('width', 1920));
-const H = Number(opt('height', 1080));
+// Default to the film's own size, not to 16:9: a square or vertical film must
+// not be exported letterboxed.
+const W = Number(opt('width', timeline.width || 1920));
+const H = Number(opt('height', timeline.height || 1080));
 // Supersampling: render the page at N× device scale, then scale back down in
 // ffmpeg. Text is the reason — it is rasterised at capture resolution, so a 2×
 // pass keeps glyph edges sharp at 1080p.

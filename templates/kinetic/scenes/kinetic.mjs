@@ -35,9 +35,9 @@ export function render(t) {
     alpha: outCubic((t + 0.35) / 0.6),
   });
 
-  const size = Math.round(h * 0.13);
+  const size = Math.round(h * 0.205);
   const words = ['a', 'b', 'c'];
-  const at = [0.35, 0.55, 0.75];
+  const at = [0.4, 0.6, 0.8];
   g.textAlign = 'left';
   g.textBaseline = 'alphabetic';
   words.forEach((slot, i) => {

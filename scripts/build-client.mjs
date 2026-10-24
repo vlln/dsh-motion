@@ -9,32 +9,45 @@ import { build } from 'esbuild';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const LIB = path.join(ROOT, 'lib');
-fs.mkdirSync(LIB, { recursive: true });
 
-// Hashed chunk names change on every edit; stale ones must not pile up.
-fs.rmSync(path.join(LIB, 'chunks'), { recursive: true, force: true });
+/**
+ * Bundle src/preview.mjs (and its HTML/CSS shell) into a directory.
+ * @param {{ outdir?: string, shell?: boolean }} opts
+ */
+export async function buildClient({ outdir = LIB, shell = true } = {}) {
+  fs.mkdirSync(outdir, { recursive: true });
 
-const result = await build({
+  // Hashed chunk names change on every edit; stale ones must not pile up.
+  fs.rmSync(path.join(outdir, 'chunks'), { recursive: true, force: true });
+
+  const result = await build({
   entryPoints: [path.join(ROOT, 'src/preview.mjs')],
   bundle: true,
   format: 'esm',
   target: 'es2022',
   splitting: true,           // the WebGL scene becomes a lazy chunk
-  outdir: LIB,
-  entryNames: 'app',
-  chunkNames: 'chunks/[name]-[hash]',
-  legalComments: 'none',
-  logLevel: 'warning',
-});
+    outdir,
+    entryNames: 'app',
+    chunkNames: 'chunks/[name]-[hash]',
+    legalComments: 'none',
+    logLevel: 'warning',
+  });
 
-const html = fs
-  .readFileSync(path.join(ROOT, 'preview.html'), 'utf8')
-  .replace(/\s*<script type="importmap">[\s\S]*?<\/script>/, '')
-  .replace('./src/preview.css', './app.css')
-  .replace('./src/preview.mjs', './app.js');
+  const html = fs
+    .readFileSync(path.join(ROOT, 'preview.html'), 'utf8')
+    .replace(/\s*<script type="importmap">[\s\S]*?<\/script>/, '')
+    .replace('./src/preview.css', './app.css')
+    .replace('./src/preview.mjs', './app.js');
 
-fs.writeFileSync(path.join(LIB, 'app.html'), html);
-fs.copyFileSync(path.join(ROOT, 'src/preview.css'), path.join(LIB, 'app.css'));
+  fs.writeFileSync(path.join(outdir, 'app.html'), html);
+  fs.copyFileSync(path.join(ROOT, 'src/preview.css'), path.join(outdir, 'app.css'));
+  return result;
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) await main();
+
+async function main() {
+await buildClient();
 
 const size = fs.statSync(path.join(LIB, 'app.js')).size;
 const chunks = fs.existsSync(path.join(LIB, 'chunks'))
@@ -44,3 +57,4 @@ const chunks = fs.existsSync(path.join(LIB, 'chunks'))
     })
   : [];
 console.log(`client → app.js ${(size / 1024).toFixed(0)} KiB${chunks.length ? ` + ${chunks.join(', ')}` : ''}`);
+}

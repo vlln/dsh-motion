@@ -2140,120 +2140,270 @@ summary:focus-visible {
 }
 
 
-/* Empty workspace: four directions, each one already moving. */
-.discover {
+/* Empty workspace: a wall of short loops to start from. */
+.explore {
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
-  padding: 28px 22px 34px;
+  padding: 22px 18px 30px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 14px;
 }
 
-.discover-head h2 {
-  margin: 0 0 6px;
+.explore-head h1 {
+  margin: 0 0 5px;
   font: 600 17px/1.3 var(--font);
   letter-spacing: -0.01em;
 }
 
-.discover-head p {
+.explore-count {
+  margin-left: 4px;
+  color: var(--dim);
+  font: 500 11px/1 var(--mono);
+  letter-spacing: 0.02em;
+}
+
+.explore-head p {
   margin: 0;
-  max-width: 48ch;
+  max-width: 46ch;
   color: var(--muted);
-  font: 12.5px/1.6 var(--font);
+  font: 12px/1.6 var(--font);
 }
 
-.discover-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 16px;
-  max-width: 540px;
-}
-
-.starter {
+.explore-tabs {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-bottom: 2px;
+}
+
+.explore-tabs .tab {
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: 500 11.5px/1.4 var(--font);
+  cursor: pointer;
+  transition:
+    background var(--dur) var(--ease),
+    color var(--dur) var(--ease),
+    border-color var(--dur) var(--ease);
+}
+
+.explore-tabs .tab:hover {
+  background: var(--hover);
+  color: var(--fg);
+}
+
+.explore-tabs .tab[aria-pressed='true'] {
+  border-color: transparent;
+  background: var(--primary);
+  color: var(--primary-fg);
+}
+
+/* Masonry by column flow: tiles keep their own aspect ratio. */
+.masonry {
+  columns: 2;
+  column-gap: 12px;
+  max-width: 620px;
+}
+
+@media (max-width: 380px) {
+  .masonry {
+    columns: 1;
+  }
+}
+
+.tile {
+  display: block;
+  width: 100%;
+  margin: 0 0 14px;
   padding: 0;
   border: 0;
-  border-radius: 9px;
   background: none;
   text-align: left;
   color: inherit;
   font: inherit;
   cursor: pointer;
+  break-inside: avoid;
   -webkit-tap-highlight-color: transparent;
 }
 
-.starter-shot {
-  position: relative;
-  display: block;
-  aspect-ratio: 16 / 9;
-  border-radius: 10px;
-  overflow: hidden;
-  background: var(--surface-2);
-  box-shadow: 0 0 0 1px rgb(0 0 0 / 8%);
-  transition:
-    box-shadow var(--dur) var(--ease),
-    transform var(--dur) var(--ease);
+.tile[hidden] {
+  display: none;
 }
 
-.starter-shot canvas {
+.tile-shot {
+  position: relative;
+  display: block;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #0d0d0f;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 10%);
+  transition: box-shadow var(--dur) var(--ease);
+}
+
+.tile-shot canvas {
   display: block;
   width: 100%;
   height: 100%;
 }
 
-.starter:hover .starter-shot {
-  box-shadow: 0 0 0 1px rgb(0 0 0 / 20%);
+.tile:hover .tile-shot {
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 26%);
 }
 
-.starter[aria-pressed='true'] .starter-shot {
-  box-shadow: 0 0 0 2px var(--accent);
-}
-
-.starter:focus-visible {
+.tile:focus-visible {
   outline: none;
 }
 
-.starter:focus-visible .starter-shot {
+.tile:focus-visible .tile-shot {
   box-shadow: 0 0 0 2px var(--accent);
 }
 
-.starter-name {
-  margin-top: 9px;
-  font: 600 12.5px/1.35 var(--font);
+.tile-dur {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: rgb(0 0 0 / 48%);
+  color: rgb(255 255 255 / 88%);
+  font: 500 10px/1.3 var(--mono);
+  letter-spacing: 0.02em;
+}
+
+.tile-title {
+  display: block;
+  margin-top: 7px;
   color: var(--fg);
+  font: 500 12.5px/1.35 var(--font);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.starter-blurb {
-  margin-top: 2px;
-  font: 11.5px/1.5 var(--font);
-  color: var(--muted);
-}
-
-.discover-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  max-width: 720px;
-  padding: 13px 15px;
+.tile-tag {
+  display: inline-block;
+  margin-top: 5px;
+  padding: 1px 6px;
   border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface);
+  border-radius: 5px;
+  color: var(--dim);
+  font: 400 10.5px/1.5 var(--font);
 }
 
-.discover-actions[hidden] {
+/* Detail: the tile, big enough to watch, with the recipe beside it. */
+.sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+
+.sheet[hidden] {
   display: none;
 }
 
-.discover-prompt {
-  margin: 0;
-  color: var(--fg);
-  font: 12.5px/1.65 var(--font);
+.sheet-dismiss {
+  position: absolute;
+  inset: 0;
+  background: rgb(9 9 11 / 46%);
 }
 
-.discover-buttons {
+.sheet-card {
+  position: relative;
+  width: min(560px, 100%);
+  max-height: 94%;
+  overflow: auto;
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: 0 18px 60px rgb(0 0 0 / 34%);
+}
+
+.sheet-x {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 14%);
+  color: #fff;
+  font: 12px/1 var(--font);
+  cursor: pointer;
+}
+
+.sheet-x:hover {
+  background: rgb(255 255 255 / 22%);
+}
+
+.sheet-stage {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  background: #0b0b0c;
+}
+
+.sheet-stage canvas {
+  display: block;
+}
+
+body.sheet-open {
+  overflow: hidden;
+}
+
+.sheet-body {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 14px 16px 16px;
+}
+
+.sheet-body h2 {
+  margin: 0;
+  font: 600 15px/1.35 var(--font);
+  letter-spacing: -0.01em;
+}
+
+.sheet-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--dim);
+  font: 400 11px/1.4 var(--font);
+}
+
+.sheet-tag {
+  padding: 1px 6px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+
+.sheet-prompt {
+  margin: 2px 0 0;
+  color: var(--fg);
+  font: 12.5px/1.7 var(--font);
+}
+
+.sheet-actions {
   display: flex;
   gap: 8px;
+  padding-top: 4px;
+}
+
+/* With no film there is nothing to version, annotate or export: the gallery
+   owns the screen. */
+body[data-empty='film'] .topbar {
+  display: none;
 }

@@ -3,7 +3,7 @@
 
 import { mountMotion } from './mount.mjs';
 import { createComments } from './ui/comments.mjs';
-import { SPECIMENS, LOOP_SECONDS } from './starters.mjs';
+import { SAMPLES, CATEGORIES, LOOP_SECONDS } from './starters.mjs';
 
 const $ = (id) => document.getElementById(id);
 const canvas = $('stage');
@@ -76,94 +76,165 @@ if (stageStack && 'ResizeObserver' in window) {
 }
 
 /**
- * A workspace with no film is a normal state, not an error: the panel says so
- * and points at the conversation, which is where a film gets asked for.
- */
-/**
- * No film yet is a starting point, not an error: four directions, each one a
- * real animation drawn on its own canvas — the panel's first claim is "this is
- * a moving image", so a still card here would be a lie about the product.
- * Sending a prompt uses the same channel a comment does: the conversation.
+ * No film yet: the workspace opens on a gallery of short loops instead of an
+ * error. Each tile is a real animation (canvas 2D, pure function of time), and
+ * each carries the prompt that would rebuild it — copy it, or send it to the
+ * conversation and let the agent make the film for real.
  */
 function showEmptyFilm() {
   document.querySelector('.app')?.remove();
   document.querySelector('.timeline')?.remove();
+
   const empty = document.createElement('div');
-  empty.className = 'discover';
+  empty.className = 'explore';
   empty.innerHTML = `
-    <header class="discover-head">
-      <h2>从一个方向开始</h2>
-      <p>还没有片子。选一个方向，提示词会发到对话里。</p>
+    <header class="explore-head">
+      <h1>探索动效 <span class="explore-count">${SAMPLES.length}</span></h1>
+      <p>工作区还没有片子。点开一个看它怎么动，复制提示词，或者让 agent 复刻。</p>
     </header>
-    <div class="discover-grid">
-      ${SPECIMENS.map(
-        (style) => `
-        <button class="starter" data-id="${style.id}" aria-pressed="false">
-          <span class="starter-shot"><canvas aria-hidden="true"></canvas></span>
-          <span class="starter-name">${style.name}</span>
-          <span class="starter-blurb">${style.blurb}</span>
+    <nav class="explore-tabs" aria-label="动效分类">
+      ${CATEGORIES.map(
+        (tag, i) => `<button class="tab" data-tag="${tag}" aria-pressed="${i === 0}">${tag}</button>`,
+      ).join('')}
+    </nav>
+    <div class="masonry">
+      ${SAMPLES.map(
+        (sample) => `
+        <button class="tile" data-id="${sample.id}" data-tag="${sample.tag}">
+          <span class="tile-shot" style="aspect-ratio:${sample.ratio.toFixed(4)}">
+            <canvas aria-hidden="true"></canvas>
+            <span class="tile-dur">0:0${LOOP_SECONDS}</span>
+          </span>
+          <span class="tile-title">${sample.title}</span>
+          <span class="tile-tag">${sample.tag}</span>
         </button>`,
       ).join('')}
     </div>
-    <div class="discover-actions" hidden>
-      <p class="discover-prompt" id="discoverPrompt"></p>
-      <div class="discover-buttons">
-        <button class="btn ghost" id="discoverCopy">复制提示词</button>
-        <button class="btn" id="discoverSend">发到对话</button>
+    <div class="sheet" hidden>
+      <div class="sheet-dismiss" data-close></div>
+      <div class="sheet-card" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+        <button class="sheet-x" data-close aria-label="关闭">✕</button>
+        <div class="sheet-stage">
+          <canvas aria-hidden="true"></canvas>
+          <span class="tile-dur sheet-dur">0:0${LOOP_SECONDS}</span>
+        </div>
+        <div class="sheet-body">
+          <h2 id="sheetTitle"></h2>
+          <div class="sheet-meta">
+            <span class="sheet-tag" id="sheetTag"></span>
+            <span class="sheet-len">${LOOP_SECONDS}s · 循环</span>
+          </div>
+          <p class="sheet-prompt" id="sheetPrompt"></p>
+          <div class="sheet-actions">
+            <button class="btn ghost" id="sheetCopy">复制提示词</button>
+            <button class="btn" id="sheetSend">让 Agent 复刻</button>
+          </div>
+        </div>
       </div>
     </div>`;
   document.body.append(empty);
   document.body.dataset.empty = 'film';
 
-  const actions = empty.querySelector('.discover-actions');
-  const promptEl = empty.querySelector('#discoverPrompt');
-  const send = empty.querySelector('#discoverSend');
-  const copy = empty.querySelector('#discoverCopy');
-  let chosen = null;
+  const grid = empty.querySelector('.masonry');
+  const tiles = [...empty.querySelectorAll('.tile')];
+  const players = playTiles(grid, tiles);
 
-  const pick = (style) => {
-    chosen = style;
-    for (const button of empty.querySelectorAll('.starter')) {
-      button.setAttribute('aria-pressed', String(button.dataset.id === style.id));
-    }
-    promptEl.textContent = style.prompt;
-    actions.hidden = false;
-    actions.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    send.disabled = !sessionId;
-    send.textContent = sessionId ? '发到对话' : '在对话里打开才能发送';
-  };
-
-  for (const button of empty.querySelectorAll('.starter')) {
-    button.addEventListener('click', () => pick(SPECIMENS.find((s) => s.id === button.dataset.id)));
+  // Categories are a filter, not a new page: keep the scroll position.
+  for (const tab of empty.querySelectorAll('.tab')) {
+    tab.addEventListener('click', () => {
+      for (const other of empty.querySelectorAll('.tab')) {
+        other.setAttribute('aria-pressed', String(other === tab));
+      }
+      const tag = tab.dataset.tag;
+      for (const tile of tiles) tile.hidden = tag !== '全部' && tile.dataset.tag !== tag;
+      players.refresh();
+    });
   }
 
-  copy?.addEventListener('click', async () => {
-    if (!chosen) return;
-    try {
-      await navigator.clipboard.writeText(chosen.prompt);
-      copy.textContent = '已复制';
-    } catch {
-      promptEl.focus();
-      copy.textContent = '选中后自行复制';
-    }
-    setTimeout(() => (copy.textContent = '复制提示词'), 1600);
+  const sheet = empty.querySelector('.sheet');
+  const sheetCanvas = sheet.querySelector('canvas');
+  const sheetTitle = sheet.querySelector('#sheetTitle');
+  const sheetTag = sheet.querySelector('#sheetTag');
+  const sheetPrompt = sheet.querySelector('#sheetPrompt');
+  const sheetCopy = sheet.querySelector('#sheetCopy');
+  const sheetSend = sheet.querySelector('#sheetSend');
+  let open = null;
+  let player = null;
+
+  const stage = sheet.querySelector('.sheet-stage');
+
+  const sizeStage = (sample) => {
+    const cardW = sheet.querySelector('.sheet-card').clientWidth;
+    const maxH = Math.min(window.innerHeight * 0.52, 520);
+    const w = Math.max(120, Math.min(cardW, maxH * sample.ratio));
+    const h = w / sample.ratio;
+    stage.style.height = `${h}px`;
+    sheetCanvas.style.width = `${w}px`;
+    sheetCanvas.style.height = `${h}px`;
+  };
+
+  const close = () => {
+    sheet.hidden = true;
+    document.body.classList.remove('sheet-open');
+    open = null;
+    player?.stop();
+    player = null;
+  };
+
+  for (const tile of tiles) {
+    tile.addEventListener('click', () => {
+      const sample = SAMPLES.find((s) => s.id === tile.dataset.id);
+      if (!sample) return;
+      open = sample;
+      sheetTitle.textContent = sample.title;
+      sheetTag.textContent = sample.tag;
+      sheetPrompt.textContent = sample.prompt;
+      sheetSend.disabled = !sessionId;
+      sheetSend.textContent = sessionId ? '让 Agent 复刻' : '在对话里打开才能发送';
+      sheet.hidden = false;
+      document.body.classList.add('sheet-open');
+      sizeStage(sample);
+      player?.stop();
+      player = playOne(sheetCanvas, sample);
+      sheet.querySelector('.sheet-card').focus?.();
+    });
+  }
+
+  for (const closer of sheet.querySelectorAll('[data-close]')) closer.addEventListener('click', close);
+  window.addEventListener('resize', () => {
+    if (!open) return;
+    sizeStage(open);
+    player?.resize();
+  });
+  window.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !sheet.hidden) close();
   });
 
-  send?.addEventListener('click', () => {
-    if (!chosen || !sessionId) return;
+  sheetCopy.addEventListener('click', async () => {
+    if (!open) return;
+    try {
+      await navigator.clipboard.writeText(open.prompt);
+      sheetCopy.textContent = '已复制';
+    } catch {
+      sheetPrompt.focus();
+      sheetCopy.textContent = '选中后自行复制';
+    }
+    setTimeout(() => (sheetCopy.textContent = '复制提示词'), 1600);
+  });
+
+  sheetSend.addEventListener('click', () => {
+    if (!open || !sessionId) return;
     window.parent.postMessage(
-      { type: 'dshm:comment', id: `starter-${Date.now()}`, session: sessionId, text: chosen.prompt },
+      { type: 'dshm:comment', id: `replicate-${Date.now()}`, session: sessionId, text: open.prompt },
       location.origin,
     );
-    send.textContent = '已发送';
-    send.disabled = true;
+    sheetSend.textContent = '已发送';
+    sheetSend.disabled = true;
     setTimeout(() => {
-      send.textContent = '发到对话';
-      send.disabled = false;
+      sheetSend.textContent = '让 Agent 复刻';
+      sheetSend.disabled = false;
     }, 2000);
   });
-
-  playSpecimens(empty);
 
   // The film can appear while this page is open — the agent is often still
   // working when the column is opened. Watch for it instead of waiting for a
@@ -181,43 +252,98 @@ function showEmptyFilm() {
   }, 2000);
 }
 
+/** Size a canvas to its CSS box, once. */
+function fitCanvas(canvas) {
+  const rect = canvas.getBoundingClientRect();
+  if (!rect.width || !rect.height) return null;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  canvas.width = Math.round(rect.width * dpr);
+  canvas.height = Math.round(rect.height * dpr);
+  const g = canvas.getContext('2d');
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { g, w: rect.width, h: rect.height };
+}
+
+/** One sample, one canvas, one clock — used by the detail sheet. */
+function playOne(canvas, sample) {
+  let raf = 0;
+  let start = performance.now();
+  let paused = false;
+  let shown = 0;
+  let size = fitCanvas(canvas);
+
+  const draw = (t) => {
+    if (!size) size = fitCanvas(canvas);
+    if (!size) return;
+    size.g.clearRect(0, 0, size.w, size.h);
+    sample.draw(size.g, size.w, size.h, t);
+  };
+
+  const tick = (now) => {
+    const rect = canvas.getBoundingClientRect();
+    if (Math.abs(rect.width - (size?.w ?? 0)) > 1 || Math.abs(rect.height - (size?.h ?? 0)) > 1) {
+      size = fitCanvas(canvas);
+    }
+    shown = ((now - start) / 1000) % LOOP_SECONDS;
+    draw(shown);
+    raf = requestAnimationFrame(tick);
+  };
+  draw(0);
+  if (!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) raf = requestAnimationFrame(tick);
+
+  return {
+    stop() {
+      cancelAnimationFrame(raf);
+      raf = 0;
+    },
+    seek(t) {
+      shown = t;
+      draw(t);
+    },
+    resize() {
+      size = fitCanvas(canvas);
+      draw(shown);
+    },
+    get paused() {
+      return paused;
+    },
+  };
+}
+
 /**
- * One clock drives every card: the samples run in sync, and nothing animates
- * off-screen or while the tab is hidden. Reduced motion gets the settled frame.
+ * One clock drives every tile: the samples run in sync, off-screen ones sleep,
+ * a hidden tab sleeps, and reduced motion gets the settled frame.
  */
-function playSpecimens(root) {
-  const cards = [...root.querySelectorAll('.starter')].map((card) => {
-    const canvas = card.querySelector('canvas');
-    return {
-      card,
-      spec: SPECIMENS.find((s) => s.id === card.dataset.id),
-      canvas,
-      g: canvas.getContext('2d'),
-      w: 0,
-      h: 0,
-      dpr: 1,
-      on: true,
-    };
-  });
+function playTiles(root, tiles) {
+  const items = tiles.map((tile) => ({
+    tile,
+    sample: SAMPLES.find((s) => s.id === tile.dataset.id),
+    canvas: tile.querySelector('canvas'),
+    g: null,
+    w: 0,
+    h: 0,
+    on: true,
+  }));
 
   const measure = () => {
-    for (const item of cards) {
+    for (const item of items) {
       const rect = item.canvas.getBoundingClientRect();
       if (!rect.width || !rect.height) continue;
-      item.dpr = Math.min(2, window.devicePixelRatio || 1);
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      item.canvas.width = Math.round(rect.width * dpr);
+      item.canvas.height = Math.round(rect.height * dpr);
+      item.g = item.canvas.getContext('2d');
+      item.g.setTransform(dpr, 0, 0, dpr, 0, 0);
       item.w = rect.width;
       item.h = rect.height;
-      item.canvas.width = Math.round(rect.width * item.dpr);
-      item.canvas.height = Math.round(rect.height * item.dpr);
     }
   };
 
   const frame = (t) => {
-    for (const item of cards) {
-      if (!item.on || !item.w) continue;
-      item.g.setTransform(item.dpr, 0, 0, item.dpr, 0, 0);
+    for (const item of items) {
+      if (!item.on || item.tile.hidden || !item.w) continue;
       item.g.clearRect(0, 0, item.w, item.h);
-      item.spec.draw(item.g, item.w, item.h, t);
+      item.sample.draw(item.g, item.w, item.h, t);
     }
   };
 
@@ -229,42 +355,50 @@ function playSpecimens(root) {
       measure();
       frame(0);
     });
-    for (const item of cards) ro.observe(item.canvas);
+    for (const item of items) ro.observe(item.canvas);
   }
 
   if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
     frame(2.4);
-    return;
+    return { refresh: () => frame(2.4) };
   }
 
   if ('IntersectionObserver' in window) {
     const io = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
-          const item = cards.find((c) => c.canvas === entry.target);
+          const item = items.find((c) => c.canvas === entry.target);
           if (item) item.on = entry.isIntersecting;
         }
-        frame(((performance.now() - start) / 1000) % LOOP_SECONDS);
       },
       { root: root, threshold: 0.05 },
     );
-    for (const item of cards) io.observe(item.canvas);
+    for (const item of items) io.observe(item.canvas);
   }
 
+  // Ten canvases on one clock: 30fps is plenty for samples and halves the work.
   let raf = 0;
+  let drewAt = 0;
   const tick = (now) => {
-    frame(((now - start) / 1000) % LOOP_SECONDS);
+    if (now - drewAt > 30) {
+      drewAt = now;
+      frame(((now - start) / 1000) % LOOP_SECONDS);
+    }
     raf = requestAnimationFrame(tick);
   };
   raf = requestAnimationFrame(tick);
 
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-      cancelAnimationFrame(raf);
-    } else {
-      raf = requestAnimationFrame(tick);
-    }
+    cancelAnimationFrame(raf);
+    if (!document.hidden) raf = requestAnimationFrame(tick);
   });
+
+  return {
+    refresh() {
+      measure();
+      frame(((performance.now() - start) / 1000) % LOOP_SECONDS);
+    },
+  };
 }
 
 let mounted;

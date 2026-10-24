@@ -12,6 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { sheetFor, renderSheet, toWav, beatGrid, KINDS } from '../../../src/audio.mjs';
+import { analyse, readWav } from '../../../scripts/beats.mjs';
 
 const FILM = path.resolve(process.env.DSH_MOTION_PROJECT ?? 'motion');
 const argv = process.argv.slice(2);
@@ -20,6 +21,86 @@ const opt = (n, d) => {
   const i = argv.indexOf(`--${n}`);
   return i === -1 ? d : argv[i + 1];
 };
+
+// --- brought-in soundtrack: --use path/to/track.wav ---------------------------
+// Not every film wants a synthesizer. A cue someone gave you, a recording, a
+// library track: it becomes the score by declaring it, and the film's length
+// still wins over the track's.
+const used = opt('use');
+if (used) {
+  let file = path.resolve(used);
+  if (!fs.existsSync(file)) {
+    console.error(`no such file: ${used}`);
+    process.exit(1);
+  }
+  // /tmp is a symlink to /private/tmp on macOS: compare real paths or every
+  // file already inside the film looks like it came from outside.
+  const realFilm = fs.realpathSync(FILM);
+  const inside = fs.realpathSync(file).startsWith(realFilm + path.sep);
+  if (!inside) {
+    fs.mkdirSync(path.join(FILM, 'assets/audio'), { recursive: true });
+    const copy = path.join(FILM, 'assets/audio', path.basename(file));
+    fs.copyFileSync(file, copy);
+    console.log(`copied into the film: ${path.relative(FILM, copy)}`);
+    file = copy;
+  }
+  const rel = path.relative(realFilm, fs.realpathSync(file)).split(path.sep).join('/');
+
+  const probe = spawnSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', file], {
+    encoding: 'utf8',
+  });
+  const seconds = Number((probe.stdout ?? '').trim());
+  if (!Number.isFinite(seconds)) {
+    console.error(`could not read ${rel} — is it audio? (ffmpeg reads wav/mp3/m4a/ogg)`);
+    process.exit(1);
+  }
+
+  const timelineFile = path.join(FILM, 'timeline.json');
+  const film = fs.existsSync(timelineFile) ? JSON.parse(fs.readFileSync(timelineFile, 'utf8')) : null;
+  const loop = flag('loop');
+  const fit = loop ? 'loop' : 'trim';
+
+  console.log(`${rel}  ${seconds.toFixed(2)}s · fit ${fit}`);
+  if (film && Number.isFinite(Number(film.duration))) {
+    const filmLength = Number(film.duration);
+    if (seconds < filmLength - 0.05) {
+      console.log(`track is ${seconds.toFixed(1)}s, film is ${filmLength.toFixed(1)}s —`);
+      console.log(loop ? '  repeating it to the end' : '  it plays once and the rest is silence. add --loop to repeat it');
+    } else if (seconds > filmLength + 0.05) {
+      console.log(`track is ${seconds.toFixed(1)}s, film is ${filmLength.toFixed(1)}s — cut at the film's end`);
+    }
+  }
+
+  // Beats only from a wav: the analyser is a plain PCM reader, no decoder.
+  let grid = null;
+  if (/\.wav$/i.test(file)) {
+    try {
+      const result = analyse(readWav(file));
+      grid = { bpm: result.bpm, beats: result.beats };
+      console.log(`beats ${result.bpm} BPM${result.drop != null ? ` · drop ${result.drop}s` : ''}`);
+    } catch (err) {
+      console.log(`no beat grid: ${err.message}`);
+    }
+  } else {
+    console.log('no beat grid (analysis reads wav only) — convert to wav if scenes must hit the track');
+  }
+
+  const targetLufs = Number(opt('lufs', -20));
+  if (flag('write')) {
+    const timeline = JSON.parse(fs.readFileSync(timelineFile, 'utf8'));
+    timeline.audio = { src: rel, targetLufs, fit };
+    if (grid) timeline.beats = grid;
+    fs.writeFileSync(timelineFile, `${JSON.stringify(timeline, null, 2)}\n`);
+    console.log(`timeline.json ← audio ${rel} (${fit})${grid ? ` · beats ${grid.bpm} BPM` : ''}`);
+  } else {
+    console.log('add to motion/timeline.json (or run again with --write):');
+    console.log(JSON.stringify({ audio: { src: rel, targetLufs, fit }, ...(grid ? { beats: grid } : {}) }, null, 2).slice(0, 400));
+  }
+  if (fs.existsSync(path.join(FILM, 'audio.json'))) {
+    console.log('note: motion/audio.json still exists — the synthesized route would replace this file');
+  }
+  process.exit(0);
+}
 
 const sheetFile = path.join(FILM, opt('sheet', 'audio.json'));
 if (!fs.existsSync(sheetFile)) {

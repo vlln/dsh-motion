@@ -6,7 +6,7 @@ import { FONT_KEYS } from './fonts.mjs';
 
 const HEX = /^#[0-9a-f]{6}$/i;
 const REQUIRED_TOKENS = ['bg', 'fg', 'accent', 'muted', 'grid', 'panel'];
-const FITS = ['trim', 'loop', 'pad'];
+const FITS = ['trim', 'loop'];
 
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
 

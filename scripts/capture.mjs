@@ -151,6 +151,7 @@ close();
 console.log(`\r${frames}/${frames} frames  ${((Date.now() - t0) / 1000).toFixed(0)}s`);
 
 if (useAudio) {
+  const fit = timeline.audio.fit ?? 'trim';
   await mux({
     silent,
     audio: path.resolve(PROJECT, timeline.audio.src),
@@ -158,8 +159,10 @@ if (useAudio) {
     start: timeline.audio.start ?? 0,
     targetLufs: timeline.audio.targetLufs ?? -14,
     fadeOut: to - 0.5,
+    duration: to - from,
+    fit,
   });
   fs.rmSync(silent, { force: true });
-  console.log(`audio → ${timeline.audio.src} (loudnorm ${timeline.audio.targetLufs ?? -14} LUFS)`);
+  console.log(`audio → ${timeline.audio.src} (${fit}, loudnorm ${timeline.audio.targetLufs ?? -14} LUFS)`);
 }
 console.log(`video → ${path.relative(PROJECT, out)}`);

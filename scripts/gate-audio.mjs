@@ -9,6 +9,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { createGate } from './lib/gate.mjs';
 import { renderSheet, toWav, KINDS, sheetFor } from '../src/audio.mjs';
+import { mux } from './mux.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const file = path.join(ROOT, 'out/demo.mp4');
@@ -100,6 +101,51 @@ try {
   }
   check('a sheet that disagrees with the cut is refused', Boolean(drift), drift.slice(0, 50));
   check('the kind list is the documented one', Object.keys(KINDS).length >= 8, Object.keys(KINDS).join(','));
+
+  // --- a track someone brought: the picture decides the length, not the track ---
+  // This is the bug the fit rules exist for: a 1s cue used to cut a 2s film to 1s.
+  const clip = path.join(tmp, 'clip');
+  fs.mkdirSync(clip, { recursive: true });
+  const silent = path.join(clip, 'silent.mp4');
+  execFileSync('ffmpeg', ['-v', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=black:s=160x90:d=2', '-pix_fmt', 'yuv420p', silent]);
+  const tone = path.join(clip, 'tone.wav');
+  execFileSync('ffmpeg', ['-v', 'error', '-y', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=1', '-ac', '2', '-ar', '48000', tone]);
+
+  const probeMux = (file) =>
+    JSON.parse(execFileSync('ffprobe', ['-v', 'error', '-print_format', 'json', '-show_entries', 'format=duration', '-show_entries', 'stream=codec_type,duration', file]).toString());
+  const levelAt = (file, at) => {
+    const log = spawnSync('ffmpeg', ['-hide_banner', '-ss', String(at), '-t', '0.5', '-i', file, '-af', 'volumedetect', '-f', 'null', '-'], { encoding: 'utf8' }).stderr;
+    const hit = /mean_volume:\s*(-?[0-9.]+) dB/.exec(log);
+    return hit ? Number(hit[1]) : -Infinity;
+  };
+
+  for (const [fit, repeats] of [['trim', false], ['loop', true]]) {
+    const out = path.join(clip, `${fit}.mp4`);
+    await mux({ silent, audio: tone, out, duration: 2, fit, targetLufs: -20, fadeOut: 1.5 });
+    const info = probeMux(out);
+    const audio = info.streams.find((x) => x.codec_type === 'audio');
+    check(`fit ${fit}: the film keeps its length`, Math.abs(Number(info.format.duration) - 2) < 0.06, info.format.duration);
+    check(`fit ${fit}: the audio stream is as long as the film`, Math.abs(Number(audio?.duration) - 2) < 0.08, audio?.duration);
+    const late = levelAt(out, 1.4);
+    check(`fit ${fit}: ${repeats ? 'the cue repeats' : 'the rest is silence'}`, repeats ? late > -45 : late < -60, `${late} dB at 1.4s`);
+  }
+
+  // --- --use: a file someone brought becomes the score, and is copied inside ---
+  const brought = path.join(tmp, 'brought.wav');
+  fs.copyFileSync(tone, brought);
+  const film2 = path.join(tmp, 'film2');
+  fs.mkdirSync(film2, { recursive: true });
+  fs.writeFileSync(path.join(film2, 'timeline.json'), JSON.stringify({ duration: 2, scenes: [] }));
+  const adopt = spawnSync(
+    process.execPath,
+    [path.join(ROOT, 'skills/dsh-motion/scripts/make-audio.mjs'), '--use', brought, '--loop', '--write'],
+    { cwd: tmp, env: { ...process.env, DSH_MOTION_PROJECT: film2 }, encoding: 'utf8' },
+  );
+  check('--use adopts a track', adopt.status === 0, (adopt.stderr || adopt.stdout || '').trim().split('\n')[0]);
+  const adopted = JSON.parse(fs.readFileSync(path.join(film2, 'timeline.json'), 'utf8'));
+  check('--use copies the file into the film', fs.existsSync(path.join(film2, 'assets/audio/brought.wav')), adopted.audio?.src);
+  check('--use records a path the film can serve', adopted.audio?.src === 'assets/audio/brought.wav', adopted.audio?.src);
+  check('--use records the fit', adopted.audio?.fit === 'loop', adopted.audio?.fit);
 } finally {
   fs.rmSync(tmp, { recursive: true, force: true });
 }

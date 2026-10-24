@@ -91,7 +91,7 @@ function showEmptyFilm() {
   const rest = SAMPLES.filter((s) => s !== featured);
   const tile = (sample, extra = '') => `
     <button class="tile${extra}" data-id="${sample.id}" data-tag="${sample.tag}"
-            aria-label="${sample.title}" style="--tile-bg:${sample.look.bg};--tile-ink:${sample.look.ink}">
+            aria-label="${sample.title}" style="--tile-bg:${sample.backdrop ?? sample.look.bg};--tile-ink:${sample.look.ink}">
       <span class="tile-shot" style="aspect-ratio:${sample.ratio.toFixed(4)}">
         <canvas aria-hidden="true"></canvas>
         <span class="tile-dur">0:0${LOOP_SECONDS}</span>
@@ -266,8 +266,92 @@ function fitCanvas(canvas) {
   return { g, w: rect.width, h: rect.height };
 }
 
+let threeModule;
+const loadThree = () => (threeModule ??= import('three'));
+
+/**
+ * The one WebGL study: eight posters on a ring, turning in front of a blue field.
+ * Same lazy three chunk the 3D film scenes load, so the gallery proves the path
+ * rather than describing it.
+ */
+async function makeCarousel(canvas, sample) {
+  const THREE = await loadThree();
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(40, 16 / 9, 0.1, 60);
+  camera.position.set(0, 0.05, 7.4);
+  camera.lookAt(0, 0, 0);
+  const group = new THREE.Group();
+  scene.add(group);
+
+  const count = 8;
+  const radius = 2.3;
+  const materials = [];
+  for (let i = 0; i < count; i++) {
+    const face = document.createElement('canvas');
+    face.width = 256;
+    face.height = 320;
+    sample.panel(face.getContext('2d'), 256, 320, i);
+    const texture = new THREE.CanvasTexture(face);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+    const plane = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.88), material);
+    const angle = (i / count) * Math.PI * 2;
+    plane.position.set(Math.sin(angle) * radius, 0, Math.cos(angle) * radius);
+    plane.rotation.y = angle;
+    group.add(plane);
+    materials.push(material);
+  }
+
+  let w = 0;
+  let h = 0;
+  const resize = () => {
+    const rect = canvas.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    if (Math.abs(rect.width - w) < 0.5 && Math.abs(rect.height - h) < 0.5) return;
+    w = rect.width;
+    h = rect.height;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  };
+  resize();
+
+  return {
+    render(t) {
+      resize();
+      const env = Math.min(1, t / 0.5) * Math.min(1, (LOOP_SECONDS - t) / 0.55);
+      for (const material of materials) material.opacity = env;
+      group.rotation.y = t * 0.42;
+      renderer.render(scene, camera);
+    },
+  };
+}
+
 /** One sample, one canvas, one clock — used by the detail sheet. */
 function playOne(canvas, sample) {
+  if (sample.engine === 'webgl') {
+    let raf = 0;
+    let start = performance.now();
+    let gl = null;
+    makeCarousel(canvas, sample).then((player) => {
+      gl = player;
+      const tick = (now) => {
+        gl.render(((now - start) / 1000) % LOOP_SECONDS);
+        raf = requestAnimationFrame(tick);
+      };
+      raf = requestAnimationFrame(tick);
+    });
+    return {
+      stop() {
+        cancelAnimationFrame(raf);
+      },
+      seek() {},
+      resize() {},
+    };
+  }
+
   let raf = 0;
   let start = performance.now();
   let paused = false;
@@ -322,13 +406,24 @@ function playTiles(root, tiles) {
     sample: SAMPLES.find((s) => s.id === tile.dataset.id),
     canvas: tile.querySelector('canvas'),
     g: null,
+    gl: null,
     w: 0,
     h: 0,
     on: true,
   }));
 
+  // The 3D study loads three (~1.6 MB) — only when its tile is actually seen.
+  const wake = (item) => {
+    if (item.sample.engine !== 'webgl' || item.gl || item.waking) return;
+    item.waking = true;
+    makeCarousel(item.canvas, item.sample).then((player) => {
+      item.gl = player;
+    });
+  };
+
   const measure = () => {
     for (const item of items) {
+      if (item.sample.engine === 'webgl') continue;
       const rect = item.canvas.getBoundingClientRect();
       if (!rect.width || !rect.height) continue;
       const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -343,13 +438,19 @@ function playTiles(root, tiles) {
 
   const frame = (t) => {
     for (const item of items) {
-      if (!item.on || item.tile.hidden || !item.w) continue;
+      if (!item.on || item.tile.hidden) continue;
+      if (item.gl) {
+        item.gl.render(t);
+        continue;
+      }
+      if (!item.w) continue;
       item.g.clearRect(0, 0, item.w, item.h);
       item.sample.draw(item.g, item.w, item.h, t);
     }
   };
 
   measure();
+  if (!('IntersectionObserver' in window)) for (const item of items) wake(item);
   const start = performance.now();
 
   if ('ResizeObserver' in window) {
@@ -370,7 +471,10 @@ function playTiles(root, tiles) {
       (entries) => {
         for (const entry of entries) {
           const item = items.find((c) => c.canvas === entry.target);
-          if (item) item.on = entry.isIntersecting;
+          if (item) {
+            item.on = entry.isIntersecting;
+            if (entry.isIntersecting) wake(item);
+          }
         }
       },
       { root: root, threshold: 0.05 },

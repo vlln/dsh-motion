@@ -19,7 +19,7 @@ const result = await build({
   splitting: true,           // the WebGL scene becomes a lazy chunk
   outdir: LIB,
   entryNames: 'app',
-  chunkNames: 'chunks/[name]',
+  chunkNames: 'chunks/[name]-[hash]',
   legalComments: 'none',
   logLevel: 'warning',
 });

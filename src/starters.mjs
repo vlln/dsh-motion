@@ -191,7 +191,7 @@ export const SAMPLES = [
       g.fill();
       g.restore();
 
-      const cam = 1 + Math.sin(t * 0.3) * 0.006;
+      const cam = 1 + t / LOOP_SECONDS * 0.06 + Math.sin(t * 0.3) * 0.004;
       g.save();
       g.translate(w / 2, h / 2);
       g.scale(cam, cam);
@@ -287,8 +287,16 @@ export const SAMPLES = [
       ];
       const cw = w * 0.23;
       const ch = h * 0.21;
+      const leave = span(t, 4.5, 5.4);
       cards.forEach((card, i) => {
-        glassCard(g, w * card.x, h * card.y, cw, ch, card, outCubic((t - 0.3 - i * 0.15) / 0.55));
+        const enter = outCubic((t - 0.3 - i * 0.15) / 0.55);
+        const out = 1 - leave;
+        const y = h * card.y + leave * h * 0.22;
+        if (out <= 0.01) return;
+        g.save();
+        g.globalAlpha = out;
+        glassCard(g, w * card.x, y, cw, ch, card, Math.min(enter, out));
+        g.restore();
       });
 
       // The pill: what this film is about.
@@ -478,7 +486,14 @@ export const SAMPLES = [
       g.globalAlpha = span(t, 1.5, 1.9);
       g.fillStyle = '#26221b';
       g.font = `400 ${Math.max(6, h * 0.036)}px ${SERIF}`;
-      g.fillText('Left side of neck', w * 0.56, h * 0.505);
+      // Typewriter: characters land one by one, never as a block.
+      const typed = 'Left side of neck';
+      const shown = typed.slice(0, Math.round(typed.length * clamp01((t - 1.4) / 1.1)));
+      g.fillText(shown, w * 0.56, h * 0.505);
+      if (shown.length < typed.length && t > 1.4) {
+        g.fillStyle = '#b4502f';
+        g.fillRect(w * 0.56 + g.measureText(shown).width + 1, h * 0.475, Math.max(1, w * 0.005), h * 0.034);
+      }
       g.restore();
 
       // The chip itself, drawn in the margin.
@@ -506,10 +521,10 @@ export const SAMPLES = [
       label(g, 'MICROCHIP', w * 0.72, h * 0.74, Math.max(4.5, h * 0.018), 'rgba(29,26,22,0.6)', span(t, 1.8, 2.2), '0.1em');
 
       // The scanner: a teal reader held over the animal's shoulder.
-      const sweep = span(t, 1.0, 1.9);
+      const sweep = outCubic((t - 0.9) / 0.8);
       g.save();
-      g.globalAlpha = span(t, 0.9, 1.4);
-      g.translate(catX + w * 0.05, h * 0.5 + (1 - sweep) * -h * 0.06);
+      g.globalAlpha = span(t, 0.85, 1.2);
+      g.translate(catX + w * 0.05 + (1 - sweep) * w * 0.4, h * 0.5 + (1 - sweep) * h * 0.04);
       g.rotate(-0.3);
       g.fillStyle = teal;
       g.beginPath();
@@ -553,8 +568,9 @@ export const SAMPLES = [
       g.fillRect(0, 0, w, h);
 
       const push = 0.94 + 0.06 * outCubic(t / 2.4);
+      const climb = 1 - outCubic(t / LOOP_SECONDS);
       g.save();
-      g.translate(w * 0.5, h * 0.5);
+      g.translate(w * 0.5, h * 0.5 + climb * h * 0.05);
       g.transform(1, 0, -0.17, 0.94, 0, 0);
       g.scale(push, push);
       g.translate(-w * 0.5, -h * 0.5);
@@ -589,9 +605,18 @@ export const SAMPLES = [
       const x = w * 0.13;
       const rw = w * 0.74;
       const rh = h * 0.108;
+      // Row 02 overtakes row 01: positions swap, and the lead highlight moves.
+      const swap = span(t, 2.1, 3.0);
       rows.forEach((row, i) => {
         const p = outCubic((t - 0.15 - i * 0.09) / 0.5);
-        boardRow(g, x, h * 0.22 + i * rh, rw, rh, row, p, i === 0);
+        const base = h * 0.22 + i * rh;
+        let y = base;
+        if (i === 0) y = base + swap * rh;
+        if (i === 1) y = base - swap * rh;
+        const lead = (i === 0 && swap < 0.5) || (i === 1 && swap >= 0.5);
+        // The rank label travels with the position, not with the name.
+        const rank = i === 0 ? (swap >= 0.5 ? '02' : '01') : i === 1 ? (swap >= 0.5 ? '01' : '02') : row.rank;
+        boardRow(g, x, y, rw, rh, { ...row, rank }, p, lead);
       });
 
       // A slow scan line: the screen is alive, not a screenshot.
@@ -609,6 +634,90 @@ export const SAMPLES = [
       g.fillStyle = vig;
       g.fillRect(0, 0, w, h);
       veil(g, w, h, t, look);
+    },
+  },
+
+  {
+    id: 'carousel',
+    title: '旋转海报',
+    tag: '场景叙事',
+    ratio: 16 / 9,
+    engine: 'webgl',
+    backdrop: 'radial-gradient(circle at 50% 42%, #2a63d8 0%, #123a94 55%, #07194a 100%)',
+    look: { bg: '#123a94', ink: '#ffffff', dim: 'rgba(255,255,255,0.6)' },
+    prompt: brief(
+      '复刻这个动效：蓝色渐变背景里，八张海报围成一个圈缓慢自转，像展示台；每张海报的正面朝向圆心外侧，转到正面时最清晰',
+      '要求：真 3D（WebGL 场景，kind: webgl），带透视和远近大小，海报纹理由 canvas 画出来；转速慢，不要抖动。',
+    ),
+    /** One poster face; drawn once per panel onto its texture. */
+    panel(g, w, h, i) {
+      const looks = [
+        { bg: '#2a1052', ink: '#f4ead8', accent: '#8d6bff' },
+        { bg: '#f6efe2', ink: '#241f1a', accent: '#d5532e' },
+        { bg: '#8f8a4f', ink: '#f7f2df', accent: '#d9d2a8' },
+        { bg: '#1d2f5c', ink: '#eef2ff', accent: '#7fb0ff' },
+      ];
+      const look = looks[i % looks.length];
+      g.fillStyle = look.bg;
+      g.fillRect(0, 0, w, h);
+      g.strokeStyle = 'rgba(255,255,255,0.14)';
+      g.lineWidth = 2;
+      g.strokeRect(0.6, 0.6, w - 1.2, h - 1.2);
+
+      if (i % 4 === 0) {
+        g.fillStyle = look.accent;
+        g.beginPath();
+        g.arc(w * 0.78, h * 0.18, w * 0.03, 0, TAU);
+        g.fill();
+        g.fillStyle = look.ink;
+        g.font = `500 ${h * 0.16}px ${SERIF}`;
+        g.textAlign = 'center';
+        g.fillText('BD', w / 2, h * 0.56);
+        g.font = `500 ${h * 0.03}px ${MONO}`;
+        g.fillText('ATELIER', w / 2, h * 0.62);
+      } else if (i % 4 === 1) {
+        g.strokeStyle = look.accent;
+        g.lineWidth = 4;
+        g.beginPath();
+        g.moveTo(w * 0.2, h * 0.3);
+        g.quadraticCurveTo(w * 0.34, h * 0.2, w * 0.42, h * 0.36);
+        g.quadraticCurveTo(w * 0.5, h * 0.52, w * 0.38, h * 0.6);
+        g.quadraticCurveTo(w * 0.28, h * 0.66, w * 0.24, h * 0.56);
+        g.stroke();
+        g.fillStyle = look.accent;
+        g.beginPath();
+        g.arc(w * 0.38, h * 0.44, w * 0.035, 0, TAU);
+        g.fill();
+      } else if (i % 4 === 2) {
+        g.fillStyle = look.ink;
+        g.font = `500 ${h * 0.035}px ${MONO}`;
+        g.letterSpacing = '0.14em';
+        g.fillText('CONSISTENCY', w * 0.1, h * 0.24);
+        g.letterSpacing = '0em';
+        g.fillStyle = look.accent;
+        const bars = [0.3, 0.45, 0.6, 0.78, 0.95];
+        bars.forEach((b, k) => {
+          const bw = w * 0.1;
+          const x = w * 0.1 + k * bw * 1.35;
+          g.fillRect(x, h * 0.72 - h * 0.4 * b, bw, h * 0.4 * b);
+        });
+        g.strokeStyle = 'rgba(255,255,255,0.5)';
+        g.lineWidth = 1;
+        g.beginPath();
+        g.moveTo(w * 0.1, h * 0.72);
+        g.lineTo(w * 0.86, h * 0.72);
+        g.stroke();
+      } else {
+        const grad = g.createLinearGradient(0, 0, w, h);
+        grad.addColorStop(0, look.accent);
+        grad.addColorStop(1, look.bg);
+        g.fillStyle = grad;
+        g.fillRect(w * 0.14, h * 0.14, w * 0.72, h * 0.72);
+        g.fillStyle = 'rgba(255,255,255,0.35)';
+        g.beginPath();
+        g.arc(w * 0.38, h * 0.4, w * 0.1, 0, TAU);
+        g.fill();
+      }
     },
   },
 

@@ -158,7 +158,7 @@ function showEmptyFilm() {
   }
 
   const sheet = empty.querySelector('.sheet');
-  const sheetCanvas = sheet.querySelector('canvas');
+  let sheetCanvas = sheet.querySelector('canvas');
   const sheetTitle = sheet.querySelector('#sheetTitle');
   const sheetTag = sheet.querySelector('#sheetTag');
   const sheetPrompt = sheet.querySelector('#sheetPrompt');
@@ -203,8 +203,14 @@ function showEmptyFilm() {
       sheetUse.textContent = '用这个样板开始';
       sheet.hidden = false;
       document.body.classList.add('sheet-open');
-      sizeStage(sample);
+      // A canvas keeps the first context type it was given: once the 3D sample
+      // has asked for webgl, getContext('2d') on the same element returns null
+      // and every later 2D sample draws nothing. Each open gets a clean canvas.
       player?.stop();
+      const fresh = document.createElement('canvas');
+      sheetCanvas.replaceWith(fresh);
+      sheetCanvas = fresh;
+      sizeStage(sample);
       player = playOne(sheetCanvas, sample);
       sheet.querySelector('.sheet-card').focus?.();
     });

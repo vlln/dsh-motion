@@ -80,6 +80,14 @@ async function init() {
   console.log('write PLAN.md first (seven sections), then replace the starter scene');
 }
 
+async function check() {
+  if (flag('perf')) {
+    await run('perf.mjs', ['--budget', String(opt('budget', 33))], FILM);
+    return;
+  }
+  return validate();
+}
+
 async function validate() {
   if (!fs.existsSync(path.join(FILM, 'timeline.json'))) fail('no film here — run: dsh-motion init');
   const timeline = JSON.parse(fs.readFileSync(path.join(FILM, 'timeline.json'), 'utf8'));
@@ -443,7 +451,7 @@ async function fonts() {
   }
 }
 
-const check = validate;
+// check --perf is the same verb, a different question.
 
 const commands = {
   init,       // start a film (blank or from a template)
@@ -458,7 +466,7 @@ if (!cmd || !commands[cmd]) {
   console.error('');
   console.error('  init      [--title "…"] [--length 6] | [--template <id>]  (--template list prints them)');
   console.error('  reference <video> [--template id] [--fps 2] [--cols 4]    frames, cuts, shot list into out/ref');
-  console.error('  check                                                the timeline and every scene it names');
+  console.error('  check [--perf] [--budget 33]                         the timeline, or the per-frame cost of each scene');
   console.error('  render    [--stills 0,3,6] | [--video] [--export] [--out path] [--cols 3]');
   console.error('  version   -m "what changed" | version list | version use v3');
   process.exit(cmd ? 1 : 0);

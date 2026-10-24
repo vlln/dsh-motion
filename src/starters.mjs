@@ -647,7 +647,7 @@ export const SAMPLES = [
     title: '立体卡片',
     tag: '界面演示',
     template: 'cards3d',
-    ratio: 4 / 5,
+    ratio: 16 / 9,
     engine: 'webgl',
     backdrop: 'radial-gradient(circle at 50% 40%, #1a1a1d 0%, #0a0a0b 70%)',
     look: { bg: '#0a0a0b', ink: '#f2f2f2', dim: 'rgba(242,242,242,0.5)' },
@@ -672,9 +672,77 @@ export const SAMPLES = [
       rim.position.set(-3, 1.5, -2);
       scene.add(rim);
 
+      // Colour in the environment, not only in the light rig: this is what
+      // puts a magenta-to-cyan edge on every glossy surface in the frame.
+      const room = new THREE.Scene();
+      room.background = new THREE.Color('#050506');
+      const strip = (x, y, z, sw, sh, rot, rgb, scale) => {
+        const m = new THREE.Mesh(
+          new THREE.PlaneGeometry(sw, sh),
+          new THREE.MeshBasicMaterial({
+            color: new THREE.Color(rgb[0], rgb[1], rgb[2]).multiplyScalar(scale),
+            side: THREE.DoubleSide,
+          }),
+        );
+        m.position.set(x, y, z);
+        m.rotation.set(rot[0], rot[1], rot[2]);
+        room.add(m);
+      };
+      strip(0, 4, -3, 9, 3, [0, 0, 0], [1, 1, 1], 1.0);
+      strip(-4, 0.5, 0, 6, 8, [0, Math.PI / 2, 0], [1, 0.24, 0.5], 2.6);
+      strip(4, -0.5, 1, 4, 6, [0, -Math.PI / 2, 0], [0.2, 0.62, 1], 2.0);
+      scene.environment = new THREE.PMREMGenerator(renderer).fromScene(room, 0.06).texture;
+
+      // A glowing ring and a soft wash give the dark stage a centre.
+      const wash = document.createElement('canvas');
+      wash.width = 256;
+      wash.height = 256;
+      const wg = wash.getContext('2d');
+      const wgrad = wg.createRadialGradient(128, 128, 0, 128, 128, 128);
+      wgrad.addColorStop(0, 'rgba(120, 170, 255, 0.55)');
+      wgrad.addColorStop(0.45, 'rgba(90, 120, 220, 0.16)');
+      wgrad.addColorStop(1, 'rgba(90, 120, 220, 0)');
+      wg.fillStyle = wgrad;
+      wg.fillRect(0, 0, 256, 256);
+      const washMesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(9, 9),
+        new THREE.MeshBasicMaterial({
+          map: new THREE.CanvasTexture(wash),
+          transparent: true,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          toneMapped: false,
+        }),
+      );
+      washMesh.position.set(0, 0.9, -2.6);
+      scene.add(washMesh);
+
+      const halo = new THREE.Mesh(
+        new THREE.TorusGeometry(2.05, 0.012, 12, 160),
+        new THREE.MeshBasicMaterial({
+          color: new THREE.Color(0.72, 0.85, 1).multiplyScalar(0.9),
+          toneMapped: false,
+        }),
+      );
+      halo.position.set(0, 0.55, -2.2);
+      scene.add(halo);
+      const haloWide = new THREE.Mesh(
+        new THREE.TorusGeometry(2.05, 0.055, 12, 160),
+        new THREE.MeshBasicMaterial({
+          color: new THREE.Color(0.55, 0.72, 1).multiplyScalar(0.5),
+          transparent: true,
+          opacity: 0.35,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          toneMapped: false,
+        }),
+      );
+      haloWide.position.copy(halo.position);
+      scene.add(haloWide);
+
       const floor = new THREE.Mesh(
         new THREE.PlaneGeometry(40, 40),
-        new THREE.MeshStandardMaterial({ color: 0x0b0b0c, roughness: 0.45, metalness: 0.3 }),
+        new THREE.MeshStandardMaterial({ color: 0x08080a, roughness: 0.22, metalness: 0.65, envMapIntensity: 1.4 }),
       );
       floor.rotation.x = -Math.PI / 2;
       floor.position.y = -1.5;
@@ -703,11 +771,13 @@ export const SAMPLES = [
         curveSegments: 24,
       });
       geom.center();
-      const material = new THREE.MeshStandardMaterial({
-        color: 0x1c1c20,
-        metalness: 0.75,
-        roughness: 0.3,
-        emissive: 0x0d0d10,
+      const material = new THREE.MeshPhysicalMaterial({
+        color: 0x17171b,
+        metalness: 0.42,
+        roughness: 0.15,
+        envMapIntensity: 2.4,
+        clearcoat: 1,
+        clearcoatRoughness: 0.06,
       });
 
       const faceTexture = (count) => {
@@ -897,98 +967,397 @@ export const SAMPLES = [
 
   {
     id: 'orbit',
-    title: '轨道',
+    title: '行星',
     tag: '场景叙事',
     ratio: 16 / 9,
     template: 'orbit',
     look: LOOKS.navy,
     prompt: brief(
-      '复刻这个动效：深蓝星场里一条很淡的椭圆轨道，一个金点沿轨道走，身后留一点余辉',
-      '要求：星点很细、轨道只有一条、整段只有这个点在动。',
+      '复刻这个动效：深色星场里一颗气态行星，环带从它身后穿过、被球体遮住一半，背光的一侧有细亮的边界光，四周有极淡的星云，镜头缓慢横移',
+      '要求：星球要真的被光照着（明暗交界、边缘光、大气辉光），环带要有厚度和前后遮挡；星点细、不要五角星。',
     ),
     draw(g, w, h, t) {
       const look = this.look;
       ground(g, w, h, look);
-      for (let i = 0; i < 80; i++) {
-        g.globalAlpha = 0.15 + noise(i + 31) * 0.5;
-        g.fillStyle = '#cdd7ea';
-        g.beginPath();
-        g.arc(noise(i) * w, noise(i + 90) * h, 0.4 + noise(i + 61) * 0.9, 0, TAU);
-        g.fill();
-      }
-      g.globalAlpha = 1;
 
-      const cx = w * 0.6;
-      const cy = h * 0.52;
-      const rx = w * 0.32;
-      const ry = h * 0.27;
+      const drift = Math.sin(t * 0.18) * w * 0.006;
+      const cx = w * 0.63 + drift;
+      const cy = h * 0.53;
+      const r = Math.min(h * 0.30, w * 0.19);
+
+      // --- nebula: two very wide, very faint washes
       g.save();
-      g.strokeStyle = 'rgba(255, 255, 255, 0.14)';
-      g.lineWidth = 1;
-      g.beginPath();
-      g.ellipse(cx, cy, rx, ry, -0.18, -Math.PI * 0.9, -Math.PI * 0.9 + TAU * 0.92 * span(t, 0.2, 1.6));
-      g.stroke();
+      g.globalCompositeOperation = 'lighter';
+      const neb = [
+        { x: cx - r * 1.6, y: cy - r * 0.9, rad: r * 3.4, c: '64, 82, 180', a: 0.30 },
+        { x: cx + r * 1.9, y: cy + r * 1.1, rad: r * 3.0, c: '44, 96, 140', a: 0.22 },
+        { x: cx + r * 0.2, y: cy - r * 2.0, rad: r * 2.4, c: '108, 70, 150', a: 0.18 },
+      ];
+      for (const n of neb) {
+        const grd = g.createRadialGradient(n.x, n.y, 0, n.x, n.y, n.rad);
+        grd.addColorStop(0, `rgba(${n.c}, ${n.a})`);
+        grd.addColorStop(0.55, `rgba(${n.c}, ${n.a * 0.28})`);
+        grd.addColorStop(1, `rgba(${n.c}, 0)`);
+        g.fillStyle = grd;
+        g.fillRect(0, 0, w, h);
+      }
       g.restore();
 
-      const turn = (t * 0.62) % TAU;
-      for (let i = 0; i < 12; i++) {
-        const a = turn - i * 0.035;
-        g.globalAlpha = (1 - i / 12) * 0.5;
-        g.fillStyle = look.accent;
+      // --- stars, three depths, drifting a little slower than the camera
+      for (let i = 0; i < 260; i++) {
+        const depth = 0.3 + noise(i + 5) * 0.7;
+        const sx = ((noise(i) * w + w - drift * depth * 2.2) % w + w) % w;
+        const sy = noise(i + 90) * h;
+        const tw = 0.55 + 0.45 * Math.sin(t * (0.8 + depth) + i);
+        g.globalAlpha = (0.12 + noise(i + 31) * 0.55) * tw * depth;
+        g.fillStyle = noise(i + 7) > 0.82 ? '#cfe0ff' : '#e8eefc';
         g.beginPath();
-        g.arc(cx + Math.cos(a) * rx, cy + Math.sin(a) * ry, Math.max(0.6, h * 0.006 * (1 - i / 14)), 0, TAU);
+        g.arc(sx, sy, 0.35 + depth * 0.85, 0, TAU);
         g.fill();
       }
       g.globalAlpha = 1;
-      g.fillStyle = look.accent;
+
+      // --- the ring plane, drawn in two halves so the planet occludes it
+      const ringRot = -0.20;
+      const rx = r * 1.92;
+      const ry = r * 0.43;
+      const drawRings = (front) => {
+        g.save();
+        g.translate(cx, cy);
+        g.rotate(ringRot);
+        // One disc made of overlapping bands: continuous, banded, and thinner
+        // towards both edges. Drawn at a lower weight in front of the planet,
+        // because the near side of a ring is seen at a grazing angle.
+        for (let i = 0; i < 46; i++) {
+          const k = i / 45;
+          const s = 0.58 + k * 0.56;
+          const grain = noise(i + 13);
+          if (Math.abs(k - 0.47) < 0.035 || Math.abs(k - 0.74) < 0.022) continue;
+          const edge = Math.pow(1 - Math.abs(k - 0.52) * 1.7, 0.9);
+          const a = (front ? 0.22 : 0.42) * (0.30 + grain * 0.70) * edge;
+          g.strokeStyle = `rgba(${214 + grain * 34}, ${218 + grain * 22}, 238, ${a.toFixed(3)})`;
+          g.lineWidth = ry * 0.085;
+          g.beginPath();
+          g.ellipse(0, 0, rx * s, ry * s, 0, 0, TAU);
+          g.stroke();
+        }
+        g.restore();
+      };
+
+      // The far and near halves are split along the ring plane itself, not a
+      // horizontal line — otherwise the two halves meet in a visible seam.
+      const clipHalf = (sign) => {
+        g.save();
+        g.beginPath();
+        g.translate(cx, cy);
+        g.rotate(ringRot);
+        g.rect(-w * 3, sign > 0 ? 0 : -h * 3, w * 6, h * 3);
+        g.restore();
+        g.clip();
+      };
+      g.save();
+      clipHalf(-1);
+      drawRings(false);
+      g.restore();
+
+      // --- the planet: lit from upper left, falling to black on the lower right
+      const lx = cx - r * 0.45;
+      const ly = cy - r * 0.52;
+      const sphere = g.createRadialGradient(lx, ly, r * 0.05, cx, cy, r * 1.06);
+      sphere.addColorStop(0, '#8a9dc4');
+      sphere.addColorStop(0.32, '#54648c');
+      sphere.addColorStop(0.62, '#26304d');
+      sphere.addColorStop(0.86, '#0d1224');
+      sphere.addColorStop(1, '#05080f');
+      g.save();
       g.beginPath();
-      g.arc(cx + Math.cos(turn) * rx, cy + Math.sin(turn) * ry, Math.max(1.6, h * 0.013), 0, TAU);
+      g.arc(cx, cy, r, 0, TAU);
+      g.clip();
+      g.fillStyle = sphere;
+      g.fillRect(cx - r, cy - r, r * 2, r * 2);
+      // cloud bands, only ever inside the sphere
+      for (let i = 0; i < 7; i++) {
+        const by = cy + (noise(i + 40) - 0.5) * r * 1.7;
+        const bh = r * (0.06 + noise(i + 60) * 0.12);
+        g.globalAlpha = 0.05 + noise(i + 70) * 0.07;
+        g.fillStyle = i % 2 ? '#cfd9f2' : '#0a1020';
+        g.beginPath();
+        g.ellipse(cx + Math.sin(i) * r * 0.1, by, r * 1.1, bh, Math.sin(i * 2.1) * 0.12, 0, TAU);
+        g.fill();
+      }
+      g.globalAlpha = 1;
+      // a shadow cast by the rings, a band across the ball
+      for (const [dy, a, ry2] of [
+        [-r * 0.02, 0.10, r * 0.22],
+        [r * 0.02, 0.08, r * 0.19],
+      ]) {
+        g.globalAlpha = a;
+        g.fillStyle = '#04060c';
+        g.beginPath();
+        g.ellipse(cx, cy + dy, r * 1.15, ry2, ringRot, 0, TAU);
+        g.fill();
+      }
+      g.globalAlpha = 1;
+      g.restore();
+
+      // --- rim light: the thin bright edge on the lit limb
+      g.save();
+      g.globalCompositeOperation = 'lighter';
+      const rim = g.createLinearGradient(cx - r, cy - r, cx + r, cy + r);
+      rim.addColorStop(0, 'rgba(196, 220, 255, 0.85)');
+      rim.addColorStop(0.45, 'rgba(150, 180, 240, 0.30)');
+      rim.addColorStop(0.72, 'rgba(90, 120, 200, 0.0)');
+      rim.addColorStop(1, 'rgba(60, 90, 170, 0.45)');
+      g.strokeStyle = rim;
+      g.lineWidth = Math.max(1, r * 0.022);
+      g.beginPath();
+      g.arc(cx, cy, r * 0.995, 0, TAU);
+      g.stroke();
+      // atmosphere
+      // Halos live outside the body: fill the annulus, never the disc, or the
+      // planet turns into a bubble.
+      const atmo = g.createRadialGradient(cx, cy, r * 0.99, cx, cy, r * 1.24);
+      atmo.addColorStop(0, 'rgba(126, 170, 255, 0.34)');
+      atmo.addColorStop(0.45, 'rgba(90, 130, 220, 0.12)');
+      atmo.addColorStop(1, 'rgba(90, 130, 220, 0)');
+      g.fillStyle = atmo;
+      g.beginPath();
+      g.arc(cx, cy, r * 1.24, 0, TAU);
+      g.arc(cx, cy, r * 0.99, 0, TAU, true);
+      g.fill('evenodd');
+      g.restore();
+
+      // --- the near half of the rings, over the planet
+      g.save();
+      clipHalf(1);
+      drawRings(true);
+      g.restore();
+
+      // --- a moon, small and cold, on the far side
+      const mx = cx + r * 1.95;
+      const my = cy - r * 1.02;
+      const mr = r * 0.11;
+      const moon = g.createRadialGradient(mx - mr * 0.4, my - mr * 0.4, 0, mx, my, mr);
+      moon.addColorStop(0, '#dbe4f6');
+      moon.addColorStop(0.7, '#5b6684');
+      moon.addColorStop(1, '#0a0f1c');
+      g.fillStyle = moon;
+      g.beginPath();
+      g.arc(mx, my, mr, 0, TAU);
       g.fill();
+      g.strokeStyle = 'rgba(200, 220, 255, 0.35)';
+      g.lineWidth = 1;
+      g.beginPath();
+      g.arc(mx, my, mr, 0, TAU);
+      g.stroke();
+
       veil(g, w, h, t, look);
     },
   },
 
   {
     id: 'prism',
-    title: '光晕',
+    title: '棱镜',
     tag: '背景特效',
     ratio: 3 / 4,
     template: 'prism',
     look: LOOKS.dusk,
     prompt: brief(
-      '复刻这个动效：深紫底上三团洋红、橙、青的光缓慢漂移、互相叠加，画面内侧一圈 1px 细框，底部一行等宽小字',
-      '要求：亮度低、边缘极柔、有细颗粒；不要文字标题，不要锐利形状。',
+      '复刻这个动效：暗紫场里一束白光从左侧射入一面竖直的玻璃三棱镜，出射面散成一条六色光谱扇面打到右侧，空气里有细尘和极淡的雾，镜头极缓推进',
+      '要求：光要真的发光（加法混合、边缘极柔、越远越淡）；棱镜是玻璃质感——高光边、内部折射、底面压暗；不要标题文字，底部一行等宽小字。',
     ),
     draw(g, w, h, t) {
       const look = this.look;
       ground(g, w, h, look);
-      const blobs = [
-        { x: 0.34, y: 0.4, r: 0.62, c: '255, 122, 184', speed: 0.11, phase: 0 },
-        { x: 0.66, y: 0.52, r: 0.56, c: '255, 154, 74', speed: 0.08, phase: 2 },
-        { x: 0.5, y: 0.7, r: 0.6, c: '96, 132, 255', speed: 0.06, phase: 4 },
-      ];
+
+      const cx = w * 0.57 + Math.sin(t * 0.22) * w * 0.006;
+      const cy = h * 0.42;
+      const R = Math.min(w * 0.185, h * 0.135);
+      const rot = 0.16 + Math.sin(t * 0.3) * 0.025;
+      const ca = Math.cos(rot);
+      const sa = Math.sin(rot);
+      const P = (x, y) => [cx + x * ca - y * sa, cy + x * sa + y * ca];
+      const apex = P(0, -R);
+      const left = P(-0.866 * R, 0.5 * R);
+      const right = P(0.866 * R, 0.5 * R);
+      const inFace = [(apex[0] + left[0]) / 2, (apex[1] + left[1]) / 2];
+      const outFace = [(apex[0] + right[0]) / 2, (apex[1] + right[1]) / 2];
+
+      // --- haze the beam travels through
       g.save();
       g.globalCompositeOperation = 'lighter';
-      for (const b of blobs) {
-        const dx = Math.sin(t * b.speed * 2 + b.phase) * w * 0.12;
-        const dy = Math.cos(t * b.speed * 1.5 + b.phase) * h * 0.07;
-        const r = b.r * Math.min(w, h) * 0.75;
-        const grad = g.createRadialGradient(w * b.x + dx, h * b.y + dy, 0, w * b.x + dx, h * b.y + dy, r);
-        grad.addColorStop(0, `rgba(${b.c}, 0.34)`);
-        grad.addColorStop(1, `rgba(${b.c}, 0)`);
-        g.fillStyle = grad;
-        g.fillRect(0, 0, w, h);
+      const haze = g.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h) * 0.6);
+      haze.addColorStop(0, 'rgba(116, 84, 210, 0.26)');
+      haze.addColorStop(0.5, 'rgba(88, 64, 180, 0.10)');
+      haze.addColorStop(1, 'rgba(88, 64, 180, 0)');
+      g.fillStyle = haze;
+      g.fillRect(0, 0, w, h);
+      g.restore();
+
+      // --- the white beam, from off-screen upper left into the entry face.
+      //     Drawn as stacked hair-lines so both edges fall off like light and
+      //     not like a filled rectangle.
+      const beamFrom = [-w * 0.06, cy - R * 1.5];
+      const softBand = (a, b, halfA, halfB, rgb, peak, steps = 22) => {
+        const dx = b[0] - a[0];
+        const dy = b[1] - a[1];
+        const len = Math.hypot(dx, dy) || 1;
+        const nx = -dy / len;
+        const ny = dx / len;
+        g.lineCap = 'butt';
+        for (let i = 0; i < steps; i++) {
+          const s = (i + 0.5) / steps;
+          const u = (s - 0.5) * 2;
+          const prof = Math.exp(-u * u * 1.7);
+          g.strokeStyle = `rgba(${rgb},${(peak * prof * 0.3).toFixed(3)})`;
+          g.lineWidth = ((halfA + halfB) / steps) * 2.2;
+          g.beginPath();
+          g.moveTo(a[0] + nx * u * halfA, a[1] + ny * u * halfA);
+          g.lineTo(b[0] + nx * u * halfB, b[1] + ny * u * halfB);
+          g.stroke();
+        }
+      };
+      g.save();
+      g.globalCompositeOperation = 'lighter';
+      softBand(beamFrom, inFace, R * 0.95, R * 0.30, '196, 180, 255', 0.16, 14);
+      softBand(beamFrom, inFace, R * 0.26, R * 0.075, '255, 252, 255', 0.62);
+      g.restore();
+
+      // --- light inside the glass: it bends, it does not snap
+      g.save();
+      g.globalCompositeOperation = 'lighter';
+      g.strokeStyle = 'rgba(255, 250, 255, 0.26)';
+      g.lineWidth = R * 0.10;
+      g.lineCap = 'round';
+      g.beginPath();
+      g.moveTo(inFace[0], inFace[1]);
+      g.lineTo(outFace[0], outFace[1]);
+      g.stroke();
+      g.strokeStyle = 'rgba(255, 252, 255, 0.55)';
+      g.lineWidth = R * 0.028;
+      g.stroke();
+      g.restore();
+
+      // --- the spectrum, six wedges from the exit face to the wall
+      const SPECTRUM = ['255, 86, 96', '255, 158, 64', '255, 226, 96', '110, 240, 150', '80, 170, 255', '160, 120, 255'];
+      g.save();
+      g.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < SPECTRUM.length; i++) {
+        const k = (i + 0.5) / SPECTRUM.length;
+        const wob = Math.sin(t * 0.6 + i * 1.7) * R * 0.02;
+        const ey = outFace[1] + R * (-0.35 + k * 3.3) + wob;
+        const ex = w * 1.06;
+        // Two passes per colour: a wide faint one for the falloff, a narrow
+        // bright one for the core. That is cheaper than blurring and reads
+        // the same at this size.
+        for (const [ws, as] of [
+          [2.4, 0.15],
+          [1, 0.4],
+        ]) {
+          const near = R * 0.026 * ws;
+          const far = R * (0.1 + k * 0.1) * ws;
+          const grad = g.createLinearGradient(outFace[0], outFace[1], ex, ey);
+          grad.addColorStop(0, `rgba(${SPECTRUM[i]}, ${(as * 1.15).toFixed(3)})`);
+          grad.addColorStop(0.35, `rgba(${SPECTRUM[i]}, ${(as * 0.55).toFixed(3)})`);
+          grad.addColorStop(1, `rgba(${SPECTRUM[i]}, 0)`);
+          g.fillStyle = grad;
+          g.beginPath();
+          g.moveTo(outFace[0], outFace[1] - near);
+          g.lineTo(ex, ey - far);
+          g.lineTo(ex, ey + far);
+          g.lineTo(outFace[0], outFace[1] + near);
+          g.closePath();
+          g.fill();
+        }
       }
       g.restore();
 
-      for (let i = 0; i < 200; i++) {
-        g.globalAlpha = 0.025 + noise(i) * 0.03;
-        g.fillStyle = noise(i + 9) > 0.5 ? '#ffffff' : '#000000';
-        g.fillRect(noise(i + 3) * w, noise(i + 17) * h, 1, 1);
-      }
-      g.globalAlpha = 1;
+      // --- the glass: a triangle that is brighter on the lit facets, with a
+      //     faint rainbow along the exit face
+      g.save();
+      g.beginPath();
+      g.moveTo(apex[0], apex[1]);
+      g.lineTo(left[0], left[1]);
+      g.lineTo(right[0], right[1]);
+      g.closePath();
+      // Glass on a dark stage: the body is a touch lighter than the void, and
+      // the facet nearest the light is the brightest part of it.
+      const glass = g.createLinearGradient(cx, apex[1], cx, right[1]);
+      glass.addColorStop(0, 'rgba(150, 138, 220, 0.20)');
+      glass.addColorStop(0.55, 'rgba(120, 108, 190, 0.14)');
+      glass.addColorStop(1, 'rgba(235, 226, 255, 0.26)');
+      g.fillStyle = glass;
+      g.fill();
+      g.save();
+      g.clip();
+      // thickness: the bottom of the solid goes dark
+      const under = g.createLinearGradient(0, cy + R * 0.1, 0, cy + R * 0.6);
+      under.addColorStop(0, 'rgba(0,0,0,0)');
+      under.addColorStop(1, 'rgba(0,0,0,0.22)');
+      g.fillStyle = under;
+      g.fillRect(left[0] - R, apex[1], R * 3, R * 2.4);
+      // a short highlight on the lit facet, not a line across the whole edge
+      const h0 = [apex[0] + (left[0] - apex[0]) * 0.06, apex[1] + (left[1] - apex[1]) * 0.06];
+      const h1 = [apex[0] + (left[0] - apex[0]) * 0.42, apex[1] + (left[1] - apex[1]) * 0.42];
+      const spec = g.createLinearGradient(h0[0], h0[1], h1[0], h1[1]);
+      spec.addColorStop(0, 'rgba(255,255,255,0.70)');
+      spec.addColorStop(0.6, 'rgba(255,255,255,0.14)');
+      spec.addColorStop(1, 'rgba(255,255,255,0)');
+      g.strokeStyle = spec;
+      g.lineWidth = Math.max(1.5, R * 0.038);
+      g.lineCap = 'round';
+      g.beginPath();
+      g.moveTo(h0[0], h0[1]);
+      g.lineTo(h1[0], h1[1]);
+      g.stroke();
+      g.restore();
+      // rim: a tight bright edge and a wider faint one, which is what makes it
+      // read as a lit solid rather than a tinted shape
+      g.strokeStyle = 'rgba(255, 252, 255, 0.72)';
+      g.lineWidth = Math.max(1, R * 0.012);
+      g.stroke();
+      g.strokeStyle = 'rgba(226, 214, 255, 0.10)';
+      g.lineWidth = Math.max(2, R * 0.05);
+      g.stroke();
+      g.restore();
 
-      g.strokeStyle = 'rgba(246,236,255,0.28)';
+      // --- apex glint: a tight highlight, plus the two-ray star a lens gives
+      g.save();
+      g.globalCompositeOperation = 'lighter';
+      const gx = apex[0];
+      const gy = apex[1] + R * 0.04;
+      const glint = g.createRadialGradient(gx, gy, 0, gx, gy, R * 0.24);
+      glint.addColorStop(0, 'rgba(255,255,255,0.50)');
+      glint.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = glint;
+      g.fillRect(gx - R * 0.24, gy - R * 0.24, R * 0.48, R * 0.48);
+      g.strokeStyle = 'rgba(255,255,255,0.22)';
+      g.lineWidth = 1;
+      g.beginPath();
+      g.moveTo(gx - R * 0.30, gy);
+      g.lineTo(gx + R * 0.30, gy);
+      g.moveTo(gx, gy - R * 0.26);
+      g.lineTo(gx, gy + R * 0.26);
+      g.stroke();
+      g.restore();
+
+      // --- dust, slower than the light, brighter where the beam passes
+      g.save();
+      g.globalCompositeOperation = 'lighter';
+      for (let i = 0; i < 54; i++) {
+        const speed = 0.4 + noise(i) * 0.9;
+        const x = (noise(i + 3) * w + Math.sin(t * 0.35 + i) * 5 + w) % w;
+        const y = (((noise(i + 7) * h - t * 9 * speed) % h) + h) % h;
+        const inFan = x > outFace[0] && y > outFace[1] && y < outFace[1] + R * 3;
+        g.fillStyle = inFan ? 'rgba(255,246,236,0.42)' : 'rgba(226,214,255,0.12)';
+        const r = inFan ? 0.9 + noise(i + 11) * 0.7 : 0.5 + noise(i + 11) * 0.5;
+        g.beginPath();
+        g.arc(x, y, r, 0, TAU);
+        g.fill();
+      }
+      g.restore();
+
+      g.strokeStyle = 'rgba(246,236,255,0.26)';
       g.lineWidth = 1;
       g.strokeRect(w * 0.06, h * 0.05, w * 0.88, h * 0.9);
       label(g, 'PRISM 03', w * 0.1, h * 0.93, h * 0.022, 'rgba(246,236,255,0.55)', span(t, 0.4, 1), '0.3em');

@@ -9,6 +9,7 @@
 // and a bloom pass — the same three the engine already ships for 3D scenes.
 import {
   ACESFilmicToneMapping,
+  AdditiveBlending,
   CanvasTexture,
   CircleGeometry,
   Color,
@@ -21,6 +22,7 @@ import {
   HemisphereLight,
   Mesh,
   MeshBasicMaterial,
+  MeshPhysicalMaterial,
   MeshStandardMaterial,
   PCFSoftShadowMap,
   PerspectiveCamera,
@@ -177,23 +179,46 @@ export function mount(context) {
   scene.background = bg;
   scene.fog = new Fog(bg, 9, 20);
 
+  // A backdrop with a gradient instead of a flat clear colour: the stage gets
+  // depth, and the cards stop floating in a void.
+  const backdrop = texture(16, 256, (g, w, h) => {
+    const grad = g.createLinearGradient(0, 0, 0, h);
+    grad.addColorStop(0, '#2b2b36');
+    grad.addColorStop(0.55, '#111119');
+    grad.addColorStop(1, '#06060a');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, w, h);
+  });
+  const backdropMesh = new Mesh(
+    new PlaneGeometry(46, 26),
+    new MeshBasicMaterial({ map: backdrop, toneMapped: false, fog: false }),
+  );
+  backdropMesh.position.set(0, 3, -9);
+  scene.add(backdropMesh);
+
   camera = new PerspectiveCamera(36, ctx.width / ctx.height, 0.1, 80);
 
   // Studio environment: three emissive strips, baked through PMREM.
   const room = new Scene();
   room.background = new Color('#050506');
-  const strip = (x, y, z, w, h, rot, intensity) => {
+  const strip = (x, y, z, w, h, rot, rgb, scale = 1) => {
     const m = new Mesh(
       new PlaneGeometry(w, h),
-      new MeshBasicMaterial({ color: new Color(intensity, intensity, intensity), side: DoubleSide }),
+      new MeshBasicMaterial({
+        color: new Color(rgb[0], rgb[1], rgb[2]).multiplyScalar(scale),
+        side: DoubleSide,
+      }),
     );
     m.position.set(x, y, z);
     m.rotation.set(rot[0], rot[1], rot[2]);
     room.add(m);
   };
-  strip(0, 4, -3, 9, 3, [0, 0, 0], 1.0);
-  strip(-4, 0, 0, 6, 8, [0, Math.PI / 2, 0], 0.5);
-  strip(4, -1, 1, 4, 6, [0, -Math.PI / 2, 0], 0.3);
+  strip(0, 4, -3, 9, 3, [0, 0, 0], [1, 1, 1], 1.0);
+  // Coloured sidelights in the environment, not just in the light rig: this is
+  // what puts a magenta-to-cyan edge on every glossy surface in the frame.
+  strip(-4, 0.5, 0, 6, 8, [0, Math.PI / 2, 0], [1, 0.24, 0.5], 2.6);
+  strip(4, -0.5, 1, 4, 6, [0, -Math.PI / 2, 0], [0.2, 0.62, 1], 2.0);
+  strip(0, -2.4, 2, 10, 4, [-Math.PI / 2, 0, 0], [0.30, 0.30, 0.42], 0.5);
   const pmrem = new PMREMGenerator(renderer);
   scene.environment = pmrem.fromScene(room, 0.06).texture;
 
@@ -210,18 +235,45 @@ export function mount(context) {
   key.shadow.camera.bottom = -7;
   key.shadow.bias = -0.0007;
   scene.add(key);
-  const rim = new PointLight(0xffffff, 30, 20);
+  const rim = new PointLight(0xff4f9a, 42, 20);
   rim.position.set(-3.5, 1.8, -2.6);
   scene.add(rim);
+  const rim2 = new PointLight(0x4fc3ff, 26, 18);
+  rim2.position.set(3.4, 0.6, -2.2);
+  scene.add(rim2);
 
   const floor = new Mesh(
     new PlaneGeometry(50, 50),
-    new MeshStandardMaterial({ color: 0x0a0a0b, roughness: 0.4, metalness: 0.3 }),
+    new MeshStandardMaterial({ color: 0x08080a, roughness: 0.22, metalness: 0.65, envMapIntensity: 1.4 }),
   );
   floor.rotation.x = -Math.PI / 2;
   floor.position.y = -1.55;
   floor.receiveShadow = true;
   scene.add(floor);
+
+  // --- the halo behind the cards: a glowing ring plus a soft wash, which is
+  //     what gives the dark stage a centre and a colour.
+  const wash = texture(256, 256, (g, w, h) => {
+    const grad = g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
+    grad.addColorStop(0, 'rgba(120, 170, 255, 0.55)');
+    grad.addColorStop(0.45, 'rgba(90, 120, 220, 0.16)');
+    grad.addColorStop(1, 'rgba(90, 120, 220, 0)');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, w, h);
+  });
+  const washMesh = new Mesh(
+    new PlaneGeometry(9, 9),
+    new MeshBasicMaterial({ map: wash, transparent: true, blending: AdditiveBlending, depthWrite: false, toneMapped: false, fog: false }),
+  );
+  washMesh.position.set(0, 0.9, -2.6);
+  scene.add(washMesh);
+
+  const halo = new Mesh(
+    new TorusGeometry(2.05, 0.012, 12, 160),
+    new MeshBasicMaterial({ color: new Color(0.72, 0.85, 1).multiplyScalar(2.2), toneMapped: false, fog: false }),
+  );
+  halo.position.set(0, 0.55, -2.2);
+  scene.add(halo);
 
   // --- cards
   cardGroup = new Group();
@@ -234,7 +286,14 @@ export function mount(context) {
     curveSegments: 24,
   });
   cardGeom.center();
-  const cardMat = new MeshStandardMaterial({ color: 0x141416, metalness: 0.9, roughness: 0.24, envMapIntensity: 1.5 });
+  const cardMat = new MeshPhysicalMaterial({
+    color: 0x17171b,
+    metalness: 0.42,
+    roughness: 0.15,
+    envMapIntensity: 2.4,
+    clearcoat: 1,
+    clearcoatRoughness: 0.06,
+  });
   [
     [15038, -1.55, 0.18],
     [518797, -0.5, -0.18],
@@ -243,7 +302,7 @@ export function mount(context) {
   ].forEach(([count, x, y], i) => {
     const holder = new Group();
     holder.position.set(x, y, i % 2 ? 0.15 : -0.1);
-    holder.rotation.y = -x * 0.14;
+    holder.rotation.y = -x * 0.2 + 0.1;
     const body = new Mesh(cardGeom, cardMat);
     body.castShadow = true;
     body.receiveShadow = true;
@@ -313,12 +372,12 @@ export function mount(context) {
   composer = new EffectComposer(renderer);
   composer.setSize(ctx.width, ctx.height);
   composer.addPass(new RenderPass(scene, camera));
-  const bloom = new UnrealBloomPass(new Vector3(ctx.width, ctx.height), 0.38, 0.5, 0.85);
+  const bloom = new UnrealBloomPass(new Vector3(ctx.width, ctx.height), 0.5, 0.55, 0.8);
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
 }
 
-const CARD_POS = new Vector3(0, 0.45, 7.2);
+const CARD_POS = new Vector3(0, 0.45, 6.5);
 const COIN_POS = new Vector3(0, 1.0, 7.0);
 const WHEEL_POS = new Vector3(0, 0.2, 6.2);
 const TYPE_POS = new Vector3(0, 0.15, 7.0);

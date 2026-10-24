@@ -4,6 +4,7 @@
 import { mountMotion } from './mount.mjs';
 import { createComments } from './ui/comments.mjs';
 import { SAMPLES, CATEGORIES, LOOP_SECONDS } from './starters.mjs';
+import { finish } from './look.mjs';
 
 const $ = (id) => document.getElementById(id);
 const canvas = $('stage');
@@ -307,23 +308,22 @@ async function makeGL(canvas, sample) {
   const THREE = await loadThree();
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
   renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-  const rect = canvas.getBoundingClientRect();
-  const player = sample.build({
-    THREE,
-    renderer,
-    width: Math.max(1, rect.width),
-    height: Math.max(1, rect.height),
-  });
-  let w = rect.width;
-  let h = rect.height;
-  player.resize(Math.max(1, w), Math.max(1, h));
+  // Tiles size the canvas with CSS; the sheet has no frame height of its own,
+  // so there the drawing buffer defines the box. Either way: measure first.
+  const measure = () => {
+    const r = canvas.getBoundingClientRect();
+    return { w: Math.max(1, r.width), h: Math.max(1, r.height) };
+  };
+  let { w, h } = measure();
+  const player = sample.build({ THREE, renderer, width: w, height: h });
+  player.resize(w, h);
   return {
     render(t) {
-      const now = canvas.getBoundingClientRect();
-      if (Math.abs(now.width - w) > 0.5 || Math.abs(now.height - h) > 0.5) {
-        w = now.width;
-        h = now.height;
-        player.resize(Math.max(1, w), Math.max(1, h));
+      const now = measure();
+      if (now.w > 1 && now.h > 1 && (Math.abs(now.w - w) > 0.5 || Math.abs(now.h - h) > 0.5)) {
+        w = now.w;
+        h = now.h;
+        player.resize(w, h);
       }
       player.render(t);
     },
@@ -364,6 +364,7 @@ function playOne(canvas, sample) {
     if (!size) return;
     size.g.clearRect(0, 0, size.w, size.h);
     sample.draw(size.g, size.w, size.h, t);
+    finish(size.g, size.w, size.h, t, sample.look);
   };
 
   const tick = (now) => {
@@ -447,6 +448,7 @@ function playTiles(root, tiles) {
       if (!item.w) continue;
       item.g.clearRect(0, 0, item.w, item.h);
       item.sample.draw(item.g, item.w, item.h, t);
+      finish(item.g, item.w, item.h, t, item.sample.look);
     }
   };
 

@@ -1976,6 +1976,13 @@ summary:focus-visible {
   user-select: none;
 }
 
+.version-menu.is-empty > summary {
+  cursor: default;
+  pointer-events: none;
+  color: var(--dim, var(--muted));
+  opacity: 0.65;
+}
+
 .version-menu > summary::-webkit-details-marker {
   display: none;
 }

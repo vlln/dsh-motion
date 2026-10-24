@@ -1188,6 +1188,12 @@ function renderVersions(data) {
   versionLabel.textContent = current ? `${current.id} · ${current.title}` : '还没有版本';
   versionDot.hidden = !data.dirty;
   versionDot.title = data.dirty ? '有未保存为版本的修改' : '';
+  // With nothing to choose, the control is a label, not a menu: a summary that
+  // opens onto an empty box promises something that is not there.
+  const empty = rows.length === 0;
+  versionMenu.classList.toggle('is-empty', empty);
+  versionMenu.open = empty ? false : versionMenu.open;
+  versionMenu.querySelector('summary').setAttribute('aria-disabled', String(empty));
   versionList.innerHTML = rows.length
     ? rows
         .map(
@@ -1198,7 +1204,7 @@ function renderVersions(data) {
         </button>`,
         )
         .join('')
-    : '<p class="hint">agent 改完一段并收尾后，这里会出现可切换的版本。</p>';
+    : '';
   for (const button of versionList.querySelectorAll('.version-row')) {
     button.addEventListener('click', async () => {
       const id = button.dataset.id;

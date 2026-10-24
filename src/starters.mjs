@@ -6,6 +6,8 @@
 // spread on paper, a leaderboard tilted away in the dark. Every one is a genuine
 // animation — a pure function of time on canvas 2D.
 
+import { paper, inkStroke, halftone, bleed } from './medium.mjs';
+
 export const LOOP_SECONDS = 6;
 
 export const CATEGORIES = ['全部', '文字排版', '信息图解', '界面演示', '场景叙事', '背景特效'];
@@ -35,6 +37,7 @@ const LOOKS = {
   lime: { bg: '#d9ff3d', ink: '#101010', dim: 'rgba(16,16,16,0.5)' },
   navy: { bg: '#0b1322', ink: '#efece2', dim: 'rgba(239,236,226,0.5)', accent: '#d8a94a' },
   dusk: { bg: '#140c26', ink: '#f6ecff', dim: 'rgba(246,236,255,0.5)', accent: '#ff86c2' },
+  plate: { bg: '#eee3cb', ink: '#2a2118', dim: 'rgba(42,33,24,0.55)', accent: '#b04a2e', finish: false },
 };
 
 function ground(g, w, h, look) {
@@ -1218,19 +1221,20 @@ export const SAMPLES = [
     tag: '背景特效',
     ratio: 1,
     template: 'prism',
-    look: LOOKS.dusk,
+    look: LOOKS.plate,
     prompt: brief(
-      '复刻这个动效：暗紫场里一束白光从左侧射入一面竖直的玻璃三棱镜，出射面散成一条六色光谱扇面打到右侧，空气里有细尘和极淡的雾，镜头极缓推进',
-      '要求：光要真的发光（加法混合、边缘极柔、越远越淡）；棱镜是玻璃质感——高光边、内部折射、底面压暗；不要标题文字，底部一行等宽小字。',
+      '复刻这个动效：米色纸上的一幅印刷图解，一束光从左上射入玻璃三棱镜，出射面散成六条印刷色带，纸面有纤维和网点，四周是一圈墨线框',
+      '要求：整张图是「印在纸上」的（纸纤维、网点、轻微套印不准），光的部分比纸更亮；不要发光渐变、不要紫底、不要矢量描边感。',
     ),
     draw(g, w, h, t) {
       const look = this.look;
-      ground(g, w, h, look);
+      const ink = [42, 33, 24];
+      paper(g, w, h, { base: [238, 227, 203], seed: 11, mottle: 18, grain: 10 });
 
-      const cx = w * 0.57 + Math.sin(t * 0.22) * w * 0.006;
-      const cy = h * 0.42;
-      const R = Math.min(w * 0.185, h * 0.135);
-      const rot = 0.16 + Math.sin(t * 0.3) * 0.025;
+      const cx = w * 0.6 + Math.sin(t * 0.22) * w * 0.005;
+      const cy = h * 0.44;
+      const R = Math.min(w * 0.19, h * 0.19);
+      const rot = 0.15 + Math.sin(t * 0.3) * 0.02;
       const ca = Math.cos(rot);
       const sa = Math.sin(rot);
       const P = (x, y) => [cx + x * ca - y * sa, cy + x * sa + y * ca];
@@ -1240,22 +1244,9 @@ export const SAMPLES = [
       const inFace = [(apex[0] + left[0]) / 2, (apex[1] + left[1]) / 2];
       const outFace = [(apex[0] + right[0]) / 2, (apex[1] + right[1]) / 2];
 
-      // --- haze the beam travels through
-      g.save();
-      g.globalCompositeOperation = 'lighter';
-      const haze = g.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h) * 0.6);
-      haze.addColorStop(0, 'rgba(116, 84, 210, 0.26)');
-      haze.addColorStop(0.5, 'rgba(88, 64, 180, 0.10)');
-      haze.addColorStop(1, 'rgba(88, 64, 180, 0)');
-      g.fillStyle = haze;
-      g.fillRect(0, 0, w, h);
-      g.restore();
-
-      // --- the white beam, from off-screen upper left into the entry face.
-      //     Drawn as stacked hair-lines so both edges fall off like light and
-      //     not like a filled rectangle.
-      const beamFrom = [-w * 0.06, cy - R * 1.5];
-      const softBand = (a, b, halfA, halfB, rgb, peak, steps = 22) => {
+      // --- the light itself: warmer than the paper, never a gradient background
+      const beamFrom = [-w * 0.08, cy - R * 1.55];
+      const softBand = (a, b, halfA, halfB, color, peak, steps = 20) => {
         const dx = b[0] - a[0];
         const dy = b[1] - a[1];
         const len = Math.hypot(dx, dy) || 1;
@@ -1266,7 +1257,7 @@ export const SAMPLES = [
           const s = (i + 0.5) / steps;
           const u = (s - 0.5) * 2;
           const prof = Math.exp(-u * u * 1.7);
-          g.strokeStyle = `rgba(${rgb},${(peak * prof * 0.3).toFixed(3)})`;
+          g.strokeStyle = `rgba(${color}, ${(peak * prof).toFixed(3)})`;
           g.lineWidth = ((halfA + halfB) / steps) * 2.2;
           g.beginPath();
           g.moveTo(a[0] + nx * u * halfA, a[1] + ny * u * halfA);
@@ -1276,148 +1267,99 @@ export const SAMPLES = [
       };
       g.save();
       g.globalCompositeOperation = 'lighter';
-      softBand(beamFrom, inFace, R * 0.95, R * 0.30, '196, 180, 255', 0.16, 14);
-      softBand(beamFrom, inFace, R * 0.26, R * 0.075, '255, 252, 255', 0.62);
+      softBand(beamFrom, inFace, R * 0.62, R * 0.2, '255, 246, 214', 0.10, 12);
+      softBand(beamFrom, inFace, R * 0.22, R * 0.06, '255, 250, 232', 0.26);
       g.restore();
 
-      // --- light inside the glass: it bends, it does not snap
+      // --- the printed spectrum: flat inks that fade back to paper, not to black
+      const SPECTRUM = ['228, 74, 74', '236, 138, 54', '240, 200, 66', '104, 176, 112', '74, 140, 208', '146, 106, 194'];
       g.save();
-      g.globalCompositeOperation = 'lighter';
-      g.strokeStyle = 'rgba(255, 250, 255, 0.26)';
-      g.lineWidth = R * 0.10;
-      g.lineCap = 'round';
-      g.beginPath();
-      g.moveTo(inFace[0], inFace[1]);
-      g.lineTo(outFace[0], outFace[1]);
-      g.stroke();
-      g.strokeStyle = 'rgba(255, 252, 255, 0.55)';
-      g.lineWidth = R * 0.028;
-      g.stroke();
-      g.restore();
-
-      // --- the spectrum, six wedges from the exit face to the wall
-      const SPECTRUM = ['255, 86, 96', '255, 158, 64', '255, 226, 96', '110, 240, 150', '80, 170, 255', '160, 120, 255'];
-      g.save();
-      g.globalCompositeOperation = 'lighter';
       for (let i = 0; i < SPECTRUM.length; i++) {
         const k = (i + 0.5) / SPECTRUM.length;
-        const wob = Math.sin(t * 0.6 + i * 1.7) * R * 0.02;
-        const ey = outFace[1] + R * (-0.35 + k * 3.3) + wob;
-        const ex = w * 1.06;
-        // Two passes per colour: a wide faint one for the falloff, a narrow
-        // bright one for the core. That is cheaper than blurring and reads
-        // the same at this size.
-        for (const [ws, as] of [
-          [2.4, 0.15],
-          [1, 0.4],
-        ]) {
-          const near = R * 0.026 * ws;
-          const far = R * (0.1 + k * 0.1) * ws;
-          const grad = g.createLinearGradient(outFace[0], outFace[1], ex, ey);
-          grad.addColorStop(0, `rgba(${SPECTRUM[i]}, ${(as * 1.15).toFixed(3)})`);
-          grad.addColorStop(0.35, `rgba(${SPECTRUM[i]}, ${(as * 0.55).toFixed(3)})`);
-          grad.addColorStop(1, `rgba(${SPECTRUM[i]}, 0)`);
-          g.fillStyle = grad;
-          g.beginPath();
-          g.moveTo(outFace[0], outFace[1] - near);
-          g.lineTo(ex, ey - far);
-          g.lineTo(ex, ey + far);
-          g.lineTo(outFace[0], outFace[1] + near);
-          g.closePath();
-          g.fill();
-        }
+        const wob = Math.sin(t * 0.5 + i * 1.3) * R * 0.012;
+        const ey = outFace[1] + R * (0.05 + k * 2.15) + wob;
+        const ex = w * 0.9;
+        const near = R * 0.03;
+        const far = R * (0.1 + k * 0.11);
+        const grad = g.createLinearGradient(outFace[0], outFace[1], ex, ey);
+        grad.addColorStop(0, `rgba(${SPECTRUM[i]}, 0.9)`);
+        grad.addColorStop(0.5, `rgba(${SPECTRUM[i]}, 0.6)`);
+        grad.addColorStop(1, `rgba(${SPECTRUM[i]}, 0)`);
+        g.fillStyle = grad;
+        g.beginPath();
+        g.moveTo(outFace[0], outFace[1] - near);
+        g.lineTo(ex, ey - far);
+        g.lineTo(ex, ey + far);
+        g.lineTo(outFace[0], outFace[1] + near);
+        g.closePath();
+        g.fill();
+      }
+      g.restore();
+      // print misregistration: the colour plate sits a hair off the key plate
+      g.save();
+      g.globalAlpha = 0.22;
+      g.translate(w * 0.0025, h * 0.002);
+      for (let i = 0; i < 3; i++) {
+        const k = (i + 0.5) / 3;
+        const ey = outFace[1] + R * (0.05 + k * 2.15);
+        g.fillStyle = `rgba(${SPECTRUM[i * 2]}, 0.7)`;
+        g.beginPath();
+        g.moveTo(outFace[0], outFace[1] - R * 0.03);
+        g.lineTo(w * 0.9, ey - R * 0.14);
+        g.lineTo(w * 0.9, ey + R * 0.14);
+        g.lineTo(outFace[0], outFace[1] + R * 0.03);
+        g.closePath();
+        g.fill();
       }
       g.restore();
 
-      // --- the glass: a triangle that is brighter on the lit facets, with a
-      //     faint rainbow along the exit face
+      // --- the glass: an ink outline with a paper-tinted body
       g.save();
       g.beginPath();
       g.moveTo(apex[0], apex[1]);
       g.lineTo(left[0], left[1]);
       g.lineTo(right[0], right[1]);
       g.closePath();
-      // Glass on a dark stage: the body is a touch lighter than the void, and
-      // the facet nearest the light is the brightest part of it.
-      const glass = g.createLinearGradient(cx, apex[1], cx, right[1]);
-      glass.addColorStop(0, 'rgba(150, 138, 220, 0.20)');
-      glass.addColorStop(0.55, 'rgba(120, 108, 190, 0.14)');
-      glass.addColorStop(1, 'rgba(235, 226, 255, 0.26)');
-      g.fillStyle = glass;
+      g.fillStyle = 'rgba(252, 248, 236, 0.55)';
       g.fill();
       g.save();
       g.clip();
-      // thickness: the bottom of the solid goes dark
-      const under = g.createLinearGradient(0, cy + R * 0.1, 0, cy + R * 0.6);
-      under.addColorStop(0, 'rgba(0,0,0,0)');
-      under.addColorStop(1, 'rgba(0,0,0,0.22)');
-      g.fillStyle = under;
+      const shade = g.createLinearGradient(cx, apex[1], cx, right[1]);
+      shade.addColorStop(0, 'rgba(255,255,255,0.5)');
+      shade.addColorStop(1, 'rgba(150, 132, 104, 0.18)');
+      g.fillStyle = shade;
       g.fillRect(left[0] - R, apex[1], R * 3, R * 2.4);
-      // a short highlight on the lit facet, not a line across the whole edge
-      const h0 = [apex[0] + (left[0] - apex[0]) * 0.06, apex[1] + (left[1] - apex[1]) * 0.06];
-      const h1 = [apex[0] + (left[0] - apex[0]) * 0.42, apex[1] + (left[1] - apex[1]) * 0.42];
-      const spec = g.createLinearGradient(h0[0], h0[1], h1[0], h1[1]);
-      spec.addColorStop(0, 'rgba(255,255,255,0.70)');
-      spec.addColorStop(0.6, 'rgba(255,255,255,0.14)');
-      spec.addColorStop(1, 'rgba(255,255,255,0)');
-      g.strokeStyle = spec;
-      g.lineWidth = Math.max(1.5, R * 0.038);
+      // light bends inside the glass: a faint warm line, drawn, not radiating
+      g.strokeStyle = 'rgba(255, 246, 214, 0.85)';
+      g.lineWidth = R * 0.05;
       g.lineCap = 'round';
       g.beginPath();
-      g.moveTo(h0[0], h0[1]);
-      g.lineTo(h1[0], h1[1]);
+      g.moveTo(inFace[0], inFace[1]);
+      g.lineTo(outFace[0], outFace[1]);
       g.stroke();
       g.restore();
-      // rim: a tight bright edge and a wider faint one, which is what makes it
-      // read as a lit solid rather than a tinted shape
-      g.strokeStyle = 'rgba(255, 252, 255, 0.72)';
-      g.lineWidth = Math.max(1, R * 0.012);
-      g.stroke();
-      g.strokeStyle = 'rgba(226, 214, 255, 0.10)';
-      g.lineWidth = Math.max(2, R * 0.05);
-      g.stroke();
       g.restore();
+      inkStroke(g, [apex, left, right, apex], { width: Math.max(1.6, R * 0.045), color: ink, dry: 0.5, seed: 4 });
 
-      // --- apex glint: a tight highlight, plus the two-ray star a lens gives
-      g.save();
-      g.globalCompositeOperation = 'lighter';
-      const gx = apex[0];
-      const gy = apex[1] + R * 0.04;
-      const glint = g.createRadialGradient(gx, gy, 0, gx, gy, R * 0.24);
-      glint.addColorStop(0, 'rgba(255,255,255,0.50)');
-      glint.addColorStop(1, 'rgba(255,255,255,0)');
-      g.fillStyle = glint;
-      g.fillRect(gx - R * 0.24, gy - R * 0.24, R * 0.48, R * 0.48);
-      g.strokeStyle = 'rgba(255,255,255,0.22)';
-      g.lineWidth = 1;
-      g.beginPath();
-      g.moveTo(gx - R * 0.30, gy);
-      g.lineTo(gx + R * 0.30, gy);
-      g.moveTo(gx, gy - R * 0.26);
-      g.lineTo(gx, gy + R * 0.26);
-      g.stroke();
-      g.restore();
-
-      // --- dust, slower than the light, brighter where the beam passes
-      g.save();
-      g.globalCompositeOperation = 'lighter';
-      for (let i = 0; i < 54; i++) {
-        const speed = 0.4 + noise(i) * 0.9;
-        const x = (noise(i + 3) * w + Math.sin(t * 0.35 + i) * 5 + w) % w;
-        const y = (((noise(i + 7) * h - t * 9 * speed) % h) + h) % h;
-        const inFan = x > outFace[0] && y > outFace[1] && y < outFace[1] + R * 3;
-        g.fillStyle = inFan ? 'rgba(255,246,236,0.42)' : 'rgba(226,214,255,0.12)';
-        const r = inFan ? 0.9 + noise(i + 11) * 0.7 : 0.5 + noise(i + 11) * 0.5;
+      // --- ink dust: specks on the paper, not glowing bokeh
+      for (let i = 0; i < 40; i++) {
+        const x = noise(i + 3) * w;
+        const y = noise(i + 7) * h;
+        g.globalAlpha = 0.1 + noise(i + 11) * 0.16;
+        g.fillStyle = `rgba(${ink.join(',')}, 0.6)`;
         g.beginPath();
-        g.arc(x, y, r, 0, TAU);
+        g.arc(x, y, 0.6 + noise(i + 13) * 0.8, 0, TAU);
         g.fill();
       }
-      g.restore();
+      g.globalAlpha = 1;
 
-      g.strokeStyle = 'rgba(246,236,255,0.26)';
+      // --- plate furniture
+      halftone(g, w, h, { cell: Math.max(3, w * 0.005), alpha: 0.05 });
+      g.strokeStyle = 'rgba(42, 33, 24, 0.55)';
       g.lineWidth = 1;
-      g.strokeRect(w * 0.06, h * 0.05, w * 0.88, h * 0.9);
-      label(g, 'PRISM 03', w * 0.1, h * 0.93, h * 0.022, 'rgba(246,236,255,0.55)', span(t, 0.4, 1), '0.3em');
+      g.strokeRect(w * 0.055, h * 0.05, w * 0.89, h * 0.9);
+      label(g, 'PLATE III — DISPERSION', w * 0.085, h * 0.935, h * 0.022, 'rgba(42,33,24,0.62)', span(t, 0.3, 1), '0.22em');
+      bleed(g, w, h, { color: ink, amount: 0.1 });
       veil(g, w, h, t, look);
     },
   },

@@ -4,6 +4,7 @@
 // checks that, plus the two artefacts the surface is made of.
 
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -55,6 +56,22 @@ check('the cli is executable', (mode & 0o111) !== 0, mode.toString(8));
 const run = spawnSync(process.execPath, [bin], { encoding: 'utf8' });
 const usage = `${run.stdout ?? ''}${run.stderr ?? ''}`;
 check('the cli prints usage without a film', ['init', 'reference', 'check', 'render', 'version'].every((c) => usage.includes(c)), usage.split('\n')[0] ?? '');
+
+// --- the manual must not name a command that no longer exists ---
+// The CLI was cut to five verbs once; the skill kept teaching `template` and
+// `fonts` for weeks. A retired verb is worse than no manual: it fails at the
+// moment the agent is least able to tell why.
+const named = [...new Set([...skill.matchAll(/dsh-motion ([a-z][a-z-]*)/g)].map((m) => m[1]))];
+const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-motion-surface-'));
+try {
+  for (const verb of named) {
+    const probe = spawnSync(process.execPath, [bin, verb], { cwd: scratch, encoding: 'utf8' });
+    const out = `${probe.stdout ?? ''}${probe.stderr ?? ''}`;
+    check(`\`dsh-motion ${verb}\` runs`, !out.includes('usage: dsh-motion <init|'), verb);
+  }
+} finally {
+  fs.rmSync(scratch, { recursive: true, force: true });
+}
 
 const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
 check(

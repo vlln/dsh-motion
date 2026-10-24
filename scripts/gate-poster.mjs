@@ -16,7 +16,7 @@ const BIN = path.join(ROOT, 'bin/dsh-motion.mjs');
 const { check, finish } = createGate();
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-motion-poster-'));
-execFileSync(process.execPath, [BIN, 'template', 'kinetic'], { cwd: tmp });
+execFileSync(process.execPath, [BIN, 'init', '--template', 'kinetic'], { cwd: tmp });
 const file = path.join(tmp, 'motion/timeline.json');
 const read = () => JSON.parse(fs.readFileSync(file, 'utf8'));
 

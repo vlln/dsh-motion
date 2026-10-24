@@ -19,7 +19,7 @@ const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-motion-beats-'));
 const { origin, close } = await startServer(0, { project: path.join(tmp, 'motion') });
 
 try {
-  execFileSync(process.execPath, [BIN, 'template', 'kinetic'], { cwd: tmp });
+  execFileSync(process.execPath, [BIN, 'init', '--template', 'kinetic'], { cwd: tmp });
 
   // A storyboard with one beat and its still, as `storyboard --write` leaves it.
   const ref = path.join(tmp, 'motion/out/ref');

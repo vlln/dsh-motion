@@ -15,7 +15,7 @@ import { modules } from '../src/project.mjs';
 import { createFilm } from '../src/film.mjs';
 import { createVersion, listVersions, useVersion } from '../src/versions.mjs';
 import { createFilmFromTemplate, listTemplates } from '../src/film.mjs';
-import { filmFontOverrides, listFonts } from '../src/fonts.mjs';
+import { sheetFor } from '../src/audio.mjs';
 
 const PKG = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
@@ -106,8 +106,32 @@ async function validate() {
     for (const line of errors) console.error(`  - ${line}`);
     process.exit(1);
   }
+  // The score is two files and one line of JSON; drift between them is silent
+  // until export. Catch it here, where a fix is cheap.
+  const sheetFile = path.join(FILM, 'audio.json');
+  if (fs.existsSync(sheetFile)) {
+    try {
+      sheetFor(JSON.parse(fs.readFileSync(sheetFile, 'utf8')), timeline.duration);
+    } catch (err) {
+      console.error(`invalid cue sheet (motion/audio.json): ${err.message}`);
+      process.exit(1);
+    }
+  }
+  for (const [role, spec] of Object.entries(timeline.fonts ?? {})) {
+    if (spec?.src && !fs.existsSync(path.join(FILM, spec.src))) {
+      console.error(`fonts.${role} points at a missing file: motion/${spec.src}`);
+      process.exit(1);
+    }
+  }
+  if (timeline.audio?.src && !fs.existsSync(path.join(FILM, timeline.audio.src))) {
+    console.error(`timeline.audio.src is missing: motion/${timeline.audio.src}`);
+    console.error('  run: node <skill>/scripts/make-audio.mjs --write');
+    process.exit(1);
+  }
+
   const seconds = timeline.scenes.reduce((sum, s) => sum + s.length, 0);
-  console.log(`ok · ${timeline.scenes.length} scene(s) · ${seconds}s · ${timeline.width}x${timeline.height} @ ${timeline.fps}fps`);
+  const sound = timeline.audio?.src ? ` · audio ${timeline.audio.src}` : '';
+  console.log(`ok · ${timeline.scenes.length} scene(s) · ${seconds}s · ${timeline.width}x${timeline.height} @ ${timeline.fps}fps${sound}`);
 }
 
 async function render() {
@@ -247,22 +271,6 @@ function readVideo(source, { fps = 2, cols = 4, outDir } = {}) {
 
 function refDir(name) {
   return path.resolve(FILM, name);
-}
-
-function frames() {
-  const src = argv[1];
-  if (!src) fail('usage: dsh-motion frames <video> [--fps 2] [--out out/ref] [--cols 4]');
-  if (!fs.existsSync(path.join(FILM, 'timeline.json'))) fail('no film here — run: dsh-motion init or template');
-  const source = path.resolve(src);
-  if (!fs.existsSync(source)) fail(`no such file: ${src}`);
-  const fps = Math.max(0.2, Math.min(10, Number(opt('fps', 2)) || 2));
-  const cols = Math.max(2, Math.min(8, Number(opt('cols', 4)) || 4));
-  const outDir = refDir(opt('out', 'out/ref'));
-  if (!outDir.startsWith(FILM + path.sep)) fail('--out must stay inside the film');
-
-  const index = readVideo(source, { fps, cols, outDir });
-  console.log(`${index.frames} frames · ${index.size} · ${index.duration}s → ${path.relative(FILM, outDir)}`);
-  console.log(`sheet: ${index.sheet}${index.cuts.length ? ` · cuts: ${index.cuts.join(', ')}` : ' · no hard cuts'}`);
 }
 
 /**
@@ -427,38 +435,6 @@ async function reference() {
   console.log(`brief: motion/out/ref/brief.json`);
 }
 
-/**
- * Start from one of the package's template films. The whole point of a template
- * is that the agent begins with a stage, not with an empty directory.
- */
-async function template() {
-  const id = argv[1];
-  if (!id || id === 'list' || flag('list')) {
-    for (const name of listTemplates()) console.log(name);
-    return;
-  }
-  const { dir, film } = createFilmFromTemplate(process.cwd(), id);
-  console.log(`motion/ ← template "${id}" · ${film.scenes.length} scene(s) · ${film.duration}s`);
-  console.log(`  ${film.scenes.map((s) => s.id).join(', ')}  in ${path.relative(process.cwd(), dir)}`);
-  console.log('next: dsh-motion validate && dsh-motion render --stills 0,3');
-}
-
-/** The four type roles a film may use. Printed so nobody goes looking for fonts. */
-async function fonts() {
-  for (const font of listFonts()) {
-    console.log(`${font.key.padEnd(8)} ${font.note}`);
-    console.log(`         ${font.stack}`);
-  }
-  const file = path.join(FILM, 'timeline.json');
-  if (!fs.existsSync(file)) return;
-  const overrides = filmFontOverrides(JSON.parse(fs.readFileSync(file, 'utf8')));
-  for (const [role, spec] of overrides) {
-    const local = spec.src ? path.join(FILM, spec.src) : null;
-    const state = local ? (fs.existsSync(local) ? 'ok' : 'MISSING') : 'system';
-    console.log(`film     ${role} → ${spec.family ?? role}${spec.src ? ` (${spec.src}, ${state})` : ''}`);
-  }
-}
-
 // check --perf is the same verb, a different question.
 
 const commands = {
@@ -470,6 +446,9 @@ const commands = {
 };
 
 if (!cmd || !commands[cmd]) {
+  // Name what was asked for: a retired verb then reads as a retired verb, not
+  // as "the command printed usage for no reason".
+  if (cmd) console.error(`unknown command "${cmd}" — there are five: ${Object.keys(commands).join(', ')}`);
   console.error('usage: dsh-motion <init|reference|check|render|version> [options]');
   console.error('');
   console.error('  init      [--title "…"] [--length 6] | [--template <id>]  (--template list prints them)');

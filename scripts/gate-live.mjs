@@ -35,7 +35,10 @@ try {
   await page.waitForFunction(() => window.__PREVIEW__?.ready === true, { timeout: 30000 });
   await page.evaluate(() => window.__PREVIEW__.setTime(4));
 
-  const titleOf = () => page.evaluate(() => window.__PREVIEW__.texts().find((t) => t.slot === 'title')?.text ?? '');
+  // The panel reloads itself when scene code changes, so a poll can land between
+  // documents. A missing handle is "not yet", not a failure.
+  const titleOf = () =>
+    page.evaluate(() => window.__PREVIEW__?.texts().find((t) => t.slot === 'title')?.text ?? '');
   check('the panel starts on the file', (await titleOf()) === 'The first peoples', await titleOf());
 
   // --- an outside write to the timeline shows up in place ---

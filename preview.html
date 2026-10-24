@@ -18,7 +18,6 @@
   </head>
   <body>
     <header class="topbar">
-      <span id="sceneName" class="scene-name">—</span>
       <div class="stale" id="stale" hidden>
         <span>场景代码已更新</span>
         <button id="staleReload" class="btn ghost">刷新</button>
@@ -51,7 +50,6 @@
 
     <div class="app">
       <main class="stage-wrap">
-        <nav class="reel" id="reel" aria-label="段落导航"></nav>
         <div class="canvas-box" id="canvasBox">
           <canvas id="stage"></canvas>
           <div class="selection" id="selection" hidden></div>
@@ -70,6 +68,11 @@
               <button id="popSubmit" class="send-btn" aria-label="发送" title="发送到对话">↑</button>
             </div>
           </div>
+        </div>
+
+        <div class="stage-foot">
+          <span id="sceneName" class="scene-name">—</span>
+          <nav class="reel" id="reel" aria-label="段落导航"></nav>
         </div>
       </main>
 

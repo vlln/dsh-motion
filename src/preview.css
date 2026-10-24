@@ -55,9 +55,9 @@ body {
 
 .stage-wrap {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
   place-items: center;
-  gap: 14px;
+  gap: 10px;
   padding: 16px 20px 20px;
   min-width: 0;
   background: var(--dsw-alias-bg-module-platform, var(--surface-2));
@@ -1295,6 +1295,19 @@ body:not(.tweaks) .app {
 
 /* A section overview, not a second scrubber: one pill per scene, filled up to
    the one you are watching. The strip at the bottom stays the scrubber. */
+.stage-foot {
+  justify-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.stage-foot .scene-name {
+  font: 500 13px/1.4 var(--font);
+  color: var(--fg);
+}
+
 .reel {
   justify-self: stretch;
   display: flex;

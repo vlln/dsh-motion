@@ -46,7 +46,7 @@ try {
   const openRail = page.getByRole('button', { name: 'Open right sidebar' });
   if (await openRail.isVisible().catch(() => false)) await openRail.click();
   await page.waitForTimeout(800);
-  await page.getByText('正在编辑的片子').click({ timeout: 15000 });
+  await page.getByText('预览并调整工作区里的片子').click({ timeout: 15000 });
 
   const tabFrame = page.frameLocator('iframe[title="dsh-motion tab"]');
   await tabFrame.locator('#tc').waitFor({ timeout: 20000 });

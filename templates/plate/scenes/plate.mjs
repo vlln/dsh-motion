@@ -17,6 +17,7 @@ const STEP = 10; // the actor moves at 10 frames a second; the camera moves at 2
 
 let ctx;
 let grain = null;
+let grainPattern = null;
 let vignette = null;
 
 // A small figure. Four frames of a walk; the sprite keeps its own grid, which is
@@ -58,6 +59,9 @@ export function mount(context) {
     img.data[p + 3] = 255;
   }
   gg.putImageData(img, 0, 0);
+  // One pattern fill instead of a dozen tile blits: the tiling was costing more
+  // than everything else in the shot.
+  grainPattern = ctx.canvas.getContext('2d').createPattern(grain, 'repeat');
 }
 
 /** The painting as the world: a cover-fit window that pushes in and drifts. */
@@ -123,13 +127,15 @@ export function render(t) {
   // --- grade ---------------------------------------------------------------
   // Grain with an offset that changes per step, so it shimmers like film rather
   // than sitting on the picture like a texture.
-  g.save();
-  g.globalCompositeOperation = 'overlay';
-  g.globalAlpha = 0.07;
-  const ox = (Math.floor(t * 12) * 61) % 512;
-  const oy = (Math.floor(t * 12) * 37) % 512;
-  for (let y = -oy; y < h; y += 512) for (let x0 = -ox; x0 < w; x0 += 512) g.drawImage(grain, x0, y);
-  g.restore();
+  if (grainPattern) {
+    g.save();
+    g.globalCompositeOperation = 'overlay';
+    g.globalAlpha = 0.07;
+    g.translate(-((Math.floor(t * 12) * 61) % 512), -((Math.floor(t * 12) * 37) % 512));
+    g.fillStyle = grainPattern;
+    g.fillRect(0, 0, w + 512, h + 512);
+    g.restore();
+  }
 
   if (!vignette) {
     vignette = g.createRadialGradient(w / 2, h * 0.5, h * 0.3, w / 2, h * 0.5, h * 0.95);

@@ -94,6 +94,13 @@ async function check() {
   } catch {
     if (flag('strict')) process.exit(1);
   }
+  // What the picture is made of, in numbers the agent can act on. Soft: a film
+  // is allowed to be flat on purpose.
+  try {
+    await run('look.mjs', [], FILM);
+  } catch {
+    if (flag('strict')) process.exit(1);
+  }
 }
 
 async function validate() {

@@ -5,7 +5,7 @@
 // turns every room back into a front elevation, which is the failure this whole
 // verb exists to prevent.
 
-import { paint, space } from '../src/paint.mjs';
+import { paint, space, sprite } from '../src/paint.mjs';
 import { createGate } from './lib/gate.mjs';
 
 const { check, finish } = createGate();
@@ -45,8 +45,45 @@ const wide = space({ w: 1920, h: 1080, eye: [0, 1.6, 4], look: [0, 1.6, -6], fov
 check('a wider fov shrinks the scale', wide.at(0, 1.6, -6)[2] < cam.at(0, 1.6, -6)[2]);
 
 // --- the surface the skill documents ---
-for (const verb of ['space', 'smoothPath', 'capsule', 'wash', 'strokeOutline', 'grain']) {
+for (const verb of ['space', 'smoothPath', 'capsule', 'wash', 'strokeOutline', 'grain', 'sprite']) {
   check(`ctx.paint.${verb} is exported`, typeof paint[verb] === 'function');
 }
+
+// --- sprite: a pixel grid, drawn exactly on its own cells -------------------
+// A stub context records the squares, so this is geometry, not a screenshot.
+const stub = () => {
+  const rects = [];
+  const g = {
+    globalAlpha: 1,
+    imageSmoothingEnabled: true,
+    fillStyle: '',
+    save() {},
+    restore() {},
+    fillRect(x, y, w, h) {
+      rects.push({ x, y, w, h, color: g.fillStyle });
+    },
+  };
+  return { g, rects };
+};
+
+const rows3 = ['...', '.X.', '...'];
+const one = stub();
+sprite(one.g, rows3, { X: '#f00' }, { x: 10, y: 20, scale: 2 });
+check('one cell is one square of the right size', one.rects.length === 1 && one.rects[0].w === 2, JSON.stringify(one.rects[0]));
+check('the square lands on its cell', one.rects[0].x === 12 && one.rects[0].y === 22, `${one.rects[0].x},${one.rects[0].y}`);
+
+const snapped = stub();
+sprite(snapped.g, rows3, { X: '#f00' }, { x: 10, y: 20, scale: 2.6 });
+check('scale snaps to whole pixels', snapped.rects[0].w === 3, String(snapped.rects[0].w));
+
+const flipped = stub();
+const edge = ['X..', '...', '...'];
+sprite(flipped.g, edge, { X: '#f00' }, { x: 0, y: 0, scale: 1, flip: true });
+check('flip mirrors the grid', flipped.rects[0].x === 2, String(flipped.rects[0].x));
+
+const outlined = stub();
+const bounds = sprite(outlined.g, rows3, { X: '#f00' }, { x: 0, y: 0, scale: 1, outline: '#000' });
+check('an outline surrounds the cell on four sides', outlined.rects.filter((r) => r.color === '#000').length === 4, String(outlined.rects.length));
+check('the outline is counted in the bounds', bounds.w === 5 && bounds.h === 5, `${bounds.w}x${bounds.h}`);
 
 finish();

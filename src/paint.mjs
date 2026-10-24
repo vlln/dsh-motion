@@ -157,6 +157,64 @@ export function space({ w = 1920, h = 1080, eye = [0, 1.6, 0], look = [0, 1.6, -
   return { at, depth, quad, eye, look, focal };
 }
 
+/**
+ * A pixel sprite, from rows of characters. This is the other half of a
+ * hand-painted plate: the painting carries the material, the sprite carries the
+ * acting — and the sprite has to stay on its own grid, or the two read as one
+ * blurry picture instead of two materials in collision.
+ *
+ *   const walk = [
+ *     '..HH..',
+ *     '.HHHH.',
+ *     '.HEEH.',   // H hair, E eye, C coat, L leg
+ *     '.CCCC.',
+ *     '..LL..',
+ *   ];
+ *   ctx.paint.sprite(g, walk, { H: '#f0e0c8', E: '#111', C: '#2b4a6f', L: '#3a2a20' }, { x: 820, y: 700, scale: 8 });
+ *
+ * `scale` is snapped to a whole number of pixels: a sprite on a fractional grid
+ * stops being a sprite. Returns the drawn size so a caller can place the shadow.
+ */
+export function sprite(g, rows, palette, { x = 0, y = 0, scale = 1, flip = false, alpha = 1, outline = null } = {}) {
+  const s = Math.max(1, Math.round(scale));
+  const w = rows.reduce((max, row) => Math.max(max, row.length), 0);
+  const ox = Math.round(x);
+  const oy = Math.round(y);
+  const at = (r, c) => (r >= 0 && r < rows.length && c >= 0 && c < w ? rows[r][c] : '.');
+  const filled = (r, c) => Boolean(palette[at(r, c)]);
+
+  g.save();
+  g.imageSmoothingEnabled = false;
+  g.globalAlpha *= alpha;
+
+  // A one-cell outline, drawn first and on the same grid. Without it a sprite
+  // sinks into a busy plate: the painting's edges are as dark as the character's.
+  if (outline) {
+    g.fillStyle = outline;
+    for (let r = -1; r <= rows.length; r++) {
+      for (let c = -1; c <= w; c++) {
+        if (filled(r, c)) continue;
+        if (!filled(r - 1, c) && !filled(r + 1, c) && !filled(r, c - 1) && !filled(r, c + 1)) continue;
+        const cx = flip ? w - c : c;
+        g.fillRect(ox + cx * s, oy + r * s, s, s);
+      }
+    }
+  }
+
+  for (let r = 0; r < rows.length; r++) {
+    const row = rows[r];
+    for (let c = 0; c < row.length; c++) {
+      const color = palette[row[c]];
+      if (!color) continue;
+      const cx = flip ? w - 1 - c : c;
+      g.fillStyle = color;
+      g.fillRect(ox + cx * s, oy + r * s, s, s);
+    }
+  }
+  g.restore();
+  return { x: ox, y: oy, w: (w + (outline ? 2 : 0)) * s, h: (rows.length + (outline ? 2 : 0)) * s };
+}
+
 /** Grain with a direction: fibres, not static. */
 export function grain(g, w, h, { angle = 0, density = 0.0016, alpha = 0.05, seed = 3, color = '#000' } = {}) {
   const r = (n) => {
@@ -182,4 +240,4 @@ export function grain(g, w, h, { angle = 0, density = 0.0016, alpha = 0.05, seed
   g.restore();
 }
 
-export const paint = { smoothPath, capsule, wash, strokeOutline, grain, space, TAU };
+export const paint = { smoothPath, capsule, wash, strokeOutline, grain, space, sprite, TAU };

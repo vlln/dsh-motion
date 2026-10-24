@@ -1416,6 +1416,9 @@ canvas.addEventListener('click', (e) => {
     // A word is edited, not annotated: open the rail and put the caret in its
     // field with the value selected, so typing replaces it.
     if (!document.body.classList.contains('tweaks')) setTweaks(true);
+    // The field lives in the 调整 page: if another page is open the rail looks
+    // like it did nothing (the input cannot take focus while it is hidden).
+    setRailTab('tweaks');
     const input = textList.querySelector(`input[data-text-scene="${currentScene(t).id}"][data-text-slot="${hit.slot}"]`);
     if (input) {
       // The rail may have been display:none until this click; force layout so the

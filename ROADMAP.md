@@ -204,9 +204,10 @@
 - `dsh-motion init --template list` 里能直接看到它们。
 
 退出证据（已完成）：
-- `gate:exemplars` **25/25**：plate / guide / tree 三条都能建、都过 `check`、都有 `poster`、
+- `gate:exemplars` **33/33**：plate / guide / tree / street 四条都能建、都过 `check`、都有 `poster`、
   源码都能打开、都有拆解、拆解里写明"抄什么/换什么"，且没有孤儿文档；
-- 拆解文档：`docs/exemplars/plate.md`（拿来的画+演员）、`guide.md`（纸上印刷）、`tree.md`（绢本水墨）。
+- 拆解文档：`docs/exemplars/plate.md`（拿来的画+演员）、`guide.md`（纸上印刷）、`tree.md`（绢本水墨）、
+  `street.md`（代码画的世界：画一次 → 上材料 → 细线画在上面）。
 
 ### M14 · 判据：它能自己算出"太扁了" ✅（2026-10-24）
 

@@ -677,3 +677,9 @@ skill 里写明：帧给构图、配色、字级、切点；**给不了缓动曲
 `dsh-motion reference <video> --template <id>`：没有片子就先按模板建一条，再把参考抽成
 帧 / 接触表 / 切点写进 `out/ref/`，最后生成 `brief.json`（画幅、时长、场景、切点、下一步）。
 `gate:frames` 扩到 13 项，包含"用模板建片 → brief 有切点 → 新片能 validate"。
+
+## D017 · 切点变分镜：storyboard
+
+`dsh-motion storyboard [<video>] [--min 1.2] [--max 8] [--write]`：把切点之间的段落变成 Beat，
+过短合并、过长拆分；`--write` 为每个 Beat 复制一份场景（独立 id），重排 `timeline.scenes` 并校验。
+内置场景没有文件可复制时会明确报错并要求先把场景拷进工作区。`gate:frames` 扩到 18 项。

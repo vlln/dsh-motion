@@ -67,6 +67,22 @@ try {
 
     const ok = execFileSync(process.execPath, [BIN, 'validate'], { cwd: ref, encoding: 'utf8' });
     check('the new film validates', /ok · 1 scene/.test(ok), ok.trim().split('\n').pop());
+
+    // --- storyboard: cuts become a shot list, and --write rebuilds the timeline
+    execFileSync(process.execPath, [BIN, 'storyboard', '--write'], { cwd: ref, encoding: 'utf8' });
+    const story = JSON.parse(fs.readFileSync(path.join(ref, 'motion/out/ref/storyboard.json'), 'utf8'));
+    check('the storyboard has a beat', story.beats.length >= 1, String(story.beats.length));
+    check('beats carry a start and a length', story.beats.every((b) => typeof b.start === 'number' && b.length > 0), JSON.stringify(story.beats[0]));
+
+    const rebuilt = JSON.parse(fs.readFileSync(path.join(ref, 'motion/timeline.json'), 'utf8'));
+    check('the timeline was rebuilt from beats', rebuilt.scenes.length === story.beats.length, String(rebuilt.scenes.length));
+    check(
+      'each beat has its own scene id',
+      new Set(rebuilt.scenes.map((s) => s.id)).size === rebuilt.scenes.length,
+      rebuilt.scenes.map((s) => s.id).join(','),
+    );
+    const after = execFileSync(process.execPath, [BIN, 'validate'], { cwd: ref, encoding: 'utf8' });
+    check('the rebuilt film validates', /ok ·/.test(after), after.trim().split('\n').pop());
   } finally {
     fs.rmSync(ref, { recursive: true, force: true });
   }

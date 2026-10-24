@@ -229,6 +229,101 @@ function frames() {
 }
 
 /**
+ * Turn the reference's cuts into a shot list: segments between cuts, short ones
+ * merged, long ones split, each with a start, a length and a scene slot. With
+ * --write the film's timeline is rebuilt from it.
+ */
+async function storyboard() {
+  const src = argv[1];
+  const refFile = path.join(FILM, 'out/ref/index.json');
+  let index;
+  if (src && fs.existsSync(path.resolve(src))) {
+    index = readVideo(path.resolve(src), { fps: Number(opt('fps', 2)) || 2, cols: 4, outDir: refDir('out/ref') });
+  } else if (fs.existsSync(refFile)) {
+    index = JSON.parse(fs.readFileSync(refFile, 'utf8'));
+  } else {
+    fail('usage: dsh-motion storyboard <video> | storyboard (after frames/reference)');
+  }
+
+  const min = Math.max(0.4, Number(opt('min', 1.2)) || 1.2);
+  const max = Math.max(min, Number(opt('max', 8)) || 8);
+  const cuts = (index.cuts ?? []).filter((c) => c > 0.05 && c < index.duration - 0.05);
+  const bounds = [0, ...cuts, index.duration];
+
+  const raw = [];
+  for (let i = 0; i < bounds.length - 1; i++) raw.push([bounds[i], bounds[i + 1] - bounds[i]]);
+  const merged = [];
+  for (const [start, length] of raw) {
+    const last = merged[merged.length - 1];
+    if (last && (last.length < min || length < min)) {
+      last.length += length;
+    } else {
+      merged.push({ start, length });
+    }
+  }
+  const shots = [];
+  for (const shot of merged) {
+    const parts = Math.max(1, Math.ceil(shot.length / max));
+    const each = shot.length / parts;
+    for (let i = 0; i < parts; i++) shots.push({ start: shot.start + i * each, length: each });
+  }
+
+  const sceneId = JSON.parse(fs.readFileSync(path.join(FILM, 'timeline.json'), 'utf8')).scenes[0]?.id;
+  const beats = shots.map((shot, i) => ({
+    index: i + 1,
+    name: `Beat ${String(i + 1).padStart(2, '0')}`,
+    start: Number(shot.start.toFixed(2)),
+    length: Number(shot.length.toFixed(2)),
+    source: `out/ref/f${String(Math.min(index.frames, Math.round(shot.start * index.fps) + 1)).padStart(3, '0')}.jpg`,
+  }));
+
+  const story = {
+    duration: index.duration,
+    cuts,
+    scene: sceneId,
+    beats,
+    note: 'lengths come from the reference cuts; motion and easing still have to be written',
+  };
+  fs.mkdirSync(refDir('out/ref'), { recursive: true });
+  fs.writeFileSync(path.join(refDir('out/ref'), 'storyboard.json'), `${JSON.stringify(story, null, 2)}\n`);
+
+  for (const beat of beats) {
+    console.log(`${String(beat.index).padStart(2)}  ${beat.start.toFixed(2)}s +${beat.length.toFixed(2)}s  ${beat.source}`);
+  }
+
+  if (flag('write')) {
+    const file = path.join(FILM, 'timeline.json');
+    const timeline = JSON.parse(fs.readFileSync(file, 'utf8'));
+    const sourceScene = path.join(FILM, 'scenes', `${sceneId}.mjs`);
+    if (!fs.existsSync(sourceScene)) {
+      fail(
+        `scene "${sceneId}" is built in: copy it into motion/scenes/ first, then run storyboard --write again`,
+      );
+    }
+    // One scene file per beat, each with its own id: the film can't repeat one id.
+    const body = fs.readFileSync(sourceScene, 'utf8');
+    const ids = beats.map((beat, i) => {
+      const id = `beat${String(i + 1).padStart(2, '0')}`;
+      const copy = body.replace(/export const id = '[^']+';/, `export const id = '${id}';`);
+      fs.writeFileSync(path.join(FILM, 'scenes', `${id}.mjs`), copy);
+      return id;
+    });
+    timeline.duration = Number(index.duration.toFixed(2));
+    timeline.scenes = beats.map((beat, i) => ({
+      id: ids[i],
+      name: beat.name,
+      start: beat.start,
+      length: beat.length,
+      palette: timeline.scenes[0]?.palette ?? 'main',
+      speed: 1,
+    }));
+    fs.writeFileSync(file, `${JSON.stringify(timeline, null, 2)}\n`);
+    await validate();
+  }
+  console.log('storyboard: motion/out/ref/storyboard.json');
+}
+
+/**
  * One command for the reference-first loop: start the film from a template, read
  * the reference into out/ref, and write a brief the agent can work from.
  */
@@ -290,6 +385,7 @@ const commands = {
   template,
   frames,
   reference,
+  storyboard,
   validate,
   render,
   export: exportVideo,
@@ -299,12 +395,13 @@ const commands = {
 };
 
 if (!cmd || !commands[cmd]) {
-  console.error('usage: dsh-motion <init|validate|render|export|template|frames|reference|version|versions|use> [options]');
+  console.error('usage: dsh-motion <init|validate|render|export|template|frames|reference|storyboard|version|versions|use> [options]');
   console.error('');
   console.error('  init      [--title "…"] [--length 6]');
   console.error('  template list | template <id>   start a film from a template instead of blank');
   console.error('  frames <video> [--fps 2] [--cols 4]   frames + contact sheet + cuts into out/ref');
   console.error('  reference <video> [--template id]     template + frames + a brief, in one step');
+  console.error('  storyboard [<video>] [--write]        cuts → shot list; --write rebuilds timeline.scenes');
   console.error('  validate  check the timeline and every scene it names');
   console.error('  render    [--stills 0,3,6] | [--video] [--out path] [--cols 3]');
   console.error('  export    [--gif] [--out path] [--fps 30] [--height 720|1080] [--quality high|medium|low]');

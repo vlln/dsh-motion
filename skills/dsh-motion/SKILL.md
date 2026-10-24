@@ -171,7 +171,18 @@ dsh-motion reference ref.mp4 --template kinetic
 
 它会：没有片子就先按模板建一条 → 把参考抽成帧、接触表、切点写进 `motion/out/ref/` →
 再写一份 `brief.json`（模板、片子的画幅与时长、参考的切点、下一步建议）。
-接着读 `out/ref/sheet.jpg` 决定改哪一幕，然后：
+
+接着把切点变成分镜：
+
+```
+dsh-motion storyboard --write
+```
+
+- 切点之间的段落成为 Beat，过短合并、过长拆分；
+- `--write` 会为每个 Beat 复制一份场景（`beat01.mjs…`，各自独立 id），重排 `timeline.scenes` 并跑校验；
+  内置场景（如 `cards3d`）没有文件可复制，会提示先把场景拷进 `motion/scenes/`。
+
+分镜只给**长度与顺序**，每个 Beat 里怎么动仍然要写。之后：
 
 ```
 dsh-motion validate

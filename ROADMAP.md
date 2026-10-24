@@ -368,7 +368,8 @@
 
 退出证据（已完成）：
 - `docs/craft.md` 的验收记录第四列（brief、路线、数字、自评、缺什么）；
-- `check` 能拦住漏 `export` 的场景（新增断言在 `modules()`，实测报错文案正确）。
+- `check` 能拦住漏 `export` 的场景：`modules()` 在加载时检查，`gate:exemplars` 里有一条
+  "a scene without an exported mount() is refused, by name" 守着它。
 
 ---
 

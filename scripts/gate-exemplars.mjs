@@ -6,7 +6,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { createGate } from './lib/gate.mjs';
 
@@ -57,6 +57,27 @@ try {
     check(`${id}: the breakdown names the template`, text.includes(`--template ${id}`), 'names it');
     check(`${id}: the breakdown says what to copy and what to change`, /## 抄什么/.test(text) && /## 换什么/.test(text), 'sections');
   }
+
+  // A scene that forgot `export` has to fail at load, with a message that names
+  // the file. It used to fail inside a draw as "reading 'canvas'".
+  const broken = path.join(tmp, 'broken');
+  fs.mkdirSync(path.join(broken, 'motion/scenes'), { recursive: true });
+  fs.writeFileSync(
+    path.join(broken, 'motion/timeline.json'),
+    JSON.stringify({
+      width: 64, height: 36, fps: 12, duration: 1,
+      palettes: { main: { bg: '#000000', fg: '#ffffff', accent: '#ffffff', muted: '#888888', grid: '#333333', panel: '#111111' } },
+      texts: {}, values: {}, overrides: {},
+      scenes: [{ id: 'nope', name: 'nope', start: 0, length: 1, palette: 'main', speed: 1 }],
+    }),
+  );
+  fs.writeFileSync(path.join(broken, 'motion/scenes/nope.mjs'), "export const id = 'nope';\nexport const slots = {};\nfunction mount(c) {}\nexport function render(t) {}\n");
+  const attempt = spawnSync(process.execPath, [BIN, 'check', '--fast'], { cwd: broken, encoding: 'utf8' });
+  check(
+    'a scene without an exported mount() is refused, by name',
+    attempt.status !== 0 && /exports no mount/.test(attempt.stderr ?? ''),
+    (attempt.stderr ?? '').trim().split('\n')[0],
+  );
 
   // No orphans: a breakdown for a template that no longer exists is worse than none.
   const docs = fs.readdirSync(path.join(ROOT, 'docs/exemplars')).filter((f) => f.endsWith('.md'));

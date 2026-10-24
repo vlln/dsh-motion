@@ -244,7 +244,9 @@ function showEmptyFilm() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'template failed');
       sheetUse.textContent = '已创建，正在打开…';
-      location.reload();
+      const next = new URL(location.href);
+      next.searchParams.set('from', 'template');
+      location.replace(next);
     } catch (error) {
       sheetUse.disabled = false;
       sheetUse.textContent = '没建成，再试一次';
@@ -639,6 +641,7 @@ function buildChips(scenes) {
 }
 
 buildChips(timeline.scenes);
+
 
 /** A compact overview of the sections above the film; clicking a pill seeks. */
 const reelEl = $('reel');
@@ -2039,3 +2042,10 @@ window.__PREVIEW__ = {
     return [d[0], d[1], d[2], d[3]];
   },
 };
+
+// A film that was just created from a template opens on its cover frame, not on
+// the black frame an entrance starts from.
+if (new URLSearchParams(location.search).get('from') === 'template') {
+  const poster = Math.min(Number(timeline.poster) || 0, Math.max(0, total - 0.05));
+  if (poster > 0) seekTo(poster);
+}

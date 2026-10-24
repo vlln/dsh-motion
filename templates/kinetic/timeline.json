@@ -4,11 +4,26 @@
   "fps": 30,
   "duration": 6,
   "palettes": {
-    "main": { "bg": "#d9ff3d", "fg": "#101010", "accent": "#101010", "muted": "#5a6a1f", "grid": "#c4e832", "panel": "#e6ff77" }
+    "main": {
+      "bg": "#d9ff3d",
+      "fg": "#101010",
+      "accent": "#101010",
+      "muted": "#5a6a1f",
+      "grid": "#c4e832",
+      "panel": "#e6ff77"
+    }
   },
   "overrides": {},
   "texts": {},
   "scenes": [
-    { "id": "kinetic", "name": "Kinetic", "start": 0, "length": 6, "palette": "main", "speed": 1 }
-  ]
+    {
+      "id": "kinetic",
+      "name": "Kinetic",
+      "start": 0,
+      "length": 6,
+      "palette": "main",
+      "speed": 1
+    }
+  ],
+  "poster": 1.0
 }

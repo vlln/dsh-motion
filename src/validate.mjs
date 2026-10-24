@@ -27,6 +27,14 @@ export function validateTimeline(timeline, modules = null) {
     err('fps', `must be 1..120 (got ${timeline.fps})`);
   }
 
+  // poster: the frame the panel opens on; it may be later than zero, because a
+  // film is allowed to start from black.
+  if (timeline.poster !== undefined) {
+    if (!isNum(timeline.poster) || timeline.poster < 0 || timeline.poster > timeline.duration) {
+      err('poster', `must be a number within 0..duration (got ${timeline.poster})`);
+    }
+  }
+
   // fonts: roles are closed; a film may override a role, not invent one
   if (timeline.fonts !== undefined) {
     if (!timeline.fonts || typeof timeline.fonts !== 'object' || Array.isArray(timeline.fonts)) {

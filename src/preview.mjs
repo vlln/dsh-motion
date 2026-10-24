@@ -131,6 +131,7 @@ function showEmptyFilm() {
           <div class="sheet-actions">
             <button class="btn ghost" id="sheetCopy">复制提示词</button>
             <button class="btn" id="sheetSend">让 Agent 复刻</button>
+            <button class="btn" id="sheetUse" hidden>用这个样板开始</button>
           </div>
         </div>
       </div>
@@ -160,6 +161,7 @@ function showEmptyFilm() {
   const sheetPrompt = sheet.querySelector('#sheetPrompt');
   const sheetCopy = sheet.querySelector('#sheetCopy');
   const sheetSend = sheet.querySelector('#sheetSend');
+  const sheetUse = sheet.querySelector('#sheetUse');
   let open = null;
   let player = null;
 
@@ -193,6 +195,9 @@ function showEmptyFilm() {
       sheetPrompt.textContent = sample.prompt;
       sheetSend.disabled = !sessionId;
       sheetSend.textContent = sessionId ? '让 Agent 复刻' : '在对话里打开才能发送';
+      sheetUse.hidden = !sample.template;
+      sheetUse.disabled = false;
+      sheetUse.textContent = '用这个样板开始';
       sheet.hidden = false;
       document.body.classList.add('sheet-open');
       sizeStage(sample);
@@ -222,6 +227,27 @@ function showEmptyFilm() {
       sheetCopy.textContent = '选中后自行复制';
     }
     setTimeout(() => (sheetCopy.textContent = '复制提示词'), 1600);
+  });
+
+  sheetUse.addEventListener('click', async () => {
+    if (!open?.template) return;
+    sheetUse.disabled = true;
+    sheetUse.textContent = '正在建片…';
+    try {
+      const res = await fetch('./api/template', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id: open.template }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'template failed');
+      sheetUse.textContent = '已创建，正在打开…';
+      location.reload();
+    } catch (error) {
+      sheetUse.disabled = false;
+      sheetUse.textContent = '没建成，再试一次';
+      console.error(error);
+    }
   });
 
   sheetSend.addEventListener('click', () => {

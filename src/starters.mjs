@@ -756,6 +756,7 @@ export const SAMPLES = [
     id: 'cards3d',
     title: '立体卡片',
     tag: '界面演示',
+    template: 'cards3d',
     ratio: 4 / 5,
     engine: 'webgl',
     backdrop: 'radial-gradient(circle at 50% 40%, #1a1a1d 0%, #0a0a0b 70%)',
@@ -887,6 +888,7 @@ export const SAMPLES = [
     id: 'type',
     title: '动起来',
     tag: '文字排版',
+    template: 'kinetic',
     ratio: 16 / 9,
     look: LOOKS.lime,
     prompt: brief(

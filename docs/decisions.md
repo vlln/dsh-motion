@@ -623,3 +623,20 @@ D009 让每张卡有自己的颜色和字体，但版式仍是同一套"深色�
 `templates/mono-study/` 扩成 12 秒五拍：立体卡片（带反射与运动模糊残影）→ 白闪 →
 硬币落进三摞、金额滚动 → 十二格转盘旋转并**落在指针处**打勾 → 大字 CREATE TO EARN。
 渲染：`out/mono-full-12s.mp4`（1080×1920、12.0s、30fps）。
+
+## D014 · 样板即模板：选中就能建片
+
+### 决定
+
+- `templates/<id>/` 是**产品资产**：`timeline.json` + 可选 `scenes/*.mjs`，`dsh-motion` 用它直接建片。
+- 画廊里带模板的样板有 `template` 字段；详情里的主按钮变成「用这个样板开始」，
+  `POST /api/template {id}` → `createFilmFromTemplate()` 把时间轴和场景拷进 `motion/`，页面重载即进入片子。
+- 试验片（saas-promo / mono-study / mono-3d）移出 `templates/`，放进 `experiments/`，不再出现在模板列表里。
+- 3D 场景 `cards3d` 作为内置场景（`kind: 'webgl'`），模板只带时间轴，避免把 three 的解析问题带进工作区。
+
+### 依据
+
+- 端到端实测：空工作区点「立体卡片」→「用这个样板开始」→ `/tmp/e2e/motion/timeline.json`
+  生成，`scenes: ["cards3d"]`、`duration: 12`。
+- `listTemplates()` 现在只返回 `['cards3d','kinetic']`。
+- 全量门禁 22 组通过（exit 0）。

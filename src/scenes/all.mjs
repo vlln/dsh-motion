@@ -3,8 +3,9 @@
 import * as firstPeoples from './first-peoples.mjs';
 import * as coldWar from './cold-war.mjs';
 import * as orbit from './orbit.mjs';
+import * as cards3d from './cards3d.mjs';
 import * as textLab from './text-lab.mjs';
 import * as mediaLab from './media-lab.mjs';
 import * as dataLab from './data-lab.mjs';
 
-export const modules = [firstPeoples, coldWar, textLab, mediaLab, dataLab, orbit];
+export const modules = [firstPeoples, coldWar, textLab, mediaLab, dataLab, orbit, cards3d];

@@ -6,7 +6,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const TEMPLATE = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'templates', 'blank.mjs');
+const PKG_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+const TEMPLATES = path.join(PKG_ROOT, 'templates');
+const TEMPLATE = path.join(PKG_ROOT, 'templates', 'blank.mjs');
 
 const PALETTE = {
   bg: '#0b1426',
@@ -80,4 +82,42 @@ export function describeFilm(root) {
     scenes: film.scenes?.length ?? 0,
     sceneIds: (film.scenes ?? []).map((s) => s.id),
   };
+}
+
+/**
+ * Start a film from one of the package's templates: copy its timeline and its
+ * scenes into the workspace. Templates that name a built-in scene ship only a
+ * timeline; the rest carry their own .mjs.
+ */
+export function listTemplates() {
+  if (!fs.existsSync(TEMPLATES)) return [];
+  return fs
+    .readdirSync(TEMPLATES, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && fs.existsSync(path.join(TEMPLATES, entry.name, 'timeline.json')))
+    .map((entry) => entry.name)
+    .sort();
+}
+
+export function createFilmFromTemplate(root, id) {
+  const name = String(id || '').trim();
+  if (!/^[a-z0-9-]+$/.test(name)) throw new Error('template id must be lowercase letters, digits or dashes');
+  const src = path.join(TEMPLATES, name);
+  if (!fs.existsSync(path.join(src, 'timeline.json'))) throw new Error(`no template "${name}"`);
+
+  const dir = filmDir(root);
+  const timeline = path.join(dir, 'timeline.json');
+  if (fs.existsSync(timeline)) throw new Error(`a film already exists at ${path.relative(root, timeline)}`);
+
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, '.gitignore'), 'out/\n.snapshots/\n');
+  fs.copyFileSync(path.join(src, 'timeline.json'), timeline);
+  const scenes = path.join(src, 'scenes');
+  if (fs.existsSync(scenes)) {
+    fs.mkdirSync(path.join(dir, 'scenes'), { recursive: true });
+    for (const file of fs.readdirSync(scenes).filter((f) => f.endsWith('.mjs'))) {
+      fs.copyFileSync(path.join(scenes, file), path.join(dir, 'scenes', file));
+    }
+  }
+  const film = JSON.parse(fs.readFileSync(timeline, 'utf8'));
+  return { dir, timeline, film };
 }

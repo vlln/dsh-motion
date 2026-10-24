@@ -10,6 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { commentsHandlers } from '../src/comments-http.mjs';
+import { createFilmFromTemplate, listTemplates } from '../src/film.mjs';
 import { paramsHandlers } from '../src/params-http.mjs';
 
 const PKG = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -56,6 +57,24 @@ function api(req, res, url, project) {
   if (url.pathname === '/api/history') return write ? PARAMS.restore(req, res) : PARAMS.history(req, res);
   if (write && url.pathname === '/api/history/restore') return PARAMS.restore(req, res);
   if (url.pathname === '/api/projects') return write ? PARAMS.create(req, res) : PARAMS.projects(req, res);
+  if (!write && url.pathname === '/api/templates') return json(res, 200, { templates: listTemplates() });
+  if (write && url.pathname === '/api/template') {
+    let raw = '';
+    req.on('data', (chunk) => {
+      raw += chunk;
+      if (raw.length > 1e6) req.destroy();
+    });
+    req.on('end', () => {
+      try {
+        const { id } = JSON.parse(raw || '{}');
+        const film = createFilmFromTemplate(path.dirname(project), id);
+        json(res, 200, { ok: true, template: id, scenes: film.film.scenes?.length ?? 0 });
+      } catch (err) {
+        json(res, 400, { error: err.message });
+      }
+    });
+    return;
+  }
   return json(res, 404, { error: 'unknown api route' });
 }
 

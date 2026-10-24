@@ -14,13 +14,13 @@ export function storePath(root) {
 
 export function load(root) {
   const file = storePath(root);
+  // Missing means "no threads yet"; unreadable means the file is broken, and
+  // returning an empty list would quietly delete the user's annotations on the
+  // next save.
   if (!fs.existsSync(file)) return { threads: [] };
-  try {
-    const data = JSON.parse(fs.readFileSync(file, 'utf8'));
-    return Array.isArray(data.threads) ? data : { threads: [] };
-  } catch {
-    return { threads: [] };
-  }
+  const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+  if (!Array.isArray(data.threads)) throw new Error(`${path.relative(root, file)} has no threads array`);
+  return data;
 }
 
 export function save(root, data) {

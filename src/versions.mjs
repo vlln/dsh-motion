@@ -15,20 +15,17 @@ const timelineFile = (root) => path.join(root, 'timeline.json');
 const scenesDir = (root) => path.join(root, 'scenes');
 
 export function listVersions(root) {
-  try {
-    const index = JSON.parse(fs.readFileSync(meta(root), 'utf8'));
-    return Array.isArray(index.versions) ? index.versions : [];
-  } catch {
-    return [];
-  }
+  // No film has an index until the first version is saved; anything else is a
+  // file we cannot read, and pretending it is empty makes the history vanish.
+  if (!fs.existsSync(meta(root))) return [];
+  const index = JSON.parse(fs.readFileSync(meta(root), 'utf8'));
+  if (!Array.isArray(index.versions)) throw new Error(`${path.relative(root, meta(root))} has no versions array`);
+  return index.versions;
 }
 
 export function currentVersion(root) {
-  try {
-    return JSON.parse(fs.readFileSync(meta(root), 'utf8')).current ?? null;
-  } catch {
-    return null;
-  }
+  if (!fs.existsSync(meta(root))) return null;
+  return JSON.parse(fs.readFileSync(meta(root), 'utf8')).current ?? null;
 }
 
 function saveIndex(root, versions, current = null) {

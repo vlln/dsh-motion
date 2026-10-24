@@ -879,10 +879,24 @@ function renderFrame() {
  * Move the film to a time, playing or not. While playing the audio is the clock,
  * so a seek that does not also move the audio is undone by the next frame.
  */
+// A sweep drags at 120 Hz, but a heavy scene takes 30–80 ms a frame: rendering
+// every pointermove makes the strip feel stuck. Coalesce to one render per
+// animation frame — the last position wins, nothing is drawn twice.
+let queuedSeek = null;
+let seekFrame = 0;
+
 function seekTo(next) {
-  setTime(next);
-  kernel.renderAt(t);
-  if (playing) soundSeek(t);
+  queuedSeek = next;
+  if (seekFrame) return;
+  seekFrame = requestAnimationFrame(() => {
+    seekFrame = 0;
+    const at = queuedSeek;
+    queuedSeek = null;
+    if (at == null) return;
+    setTime(at);
+    kernel.renderAt(t);
+    if (playing) soundSeek(t);
+  });
 }
 
 function tick(now) {

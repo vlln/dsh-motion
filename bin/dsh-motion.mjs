@@ -175,7 +175,7 @@ const commands = {
 };
 
 if (!cmd || !commands[cmd]) {
-  console.error('usage: dsh-motion <init|template|validate|render|export|version|versions|use> [options]');
+  console.error('usage: dsh-motion <init|validate|render|export|template|version|versions|use> [options]');
   console.error('');
   console.error('  init      [--title "…"] [--length 6]');
   console.error('  template list | template <id>   start a film from a template instead of blank');

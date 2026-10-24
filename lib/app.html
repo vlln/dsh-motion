@@ -23,6 +23,11 @@
 
       <span class="spacer"></span>
 
+      <button id="annotateMode" class="icon-btn" aria-pressed="false" aria-label="批注" title="批注：点选或框选画面">
+        <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <path d="M3 3.5h10v6.2H7.4L4.6 12v-2.3H3z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round" />
+        </svg>
+      </button>
       <button id="tweaksToggle" class="icon-btn" aria-pressed="false" aria-label="调整" title="显示/隐藏调整面板">
         <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
           <path d="M2.5 5h11M2.5 11h11" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
@@ -149,7 +154,7 @@
         <div class="rail-panel" data-panel="style" hidden>
           <p class="rail-label">配色</p>
           <div id="styleList" class="palette-list"></div>
-          <button id="styleAuto" class="link-btn">恢复片子的原配色</button>
+          <button id="styleAuto" class="link-btn">片子自带的配色</button>
         </div>
 
       </aside>

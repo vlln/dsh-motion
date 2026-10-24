@@ -754,7 +754,8 @@ function applyStyle(name) {
   for (const button of styleList.querySelectorAll('.palette')) {
     button.setAttribute('aria-pressed', String(button.dataset.style === name));
   }
-  styleAuto.hidden = !name;
+  styleAuto.disabled = !name;
+  styleAuto.textContent = name ? '恢复片子的原配色' : '片子自带的配色';
   // Scenes bake palette colours into sprites at mount, so rebuilding them is the
   // difference between a new style and a new style that does not paint.
   kernel.remount?.();
@@ -779,7 +780,8 @@ function buildStyles() {
   for (const button of styleList.querySelectorAll('.palette')) {
     button.addEventListener('click', () => applyStyle(button.dataset.style));
   }
-  styleAuto.hidden = !currentStyle;
+  styleAuto.disabled = !currentStyle;
+  styleAuto.textContent = currentStyle ? '恢复片子的原配色' : '片子自带的配色';
 }
 
 styleAuto?.addEventListener('click', () => applyStyle(''));

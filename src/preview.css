@@ -1857,40 +1857,36 @@ body.annotating .canvas-box {
   gap: 8px;
 }
 
-/* One palette = one swatch: colours side by side, ring when selected. */
+/* One palette is one object: a single rounded bar, its colours flush inside.
+   The bar is the shape; the segments are not five little pills. */
 .palette {
   display: flex;
-  gap: 3px;
-  padding: 3px;
+  padding: 0;
   border: 0;
-  border-radius: 12px;
+  border-radius: 10px;
+  overflow: hidden;
   background: transparent;
   cursor: pointer;
+  box-shadow: 0 0 0 0.5px rgb(0 0 0 / 8%);
 }
 
 .palette i {
   display: block;
   width: 18px;
   height: 34px;
-  border-radius: 5px;
-  box-shadow: inset 0 0 0 0.5px rgb(0 0 0 / 8%);
-}
-
-.palette i:first-child {
-  border-radius: 6px 3px 3px 6px;
+  box-shadow: inset -0.5px 0 rgb(0 0 0 / 7%);
 }
 
 .palette i:last-child {
-  border-radius: 3px 6px 6px 3px;
+  box-shadow: none;
 }
 
 .palette:hover {
-  box-shadow: 0 0 0 2px var(--hover);
+  box-shadow: 0 0 0 3px var(--hover);
 }
 
 .palette[aria-pressed='true'] {
-  outline: 2px solid var(--fg);
-  outline-offset: 1px;
+  box-shadow: 0 0 0 0.5px rgb(0 0 0 / 8%), 0 0 0 2px var(--fg);
 }
 
 .link-btn {
@@ -1904,6 +1900,12 @@ body.annotating .canvas-box {
   cursor: pointer;
 }
 
-.link-btn:hover {
+.link-btn:hover:not(:disabled) {
   color: var(--fg);
+}
+
+.link-btn:disabled {
+  opacity: 0.55;
+  text-decoration: none;
+  cursor: default;
 }

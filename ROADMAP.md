@@ -184,7 +184,8 @@
 
 让"拿一张真的"成为一条正规路线，而不是素材降级里的第三档。
 
-- `ctx.plate(img, { zoom, pan, anchor })`：cover 适配 + 移动窗口，推/移/摇就是改参数；
+- ~~`ctx.plate(img, { zoom, pan, anchor })`~~：实现时发现 `ctx.image` 的 `focus` + 放大窗口已经够用，
+  **没有新增原语**；拿来的图直接当 `timeline.assets` 里的图用，窗口就是 `x/y/w/h` + `focus`；
 - `dsh-motion init --template plate`：一张公版画当世界 + 一个演员 + 材质 + 机位，
   8 秒一条，初始化即可跑；
 - `find-asset.mjs` 出来的图默认写进 `assets/plates/` 并进 `CREDITS.md`（已有），

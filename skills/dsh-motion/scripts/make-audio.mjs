@@ -198,6 +198,21 @@ console.log(`${rel}  ${pcm.length}s · 48k stereo · peak ${db(loudest).toFixed(
 console.log(`wave → ${path.relative(FILM, wave)}  (${(sheet.layers ?? []).length} layers, ${(sheet.layers ?? []).filter((l) => l.at !== undefined).length} cues)`);
 console.log(`level ${shape}   1 block = 1s`);
 
+// A cue that stops before the film does is not an error — the tail can be
+// ambience — but it is invisible in the waveform, so say it.
+const cue = (sheet.layers ?? []).find((l) => l && l.kind === 'score');
+if (cue && film && Number.isFinite(Number(film.duration))) {
+  const eighth = 60 / Number(cue.bpm ?? 120) / 2;
+  const eighths = (cue.sections ?? []).reduce((a, sec) => a + Math.max(0.25, Number(sec.eighths ?? 4)), 0);
+  const endsAt = eighths * eighth;
+  const filmLength = Number(film.duration);
+  if (endsAt < filmLength - 0.05) {
+    console.log(`cue ends at ${endsAt.toFixed(1)}s of ${filmLength.toFixed(1)}s — the tail is ambience only (${(filmLength - endsAt).toFixed(1)}s)`);
+  } else if (endsAt > filmLength + 0.05) {
+    console.log(`cue runs to ${endsAt.toFixed(1)}s, past the ${filmLength.toFixed(1)}s cut — it will be cut there`);
+  }
+}
+
 const grid = beatGrid(sheet);
 const targetLufs = Number(sheet.targetLufs ?? -20);
 if (flag('write')) {

@@ -8,7 +8,7 @@ import path from 'node:path';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { createGate } from './lib/gate.mjs';
-import { renderSheet, toWav, KINDS, sheetFor } from '../src/audio.mjs';
+import { renderSheet, toWav, KINDS, sheetFor, noteHz, parseChord, VOICE_NAMES, beatGrid } from '../src/audio.mjs';
 import { mux } from './mux.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -101,6 +101,75 @@ try {
   }
   check('a sheet that disagrees with the cut is refused', Boolean(drift), drift.slice(0, 50));
   check('the kind list is the documented one', Object.keys(KINDS).length >= 8, Object.keys(KINDS).join(','));
+
+  // A typo in a score has to fail in `check`, not 60 seconds into a render.
+  for (const [what, mutate, needle] of [
+    ['voice', (x) => (x.layers[0].sections[0].voice = 'cello'), 'cello'],
+    ['chord', (x) => (x.layers[0].chords = ['Dmaj9sus']), 'maj9sus'],
+    ['key', (x) => (x.layers[0].key = 'H3'), 'H3'],
+    ['section length', (x) => (x.layers[0].sections[0].eighths = 0), 'eighths'],
+  ]) {
+    const broken = { length: 8, layers: [{ kind: 'score', bpm: 120, key: 'D3', chords: ['Dm'], motif: [0, 3, 7], sections: [{ eighths: 4, voice: 'harp' }] }] };
+    mutate(broken);
+    let message = '';
+    try {
+      sheetFor(broken, 8);
+    } catch (err) {
+      message = err.message;
+    }
+    check(`a bad ${what} is refused before render`, message.includes(needle), message.slice(0, 60));
+  }
+
+  // --- a score: the note written is the note sounded -------------------------
+  check('A4 is 440 Hz', Math.abs(noteHz('A4') - 440) < 0.01, noteHz('A4').toFixed(2));
+  check('Dm is a minor triad', JSON.stringify(parseChord('Dm').semis) === '[0,3,7]', parseChord('Dm').semis.join(','));
+
+  const score = {
+    length: 8,
+    layers: [
+      { kind: 'score', bpm: 120, key: 'D3', chords: ['Dm', 'Bb'], motif: [0, 3, 7], sections: [
+        { eighths: 8, voice: 'harp' },
+        { eighths: 8, voice: 'flute' },
+      ] },
+    ],
+  };
+  const rendered = renderSheet(score);
+  // Goertzel: how much of the signal sits at one frequency.
+  const at = (buf, freq, from, to) => {
+    const sr = rendered.sampleRate;
+    const coeff = 2 * Math.cos((2 * Math.PI * freq) / sr);
+    let q1 = 0;
+    let q2 = 0;
+    for (let i = from; i < to; i++) {
+      const q0 = coeff * q1 - q2 + buf[i];
+      q2 = q1;
+      q1 = q0;
+    }
+    return Math.sqrt(Math.max(0, q1 * q1 + q2 * q2 - coeff * q1 * q2)) / (to - from);
+  };
+  const loudestMidi = (from, to) => {
+    let best = { midi: 0, mag: 0 };
+    for (let midi = 36; midi < 96; midi++) {
+      const mag = at(rendered.left, 440 * 2 ** ((midi - 69) / 12), from, to);
+      if (mag > best.mag) best = { midi, mag };
+    }
+    return best.midi;
+  };
+  const eighth = 60 / 120 / 2;
+  check('section one sounds its chord root (D3)', loudestMidi(Math.round(0.02 * 48000), Math.round(0.14 * 48000)) === 50, 'midi 50 = D3');
+  const second = Math.round((8 * eighth + 0.02) * 48000);
+  // Bb is four semitones under D: the score transposes down, not up an octave.
+  check('section two transposes to Bb2', loudestMidi(second, second + Math.round(0.12 * 48000)) === 46, 'midi 46 = Bb2');
+  check('the score publishes its grid', beatGrid(score)?.bpm === 120, JSON.stringify(beatGrid(score)?.bpm));
+  check('every voice is a real one', VOICE_NAMES.every((v) => typeof v === 'string') && VOICE_NAMES.includes('harp'), VOICE_NAMES.join(','));
+
+  let badChord = '';
+  try {
+    renderSheet({ length: 1, layers: [{ kind: 'score', chords: ['Dmaj9sus'] }] });
+  } catch (err) {
+    badChord = err.message;
+  }
+  check('an unknown chord names the qualities that exist', badChord.includes('Dmaj9sus') && badChord.includes('m7'), badChord.slice(0, 70));
 
   // --- a track someone brought: the picture decides the length, not the track ---
   // This is the bug the fit rules exist for: a 1s cue used to cut a 2s film to 1s.

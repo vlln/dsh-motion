@@ -241,7 +241,7 @@ g.fill(cam.quad([1.55,0.4,-4], [1.55,0.4,-3.9], [1.55,0.9,-3.9], [1.55,0.9,-4]))
 - **不写 `length`**：片多长声音就多长，跟着剪辑走。写死了就会和改过的剪辑对不上；
 - 没有 `at` 的层铺满全片（环境）；有 `at` 的层是那一秒的事件；
 - `gain` 不写就用这一类的默认值，环境类默认已经很轻；
-- 有 `pad` 就有节拍：`timeline.beats` 会被写上，场景里 `ctx.beats` 直接对得上。
+- 有 `pad` 或 `score` 就有节拍：`timeline.beats` 会被写上，场景里 `ctx.beats` 直接对得上。
 
 ```bash
 node <skill>/scripts/make-audio.mjs           # 渲染，打印要贴进 timeline 的那行
@@ -257,10 +257,38 @@ node <skill>/scripts/make-audio.mjs --write   # 渲染并写回 timeline.json
 | kind | 是什么 | 参数 |
 |---|---|---|
 | `rain` `roomtone` `wind` `pad` | 铺底 | `gain`；`pad` 还有 `bpm` `root` `chord` |
+| `score` | **配乐**：段落、和声、动机 | `bpm`、`key`、`chords`、`motif`、`sections` |
 | `clock` | 铺底，秒针 | `every`（默认 1 秒一响） |
 | `page` `bell` `wheel` `click` | 事件 | `at`、`gain`；`bell` 还有 `freq` `decay` |
 
 三条规矩：铺底不超过两层；每镜的重音最多一个 cue；最后 1–2 秒只留环境声，让片子落地。
+
+### 配乐：段落按八分音符数，一换段就换音色
+
+`score` 不是"铺一层和声"，是一小段**编曲**。写法只有四个概念：
+
+```json
+{ "kind": "score", "bpm": 128, "key": "D3",
+  "chords": ["Dm", "Bb", "F", "C"],
+  "motif": [0, 3, 7],
+  "sections": [
+    { "eighths": 6, "voice": "harp" },
+    { "eighths": 4, "voice": "flute" },
+    { "eighths": 4, "voice": "harpsichord" },
+    { "eighths": 2, "voice": "square", "drums": true },
+    { "eighths": 12, "voice": "saw", "drums": true } ] }
+```
+
+- **`bpm` 是网格**，不是情绪。画面的事件时间点要对到网格上，才有那个"咔"和顿挫是同一下的感觉；
+- **`sections` 里的 `eighths` 是这一段的长度（八分音符数）**。要更快，**让段变短**，不要提 bpm——6 → 4 → 2 → 1 就是这个效果；
+- **`chords` 一小节一个和弦，四和弦循环就够**；换段就往下走一个，动机随之移调（会保持在六度以内，不会掉八度）；
+- **`motif` 是相对和弦根音的半音数**，三个音足够。一段里每三个八分音符陈述一次，太短的段自然只响第一个音。
+
+音色（`voice`）：`flute` `harp` `harpsichord` `organ` `marimba` `square` `saw`，外加低音 `bass`（自动）。
+写错了会报错并列出这些名字。段上可以 `"drums": true` 加底鼓和踩镲。
+
+`make-audio` 会告诉你**配乐在哪一秒结束**——短于片长不是错误（尾巴留环境声很好），
+但要你自己知道。有 `score` 时 `timeline.beats` 写的就是它的网格，场景里 `ctx.beats` 直接踩点。
 
 ### 自带：把一条轨变成片子的配乐
 

@@ -59,6 +59,84 @@ function biquad(type, freq, q, sr) {
 
 const env = (t, attack, decay) => (t < 0 ? 0 : t < attack ? t / attack : Math.exp(-(t - attack) / decay));
 
+// --- notes and chords ---------------------------------------------------------
+// A score says what to play in the vocabulary a musician would use: a key, a
+// chord loop, a three-note motif, and sections counted in eighth notes. That is
+// what makes sections able to *get shorter* instead of the tempo speeding up.
+
+const NAMES = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+
+/** "D3" -> 146.83 Hz. Middle C is C4 = 261.63. */
+export function noteHz(name) {
+  const hit = /^([A-G])([#b]?)(-?\d)$/.exec(String(name));
+  if (!hit) throw new Error(`not a note: "${name}" (write D3, F#4, Bb2)`);
+  const semis = NAMES[hit[1]] + (hit[2] === '#' ? 1 : hit[2] === 'b' ? -1 : 0) + (Number(hit[3]) + 1) * 12;
+  return 440 * 2 ** ((semis - 69) / 12);
+}
+
+/** "D3" or "Bb" -> 0-11, the letter's pitch class without the octave. */
+export function pitchClass(name) {
+  const hit = /^([A-G])([#b]?)/.exec(String(name));
+  if (!hit) throw new Error(`not a note: "${name}" (write D3, F#4, Bb2)`);
+  return (NAMES[hit[1]] + (hit[2] === '#' ? 1 : hit[2] === 'b' ? -1 : 0) + 12) % 12;
+}
+
+/** Chord quality -> semitones above the root. Enough for a four-chord loop. */
+const QUALITIES = {
+  '': [0, 4, 7],
+  m: [0, 3, 7],
+  dim: [0, 3, 6],
+  7: [0, 4, 7, 10],
+  m7: [0, 3, 7, 10],
+  maj7: [0, 4, 7, 11],
+  sus4: [0, 5, 7],
+  add9: [0, 4, 7, 14],
+};
+
+/** "Dm" -> { root: 2, semis: [0, 3, 7] }. */
+export function parseChord(symbol) {
+  const hit = /^([A-G])([#b]?)(.*)$/.exec(String(symbol));
+  if (!hit) throw new Error(`not a chord: "${symbol}" (write Dm, Bb, F, C)`);
+  const root = NAMES[hit[1]] + (hit[2] === '#' ? 1 : hit[2] === 'b' ? -1 : 0);
+  const quality = QUALITIES[hit[3]];
+  if (!quality) {
+    throw new Error(`unknown chord quality "${hit[3]}" in "${symbol}" (available: ${Object.keys(QUALITIES).filter(Boolean).join(', ')})`);
+  }
+  return { root, semis: quality };
+}
+
+// --- voices -------------------------------------------------------------------
+// Textbook parts only: a few partials, an attack, a decay. No samples, so the
+// same score renders the same file on any machine.
+const VOICES = {
+  flute: { partials: [[1, 1], [2, 0.1], [3, 0.04]], attack: 0.05, decay: 0, sustain: 0.85, release: 0.14, breath: 0.05, pan: 0.15 },
+  harp: { partials: [[1, 1], [2, 0.45], [3, 0.26], [4, 0.15], [5, 0.08]], attack: 0.004, decay: 0.55, release: 0.25, pan: -0.2 },
+  harpsichord: { partials: [[1, 1], [3, 0.55], [5, 0.3], [7, 0.16]], attack: 0.003, decay: 0.32, release: 0.12, pan: -0.1 },
+  organ: { partials: [[1, 1], [2, 0.5], [3, 0.3], [4, 0.2]], attack: 0.04, decay: 0, sustain: 0.9, release: 0.2, pan: 0 },
+  marimba: { partials: [[1, 1], [4, 0.35], [10, 0.1]], attack: 0.002, decay: 0.22, release: 0.1, pan: 0.25 },
+  square: { partials: [[1, 1], [3, 0.33], [5, 0.2], [7, 0.14], [9, 0.11]], attack: 0.002, decay: 0.5, release: 0.08, pan: 0 },
+  saw: { partials: [[1, 1], [2, 0.5], [3, 0.33], [4, 0.25], [5, 0.2], [6, 0.16], [7, 0.14]], attack: 0.12, decay: 0, sustain: 0.8, release: 0.3, pan: 0 },
+  bass: { partials: [[1, 1], [2, 0.35], [3, 0.12]], attack: 0.006, decay: 0.5, release: 0.1, pan: 0 },
+};
+
+export const VOICE_NAMES = Object.keys(VOICES);
+
+/** One note. `t` is seconds since the note started; returns amplitude. */
+function voice(name, freq, t, hold) {
+  const v = VOICES[name] ?? VOICES.harp;
+  const a = v.attack ?? 0.01;
+  const end = Math.max(a + 0.02, hold);
+  const shape =
+    t < a ? t / a : v.decay ? Math.exp(-(t - a) / v.decay) : 1;
+  const tail = t > end ? Math.max(0, 1 - (t - end) / (v.release ?? 0.1)) : 1;
+  const gain = shape * tail * (v.sustain ?? 1);
+  if (gain <= 0) return 0;
+  let s = 0;
+  for (const [h, amp] of v.partials) s += Math.sin(TAU * freq * h * t) * amp;
+  return s * gain;
+}
+
+
 /**
  * One layer, in place. `n` samples, `sr` hertz. Everything here is a pure
  * function of the seed and the spec — no clock, no Math.random.
@@ -174,6 +252,98 @@ function layer(kind, spec, n, sr, seed) {
       L[i] = l * breath * fade * 0.16;
       R[i] = r * breath * fade * 0.16;
     }
+  } else if (kind === 'score') {
+    // A cue, not a bed. Sections are counted in eighth notes, so "faster" means
+    // shorter sections rather than a faster tempo — which is what makes the cut
+    // and the music land on the same grid.
+    const bpm = Number(spec.bpm ?? 120);
+    const eighth = 60 / bpm / 2;
+    const keyName = spec.key ?? 'D3';
+    const keySemis = pitchClass(keyName);
+    const baseHz = noteHz(keyName);
+    const chords = (spec.chords ?? ['Dm']).map(parseChord);
+    const motif = Array.isArray(spec.motif) ? spec.motif : [0, 3, 7];
+    const sections = Array.isArray(spec.sections) && spec.sections.length ? spec.sections : [{ eighths: 8, voice: 'harp' }];
+
+    const add = (atSec, hold, hz, name, level, pan = 0) => {
+      const start = Math.round(atSec * sr);
+      if (start >= n) return;
+      const v = VOICES[name] ?? VOICES.harp;
+      const release = v.release ?? 0.1;
+      const total = Math.round((hold + release) * sr);
+      const lg = level * (1 - Math.max(0, pan) * 0.6);
+      const rg = level * (1 + Math.min(0, pan) * 0.6);
+      for (let j = 0; j < total; j++) {
+        const i = start + j;
+        if (i >= n) break;
+        const a = voice(name, hz, j / sr, hold);
+        if (a === 0) continue;
+        L[i] += a * lg;
+        R[i] += a * rg;
+      }
+    };
+
+    const drum = (atSec, which) => {
+      const start = Math.round(atSec * sr);
+      if (start >= n) return;
+      if (which === 'kick') {
+        const len = Math.round(0.22 * sr);
+        for (let j = 0; j < len && start + j < n; j++) {
+          const t = j / sr;
+          const f = 120 * Math.exp(-t / 0.045) + 46;
+          const a = Math.sin(TAU * f * t) * Math.exp(-t / 0.09) * 0.9;
+          L[start + j] += a;
+          R[start + j] += a;
+        }
+      } else {
+        const hp = biquad('high', 6500, 0.8, sr);
+        const len = Math.round(0.06 * sr);
+        for (let j = 0; j < len && start + j < n; j++) {
+          const a = hp(rand() * 2 - 1) * Math.exp(-j / sr / 0.02) * 0.35;
+          L[start + j] += a * 0.9;
+          R[start + j] += a;
+        }
+      }
+    };
+
+    let cursor = 0;
+    sections.forEach((section, index) => {
+      const eighths = Math.max(0.25, Number(section.eighths ?? 4));
+      const chord = chords[index % chords.length];
+      // Keep the transposition inside a sixth: a chord four semitones below the
+      // key should go up, not drop an octave and swallow the melody.
+      let delta = chord.root - keySemis;
+      while (delta > 6) delta -= 12;
+      while (delta < -6) delta += 12;
+      const rootHz = baseHz * 2 ** (delta / 12);
+      const voiceName = section.voice ?? 'harp';
+      const t0 = cursor * eighth;
+      const span = eighths * eighth;
+
+      add(t0, Math.min(span, eighth * 2), rootHz / 2, 'bass', 0.5);
+
+      // The harmony under the motif: the triad, quiet, held for the section.
+      for (const semis of chord.semis.slice(0, 3)) {
+        add(t0, Math.min(span, eighth * 2), rootHz * 2 ** (semis / 12), 'organ', 0.13, 0.1);
+      }
+
+      // One statement of the motif per three eighths; a one-eighth section is
+      // just the first note, which is exactly how a speed-up is written.
+      for (let k = 0; k * 3 < eighths; k++) {
+        motif.forEach((semis, j) => {
+          if (k * 3 + j >= eighths) return;
+          const hz = rootHz * 2 ** (semis / 12);
+          add(t0 + (k * 3 + j) * eighth, eighth * 0.92, hz, voiceName, 0.4, index % 2 ? -0.25 : 0.25);
+        });
+      }
+
+      if (section.drums ?? spec.drums) {
+        drum(t0, 'kick');
+        drum(t0 + span / 2, 'kick');
+        for (let k = 0; k < eighths; k++) if (k % 2) drum(t0 + k * eighth, 'hat');
+      }
+      cursor += eighths;
+    });
   } else if (kind === 'click') {
     const hp = biquad('high', 2500, 0.7, sr);
     const len = Math.round(0.03 * sr);
@@ -199,6 +369,7 @@ const DEFAULT_GAIN = {
   roomtone: 0.1,
   wind: 0.12,
   pad: 0.22,
+  score: 0.5,
   clock: 0.38,
   page: 0.85,
   bell: 0.7,
@@ -212,6 +383,7 @@ export const KINDS = {
   roomtone: 'continuous. low rumble + faint mains hum',
   wind: 'continuous. band-passed noise with gusts',
   pad: 'continuous. slow chord that breathes with the tempo',
+  score: 'continuous. a cue: bpm, chords, a motif, sections in eighth notes',
   clock: 'continuous. one tick per `every` second (default 1)',
   page: 'event. paper swell, about 0.5s',
   bell: 'event. inharmonic partials, `freq`, `decay`',
@@ -234,6 +406,25 @@ export function checkSheet(sheet) {
     const at = spec.at === undefined ? 0 : Number(spec.at);
     if (!Number.isFinite(at) || at < 0) throw new Error(`layers[${index}].at must be >= 0`);
     if (at > length) throw new Error(`layers[${index}].at is past the end of the film (${length}s)`);
+    if (spec.kind === 'score') {
+      // A score is the one kind with structure to get wrong. Check it here so a
+      // typo fails in `check`, not 60 seconds into a render.
+      noteHz(spec.key ?? 'D3');
+      if (spec.chords !== undefined) {
+        if (!Array.isArray(spec.chords) || !spec.chords.length) throw new Error(`layers[${index}].chords must be a non-empty array`);
+        spec.chords.forEach((c) => parseChord(c));
+      }
+      if (spec.sections !== undefined) {
+        if (!Array.isArray(spec.sections) || !spec.sections.length) throw new Error(`layers[${index}].sections must be a non-empty array`);
+        spec.sections.forEach((section, k) => {
+          const eighths = Number(section?.eighths ?? 4);
+          if (!Number.isFinite(eighths) || eighths <= 0) throw new Error(`layers[${index}].sections[${k}].eighths must be > 0`);
+          if (section?.voice !== undefined && !VOICES[section.voice]) {
+            throw new Error(`layers[${index}].sections[${k}]: unknown voice "${section.voice}" (available: ${Object.keys(VOICES).join(', ')})`);
+          }
+        });
+      }
+    }
   });
   return { length, layers };
 }
@@ -314,9 +505,11 @@ export function toWav({ left, right, sampleRate }) {
 
 /** The beat grid of a sheet, when it has a tempo — so scenes can hit the score. */
 export function beatGrid(sheet) {
-  const pad = (sheet?.layers ?? []).find((l) => l && l.kind === 'pad' && Number.isFinite(Number(l.bpm)));
-  if (!pad) return null;
-  const bpm = Number(pad.bpm);
+  const source = (sheet?.layers ?? []).find(
+    (l) => l && (l.kind === 'pad' || l.kind === 'score') && Number.isFinite(Number(l.bpm)),
+  );
+  if (!source) return null;
+  const bpm = Number(source.bpm);
   const length = Number(sheet.length);
   const beats = [];
   for (let t = 0; t <= length + 1e-6; t += 60 / bpm) beats.push(Number(t.toFixed(3)));

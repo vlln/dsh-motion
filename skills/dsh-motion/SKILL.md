@@ -42,6 +42,34 @@ motion/
 
 写完给用户看一眼再动手。**这是一次对话，不是一次校验。**
 
+### 素材从哪来
+
+**不要凭空想象图片，也不要留白。** 三档，按顺序试：
+
+1. **代码画**——几何、渐变、文字、图表。这是引擎的本事，优先用它。
+2. **找一张**——用标好的脚本去免费库里搜：
+
+   ```bash
+   node <skill>/scripts/find-asset.mjs "modern living room interior" --n 6
+   node <skill>/scripts/find-asset.mjs "modern living room interior" --get 2 --name room-base
+   ```
+
+   它搜 Wikimedia Commons（不需要 key），列出尺寸与许可；`--get` 会把图存进
+   `motion/assets/plates/`，并**自动往 `CREDITS.md` 追加一行**（文件名、标题、许可、来源）。
+   交付前把 `CREDITS.md` 的内容抄进 README。
+
+3. **降级**——找不到合适的，就画成图解（色块 + 光），或者换一镜。**不允许留白。**
+
+在场景里用相对路径取：
+
+```js
+const img = new Image();
+img.src = './assets/plates/room-base.jpg';   // mount() 里预先加载
+// render(t) 里 if (img.complete) g.drawImage(img, …)
+```
+
+图片必须预先在 `mount()` 里开始加载，`render(t)` 不能等异步。
+
 ### 三条规矩（计划之后）
 
 1. **一镜一镜做**：写一个场景 → 渲进/中/出三帧 → 自己看 → 过关再写下一个。

@@ -15,7 +15,7 @@ import { modules } from '../src/project.mjs';
 import { createFilm } from '../src/film.mjs';
 import { createVersion, listVersions, useVersion } from '../src/versions.mjs';
 import { createFilmFromTemplate, listTemplates } from '../src/film.mjs';
-import { listFonts } from '../src/fonts.mjs';
+import { filmFontOverrides, listFonts } from '../src/fonts.mjs';
 
 const PKG = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
@@ -411,6 +411,14 @@ async function fonts() {
   for (const font of listFonts()) {
     console.log(`${font.key.padEnd(8)} ${font.note}`);
     console.log(`         ${font.stack}`);
+  }
+  const file = path.join(FILM, 'timeline.json');
+  if (!fs.existsSync(file)) return;
+  const overrides = filmFontOverrides(JSON.parse(fs.readFileSync(file, 'utf8')));
+  for (const [role, spec] of overrides) {
+    const local = spec.src ? path.join(FILM, spec.src) : null;
+    const state = local ? (fs.existsSync(local) ? 'ok' : 'MISSING') : 'system';
+    console.log(`film     ${role} → ${spec.family ?? role}${spec.src ? ` (${spec.src}, ${state})` : ''}`);
   }
 }
 

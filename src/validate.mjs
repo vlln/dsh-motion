@@ -2,6 +2,8 @@
 // The kernel refuses to mount anything that fails here: a missing palette token
 // or an undeclared text slot must fail loudly, not render a black frame.
 
+import { FONT_KEYS } from './fonts.mjs';
+
 const HEX = /^#[0-9a-f]{6}$/i;
 const REQUIRED_TOKENS = ['bg', 'fg', 'accent', 'muted', 'grid', 'panel'];
 const FITS = ['trim', 'loop', 'pad'];
@@ -23,6 +25,19 @@ export function validateTimeline(timeline, modules = null) {
   }
   if (timeline.fps !== undefined && (!isNum(timeline.fps) || timeline.fps < 1 || timeline.fps > 120)) {
     err('fps', `must be 1..120 (got ${timeline.fps})`);
+  }
+
+  // fonts: roles are closed; a film may override a role, not invent one
+  if (timeline.fonts !== undefined) {
+    if (!timeline.fonts || typeof timeline.fonts !== 'object' || Array.isArray(timeline.fonts)) {
+      err('fonts', 'must be an object of role → { family, src }');
+    } else {
+      for (const [role, spec] of Object.entries(timeline.fonts)) {
+        if (!FONT_KEYS.includes(role)) err(`fonts.${role}`, `unknown role (use ${FONT_KEYS.join(', ')})`);
+        else if (!spec || typeof spec !== 'object') err(`fonts.${role}`, 'must be { family, src }');
+        else if (spec.src && !spec.family) err(`fonts.${role}`, 'needs a family name for the loaded file');
+      }
+    }
   }
 
   // palettes

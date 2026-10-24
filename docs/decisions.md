@@ -696,3 +696,29 @@ skill 里写明：帧给构图、配色、字级、切点；**给不了缓动曲
 渲染不联网、不装字体、不依赖某台机器的私有字体。`ctx.font(role)` 与
 `drawText({ family })` 只接受登记过的角色，写错直接报错并列出可选项；
 `dsh-motion fonts` 打印清单。`gate:fonts`（8 项）锁住"四角色、无下载、未知角色报错、skill 有教学"。
+
+## D019 · 字体可扩展：角色固定，文件跟着片子走
+
+### 问题
+
+`-apple-system` 只是 Apple 的系统关键字，别的平台会落到 Helvetica/Arial，栈本身不坏但不可控；
+更根本的是：模板可能有自己的字体，用户也可能想给某条片子换字体。之前的实现只有一份全局 `FONTS`，
+模板里写死栈，没有"片子自带字体"的位置。
+
+### 决定
+
+- **角色固定为四个**（sans / display / serif / mono）；agent 只记角色名，新增字体不改角色表。
+- **片子可以覆盖角色**：`timeline.fonts.<role> = { family, src, weight? }`，`src` 指向 `motion/fonts/` 里的文件；
+  渲染前内核用 `FontFace` 预载，加载失败就报错，不静默回退。
+- **文件跟着片子走**：字体放在 workpsace 的 `motion/fonts/`，随片子一起传播；不联网、不拉远程字体。
+- `dsh-motion fonts` 列出四个角色与该片的覆盖（含 ok/MISSING）；校验器拒绝未登记的角色。
+
+### 依据
+
+- 实测：`timeline.fonts.display.family = "Georgia"` → 渲染出来的字块变成衬线体（`out` 之外临时目录验证）；
+- `gate:fonts`（12 项）：四角色、无 `url()/woff/ttf` 默认栈、未知角色被校验器拒绝、覆盖保留回退、skill 有教学。
+
+### 代价
+
+- 字体文件会进入片子目录，仓库体积变大；二进制文件也不适合逐行 diff。
+- 只支持浏览器可解析的字体格式；本地系统字体（如 Georgia）可以按名字用，但换机器可能不一致。

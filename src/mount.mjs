@@ -2,6 +2,7 @@
 // attach beats, load the scenes the timeline names, validate, mount the kernel.
 
 import { createKernel } from './kernel.mjs';
+import { loadFilmFonts } from './fonts.mjs';
 import { assertTimeline } from './validate.mjs';
 import { loadModules } from './scenes/index.mjs';
 
@@ -31,6 +32,7 @@ export async function mountMotion({ canvas, width, height, dpr = window.devicePi
   const scenesBase = new URL('scenes/', location.href).href;
   const modules = await loadModules(timeline.scenes.map((s) => s.id), scenesBase);
   assertTimeline(timeline, modules);
+  await loadFilmFonts(timeline, './');
 
   const kernel = createKernel({ timeline, modules });
   await kernel.mountAll(canvas, {

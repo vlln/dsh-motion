@@ -176,6 +176,25 @@ dsh-motion validate && dsh-motion render --stills 0,3
 写一个没登记的名字会直接报错并列出可选项。**不要下载字体**，也不要依赖只在某台机器上装了的字体——
 片子要在别人的机器上渲染成同一个样子。
 
+### 某条片子要用别的字体
+
+字体文件跟着片子走，不跟着机器走：
+
+1. 把字体文件放进 `motion/fonts/`（woff2 / ttf / otf）；
+2. 在 `timeline.fonts` 里给某个角色换掉，**角色名不新增**：
+
+```json
+"fonts": {
+  "display": { "family": "Studio Serif", "src": "fonts/studio-serif.woff2", "weight": "400 700" }
+}
+```
+
+3. 渲染前内核会 `FontFace` 预载它；找不到文件会报错，不会悄悄回退成别的字体；
+4. `dsh-motion fonts` 会列出「film display → Studio Serif (fonts/…, ok/MISSING)」。
+
+这样模板可以带自己的字体，用户也能为某一条片子换字体，但**字体角色仍然是四种**，
+agent 仍然只需要记住角色名。
+
 ## 参考优先的一条工序
 
 用户丢来一条参考片时，不要"看一遍凭感觉"，也不要从空目录开始。一条命令把两件事做完：

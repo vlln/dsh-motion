@@ -60,6 +60,17 @@ const ffmpeg = (args) =>
   });
 
 async function init() {
+  const from = opt('template');
+  if (from !== undefined) {
+    if (!from || from === 'list') {
+      for (const name of listTemplates()) console.log(name);
+      return;
+    }
+    const { dir, film } = createFilmFromTemplate(process.cwd(), from);
+    console.log(`motion/ ← template "${from}" · ${film.scenes.length} scene(s) · ${film.duration}s`);
+    console.log(`  ${film.scenes.map((x) => x.id).join(', ')}  in ${path.relative(process.cwd(), dir)}`);
+    return;
+  }
   createFilm(process.cwd(), { title: opt('title', 'Untitled'), length: Number(opt('length', 6)) });
   console.log('motion/timeline.json');
   console.log('motion/scenes/blank.mjs');
@@ -82,6 +93,7 @@ async function validate() {
 
 async function render() {
   if (!fs.existsSync(path.join(FILM, 'timeline.json'))) fail('no film here — run: dsh-motion init');
+  if (flag('export')) return exportVideo();
   const out = opt('out');
   if (flag('video')) {
     await run('capture.mjs', ['--video', ...(out ? ['--out', out] : []), ...(opt('fps') ? ['--fps', opt('fps')] : [])], FILM);
@@ -126,6 +138,12 @@ async function exportVideo() {
 }
 
 async function version() {
+  const sub = argv[1];
+  if (sub === 'list') return versions();
+  if (sub === 'use') {
+    if (!argv[2]) fail('usage: dsh-motion version use v3');
+    return use(argv[2]);
+  }
   const title = opt('m', opt('message', ''));
   const out = createVersion(FILM, { title, author: opt('author', 'agent') });
   console.log(`${out.id} · ${out.title}`);
@@ -140,9 +158,8 @@ async function versions() {
   for (const row of rows) console.log(`${row.id.padEnd(4)} ${row.at.slice(0, 16).replace('T', ' ')}  ${row.author.padEnd(5)}  ${row.title}`);
 }
 
-async function use() {
-  const id = argv[1];
-  if (!id) fail('usage: dsh-motion use v3');
+async function use(id = argv[1]) {
+  if (!id) fail('usage: dsh-motion version use v3');
   const out = useVersion(FILM, id);
   console.log(`回到 ${out.restored} · ${out.title}`);
   console.log('reload the preview panel: scene code changed.');
@@ -354,6 +371,7 @@ async function storyboard() {
  * the reference into out/ref, and write a brief the agent can work from.
  */
 async function reference() {
+  if (flag('shots')) return storyboard();
   const src = argv[1];
   if (!src) fail('usage: dsh-motion reference <video> [--template kinetic] [--fps 2]');
   const source = path.resolve(src);
@@ -422,36 +440,24 @@ async function fonts() {
   }
 }
 
+const check = validate;
+
 const commands = {
-  init,
-  fonts,
-  template,
-  frames,
-  reference,
-  storyboard,
-  validate,
-  render,
-  export: exportVideo,
-  version,
-  versions,
-  use,
+  init,       // start a film (blank or from a template)
+  reference,  // read a reference video into the film
+  check,      // does the film hold together
+  render,     // stills, video, export
+  version,    // save / list / use
 };
 
 if (!cmd || !commands[cmd]) {
-  console.error('usage: dsh-motion <init|validate|render|export|template|frames|reference|storyboard|fonts|version|versions|use> [options]');
+  console.error('usage: dsh-motion <init|reference|check|render|version> [options]');
   console.error('');
-  console.error('  init      [--title "…"] [--length 6]');
-  console.error('  template list | template <id>   start a film from a template instead of blank');
-  console.error('  frames <video> [--fps 2] [--cols 4]   frames + contact sheet + cuts into out/ref');
-  console.error('  reference <video> [--template id]     template + frames + a brief, in one step');
-  console.error('  storyboard [<video>] [--write]        cuts → shot list; --write rebuilds timeline.scenes');
-  console.error('  fonts                                 the four type roles a film may use');
-  console.error('  validate  check the timeline and every scene it names');
-  console.error('  render    [--stills 0,3,6] | [--video] [--out path] [--cols 3]');
-  console.error('  export    [--gif] [--out path] [--fps 30] [--height 720|1080] [--quality high|medium|low]');
-  console.error('  version   -m "what changed"   save the film as a version the user can switch to');
-  console.error('  versions                      list saved versions');
-  console.error('  use v3                        restore a version (appends, never rewrites history)');
+  console.error('  init      [--title "…"] [--length 6] | [--template <id>]  (--template list prints them)');
+  console.error('  reference <video> [--template id] [--fps 2] [--cols 4]    frames, cuts, shot list into out/ref');
+  console.error('  check                                                the timeline and every scene it names');
+  console.error('  render    [--stills 0,3,6] | [--video] [--export] [--out path] [--cols 3]');
+  console.error('  version   -m "what changed" | version list | version use v3');
   process.exit(cmd ? 1 : 0);
 }
 

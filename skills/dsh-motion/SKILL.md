@@ -47,17 +47,22 @@ motion/
 ## 命令
 
 ```bash
-dsh-motion init [--title "标题"] [--length 6]   # 建一条空片 + 一个起始场景
-dsh-motion validate                             # 校验时间轴和它引用的每个场景
-dsh-motion render --stills 0,3,6 [--cols 3]     # 拼一张静帧对照表（快，用来审）
-dsh-motion render --video [--out out/film.mp4]  # 整条视频
-dsh-motion export [--gif] [--out out/export.mp4]
-dsh-motion version -m "把 1945 的图钉改成红色"   # 收尾：存成用户可切换的版本
-dsh-motion versions                             # 列出所有版本
-dsh-motion use v3                               # 切回某个版本（会先保存当前状态）
+dsh-motion init [--title "标题"] [--length 6]    # 建一条空片 + 一个起始场景
+dsh-motion init --template <id> | --template list  # 从样板建，或看有哪些样板
+dsh-motion reference <video> [--template id]     # 拆参考：帧、切点、分镜 → out/ref
+dsh-motion check                                 # 校验时间轴和它引用的每个场景
+dsh-motion render --stills 0,3,6 [--cols 3]      # 拼一张静帧对照表（快，用来审）
+dsh-motion render --video [--out out/film.mp4]   # 整条视频
+dsh-motion render --export [--gif]
+dsh-motion version -m "把 1945 的图钉改成红色"    # 收尾：存成用户可切换的版本
+dsh-motion version list                          # 列出所有版本
+dsh-motion version use v3                        # 切回某个版本（会先保存当前状态）
 ```
 
-改完先 `validate`，再 `render --stills` 看几帧，最后才 `--video`。整条视频是逐帧渲染，慢。
+五个动词，一个阶段一个：`init` / `reference` / `check` / `render` / `version`。
+**没有第六个。** 想做新的事，先问它属于哪个阶段；不属于就别加。
+
+改完先 `check`，再 `render --stills` 看几帧，最后才 `--video`。整条视频是逐帧渲染，慢。
 
 **收尾必须落版本**：每完成一次用户能看见的修改，最后一步跑 `dsh-motion version -m "…"`，
 标题写**用户看得见的变化**（"把片尾语速放慢"），不是"updated files"。用户在面板顶部
@@ -169,9 +174,9 @@ export function render(t) {
 所以先选一个已经成立的舞台，再往里面换字、换色、换数据：
 
 ```
-dsh-motion template list        # 有哪些舞台
+dsh-motion init --template list        # 有哪些舞台
 dsh-motion template kinetic     # 在 motion/ 里生成一条可跑的片子
-dsh-motion validate && dsh-motion render --stills 0,3
+dsh-motion check && dsh-motion render --stills 0,3
 ```
 
 | 模板 | 引擎 | 适合 |
@@ -241,7 +246,7 @@ dsh-motion reference ref.mp4 --template kinetic
 接着把切点变成分镜：
 
 ```
-dsh-motion storyboard --write
+dsh-motion reference <video> --shots --write
 ```
 
 - 切点之间的段落成为 Beat，过短合并、过长拆分；
@@ -251,7 +256,7 @@ dsh-motion storyboard --write
 分镜只给**长度与顺序**，每个 Beat 里怎么动仍然要写。之后：
 
 ```
-dsh-motion validate
+dsh-motion check
 dsh-motion render --stills 0,2,4
 dsh-motion version -m "用户看得见的变化"
 ```
@@ -261,7 +266,7 @@ dsh-motion version -m "用户看得见的变化"
 拿到一条参考片，不要"看一遍凭感觉"，先把它变成可读的数据：
 
 ```
-dsh-motion frames ref.mp4 --fps 2 --cols 4
+dsh-motion reference ref.mp4 --fps 2 --cols 4
 ```
 
 - 帧落在 `motion/out/ref/f001.jpg…`（480 宽，够看构图和字重）；

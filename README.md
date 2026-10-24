@@ -231,10 +231,10 @@ agent 用的是命令，不是工具：
 
 ```bash
 dsh-motion init [--title "标题"] [--length 6]
-dsh-motion validate
+dsh-motion check
 dsh-motion render --stills 0,3,6 [--cols 3]
 dsh-motion render --video [--out out/film.mp4]
-dsh-motion export [--gif] [--out out/export.mp4]
+dsh-motion render --export [--gif] [--out out/export.mp4]
 ```
 
 `skills/dsh-motion/SKILL.md` 是完整的手册：目录布局、时间轴字段、场景模块契约

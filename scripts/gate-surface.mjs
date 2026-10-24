@@ -40,7 +40,7 @@ const front = /^---\n([\s\S]*?)\n---\n/.exec(skill);
 check('the skill has frontmatter', Boolean(front), front ? 'parsed' : 'missing');
 check('the skill is named dsh-motion', /name:\s*dsh-motion/.test(front?.[1] ?? ''), front?.[1]?.split('\n')[0] ?? '');
 check('the skill routes on animation work', /description:/.test(front?.[1] ?? '') && /动画/.test(front?.[1] ?? ''));
-for (const command of ['dsh-motion init', 'dsh-motion validate', 'dsh-motion render', 'dsh-motion export']) {
+for (const command of ['dsh-motion init', 'dsh-motion check', 'dsh-motion render', 'dsh-motion reference']) {
   check(`the skill teaches \`${command}\``, skill.includes(command), command);
 }
 check('the skill states the determinism rule', /不读时钟/.test(skill) && /同一个 `t`/.test(skill));
@@ -54,7 +54,7 @@ check('the cli is executable', (mode & 0o111) !== 0, mode.toString(8));
 
 const run = spawnSync(process.execPath, [bin], { encoding: 'utf8' });
 const usage = `${run.stdout ?? ''}${run.stderr ?? ''}`;
-check('the cli prints usage without a film', /init\|validate\|render\|export/.test(usage), usage.split('\n')[0] ?? '');
+check('the cli prints usage without a film', ['init', 'reference', 'check', 'render', 'version'].every((c) => usage.includes(c)), usage.split('\n')[0] ?? '');
 
 const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
 check(

@@ -1,6 +1,7 @@
-// The film's typefaces. Four roles, all system stacks: nothing to download, no
-// network at render time, no "agent picked a font that only exists on its
-// machine". Scenes name a role, never a font file.
+// The film's typefaces. Four named roles ship as system stacks so a film never
+// needs a download; a film may add or replace any role of its own
+// (`timeline.fonts.<role> = { family, src? }`) — the set is open, because a
+// closed set cannot serve every film. Scenes still name a role, never a path.
 export const FONTS = {
   sans: {
     stack: 'Inter, "Helvetica Neue", Arial, sans-serif',
@@ -22,11 +23,10 @@ export const FONTS = {
 
 export const FONT_KEYS = Object.keys(FONTS);
 
-/** Resolve a role to a CSS stack, refusing anything that is not registered. */
+/** Resolve a role to a CSS stack. Unknown roles fall back to the body stack. */
 export function fontStack(key = 'sans') {
   const font = FONTS[key];
-  if (!font) throw new Error(`unknown font "${key}"; use one of: ${FONT_KEYS.join(', ')}`);
-  return font.stack;
+  return font ? font.stack : FONTS.sans.stack;
 }
 
 export function listFonts() {
@@ -40,6 +40,11 @@ export function resolveFont(timeline, role = 'sans') {
     return `${override.family}, ${fontStack(role)}`;
   }
   return fontStack(role);
+}
+
+/** Every role the film can name: the four built-ins plus whatever it declared. */
+export function roleNames(timeline) {
+  return [...new Set([...FONT_KEYS, ...Object.keys(timeline?.fonts ?? {})])];
 }
 
 export function filmFontOverrides(timeline) {

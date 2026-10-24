@@ -35,15 +35,19 @@ export function validateTimeline(timeline, modules = null) {
     }
   }
 
-  // fonts: roles are closed; a film may override a role, not invent one
+  // fonts: the four built-in roles are defaults, not a closed set. A film may
+  // name any role of its own; what has to hold is that a file comes with a
+  // family name and a src that stays inside the film.
   if (timeline.fonts !== undefined) {
     if (!timeline.fonts || typeof timeline.fonts !== 'object' || Array.isArray(timeline.fonts)) {
       err('fonts', 'must be an object of role → { family, src }');
     } else {
       for (const [role, spec] of Object.entries(timeline.fonts)) {
-        if (!FONT_KEYS.includes(role)) err(`fonts.${role}`, `unknown role (use ${FONT_KEYS.join(', ')})`);
-        else if (!spec || typeof spec !== 'object') err(`fonts.${role}`, 'must be { family, src }');
+        if (!spec || typeof spec !== 'object') err(`fonts.${role}`, 'must be an object');
         else if (spec.src && !spec.family) err(`fonts.${role}`, 'needs a family name for the loaded file');
+        else if (spec.src && !String(spec.src).startsWith('fonts/')) {
+          err(`fonts.${role}`, 'src must live under the film\'s fonts/ directory');
+        }
       }
     }
   }

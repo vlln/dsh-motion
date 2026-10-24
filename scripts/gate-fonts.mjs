@@ -25,13 +25,7 @@ check(
 );
 check('a stack resolves from a role', fontStack('display').includes('Helvetica'), fontStack('display'));
 
-let refused = '';
-try {
-  fontStack('comic');
-} catch (error) {
-  refused = error.message;
-}
-check('an unknown role is refused with the list', /use one of: sans, display, serif, mono/.test(refused), refused);
+check('an unknown role falls back to the body stack', fontStack('comic').includes('Helvetica'), fontStack('comic'));
 
 const out = execFileSync(process.execPath, [BIN, 'fonts'], { encoding: 'utf8' });
 check('the cli prints every role', FONT_KEYS.every((key) => out.includes(key)), out.split('\n')[0]);
@@ -40,8 +34,13 @@ const film = { fonts: { display: { family: 'Georgia' } } };
 check('a film may override a role', resolveFont(film, 'display').startsWith('Georgia'), resolveFont(film, 'display'));
 check('an override keeps the role fallback', resolveFont(film, 'display').includes('Helvetica'), 'fallback kept');
 
-const badRole = validateTimeline({ width: 1, height: 1, duration: 1, palettes: { main: { bg: '#000000' } }, fonts: { comic: {} }, scenes: [] });
-check('an unknown font role is rejected', !badRole.ok && /unknown role/.test(badRole.errors.join(' ')), badRole.errors[0]);
+const customRole = validateTimeline({
+  width: 1, height: 1, duration: 1,
+  palettes: { main: { bg: '#000000', fg: '#ffffff', accent: '#ffffff', muted: '#888888', grid: '#333333', panel: '#111111' } },
+  fonts: { comic: { family: 'Comic Sans MS' } },
+  scenes: [{ id: 'a', name: 'A', start: 0, length: 1, palette: 'main' }],
+});
+check('a film may invent a font role', customRole.errors.every((e) => !e.includes('fonts.')), customRole.errors.join(' '));
 
 const goodRole = validateTimeline({ width: 1, height: 1, duration: 1, palettes: { main: { bg: '#000000' } }, fonts: { display: { family: 'X', src: 'fonts/x.woff2' } }, scenes: [] });
 check('a declared override passes validation', goodRole.errors.every((e) => !e.includes('fonts.')), goodRole.errors.join(' '));

@@ -159,6 +159,10 @@ dsh-motion validate && dsh-motion render --stills 0,3
 | `tree` | 2D | 线描生长、粒子 |
 | `cards3d` | WebGL | 真三维：倒角卡片、PBR、投影地面、泛光 |
 
+四个角色是**默认值，不是封闭集合**：片子可以在 `timeline.fonts` 里自定任意角色
+（`{ "<role>": { family, src? } }`，`src` 必须放在片子的 `fonts/` 目录里）。
+包只保证四个默认角色在任何机器上都解析得到；要别的字形，自己带文件。
+
 **引擎选错等于白做。** 需要真透视、材质、灯光、阴影的，用 `kind: 'webgl'`；
 二维的排印、图表、界面，用 canvas 2D。不要在 2D 里假装 3D（斜切矩形一眼假），
 也不要用 WebGL 画本来就该是排版的字。

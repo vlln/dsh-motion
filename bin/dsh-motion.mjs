@@ -71,10 +71,13 @@ async function init() {
     console.log(`  ${film.scenes.map((x) => x.id).join(', ')}  in ${path.relative(process.cwd(), dir)}`);
     return;
   }
-  createFilm(process.cwd(), { title: opt('title', 'Untitled'), length: Number(opt('length', 6)) });
+  const { dir } = createFilm(process.cwd(), { title: opt('title', 'Untitled'), length: Number(opt('length', 6)) });
+  const plan = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'templates', 'plan.md');
+  if (fs.existsSync(plan)) fs.copyFileSync(plan, path.join(dir, 'PLAN.md'));
   console.log('motion/timeline.json');
+  console.log('motion/PLAN.md');
   console.log('motion/scenes/blank.mjs');
-  console.log('a starter scene is included; replace or add scenes under motion/scenes/');
+  console.log('write PLAN.md first (seven sections), then replace the starter scene');
 }
 
 async function validate() {

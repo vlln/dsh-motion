@@ -36,7 +36,9 @@ export async function modules(root) {
   const dir = path.join(root, 'scenes');
   if (!fs.existsSync(dir)) return cached;
   const list = [...cached];
-  for (const name of fs.readdirSync(dir).filter((f) => f.endsWith('.mjs')).sort()) {
+  // `_name.mjs` (and anything under scenes/lib/) is a shared module, not a
+  // scene: it has no mount/render and the film never lists it in `scenes`.
+  for (const name of fs.readdirSync(dir).filter((f) => f.endsWith('.mjs') && !f.startsWith('_')).sort()) {
     const file = path.join(dir, name);
     const stamp = fs.statSync(file).mtimeMs;
     const key = `${file}:${stamp}`;
@@ -44,6 +46,14 @@ export async function modules(root) {
     if (!mod) {
       mod = await import(`${pathToFileURL(file).href}?v=${stamp}`);
       projectModules.set(key, mod);
+    }
+    // A forgotten `export` used to surface as "reading 'canvas'" deep inside a
+    // render, because the kernel mounted nothing and then called render anyway.
+    // Say what is actually wrong, and say it at load.
+    for (const part of ['mount', 'render']) {
+      if (typeof mod[part] !== 'function') {
+        throw new Error(`scene file ${path.relative(root, file)} exports no ${part}() — is it missing \`export\`?`);
+      }
     }
     list.push(mod);
   }

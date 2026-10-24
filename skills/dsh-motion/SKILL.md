@@ -13,6 +13,7 @@ description: 在工作区里做或改一条动画：写 motion/timeline.json 和
 motion/
   timeline.json      片子：尺寸、帧率、幕和时长、调色板、文字、数值
   scenes/<id>.mjs    每一幕怎么画（导出 id、slots、render(t)）
+  scenes/_*.mjs      共享模块（世界、道具），不是一幕——`_` 开头就不会被当成场景
   out/               渲染产物（已被 .gitignore）
 ```
 

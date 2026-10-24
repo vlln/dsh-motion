@@ -97,6 +97,66 @@ export function strokeOutline(g, pts, { width = 3, color = 'rgba(20,16,12,0.6)',
   g.restore();
 }
 
+/**
+ * A camera looking into a room. This is the one thing every interior shot needs
+ * and nothing else provides: without it, a "room" collapses into a front
+ * elevation with no depth, which is what a canvas defaults to.
+ *
+ * Pure maths, no canvas: `at` maps a world point to screen x, y and k, where k
+ * is how many pixels one world unit covers at that depth. Use k for line widths
+ * and for anything that should get bigger as it comes closer.
+ *
+ *   const cam = ctx.paint.space({ w: ctx.width, h: ctx.height, eye: [0, 1.6, 4], look: [0, 1.5, -6] });
+ *   const [x, y, k] = cam.at(0, 0, -3);
+ *
+ * World units are whatever you want them to be — metres, shelf widths. Y is up.
+ */
+export function space({ w = 1920, h = 1080, eye = [0, 1.6, 0], look = [0, 1.6, -1], up = [0, 1, 0], fov = 50 } = {}) {
+  const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+  const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const norm = (a) => {
+    const l = Math.hypot(...a) || 1;
+    return [a[0] / l, a[1] / l, a[2] / l];
+  };
+
+  const forward = norm(sub(look, eye));
+  const right = norm(cross(forward, up));
+  const tilted = cross(right, forward);
+  // Vertical fov sets the focal length in pixels; 50° is close to a 40mm lens,
+  // which is what a room reads as "filmed" rather than "wide-angle distorted".
+  const focal = h / 2 / Math.tan(((fov * Math.PI) / 180) / 2);
+
+  /** World point -> [x, y, k]. Points behind the eye come back with k <= 0. */
+  const at = (x, y, z) => {
+    const d = sub([x, y, z], eye);
+    const depth = dot(d, forward);
+    if (depth < 0.02) return [w / 2, h / 2, 0];
+    const k = focal / depth;
+    return [w / 2 + dot(d, right) * k, h / 2 - dot(d, tilted) * k, k];
+  };
+
+  /** Pixels per world unit at depth z — for strokes that should not get thinner. */
+  const depth = (z) => {
+    const d = sub([0, 0, z], eye);
+    const along = dot(d, forward);
+    return along < 0.02 ? 0 : focal / along;
+  };
+
+  /** A closed quad from four world points, as a path. Walls, floors, shelf sides. */
+  const quad = (a, b, c, d) => {
+    const p = new Path2D();
+    [a, b, c, d].forEach((pt, i) => {
+      const [x, y] = at(...pt);
+      i ? p.lineTo(x, y) : p.moveTo(x, y);
+    });
+    p.closePath();
+    return p;
+  };
+
+  return { at, depth, quad, eye, look, focal };
+}
+
 /** Grain with a direction: fibres, not static. */
 export function grain(g, w, h, { angle = 0, density = 0.0016, alpha = 0.05, seed = 3, color = '#000' } = {}) {
   const r = (n) => {
@@ -122,4 +182,4 @@ export function grain(g, w, h, { angle = 0, density = 0.0016, alpha = 0.05, seed
   g.restore();
 }
 
-export const paint = { smoothPath, capsule, wash, strokeOutline, grain, TAU };
+export const paint = { smoothPath, capsule, wash, strokeOutline, grain, space, TAU };

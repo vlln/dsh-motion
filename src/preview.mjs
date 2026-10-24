@@ -1182,7 +1182,9 @@ const versionDot = $('versionDot');
 
 function renderVersions(data) {
   const rows = data.versions ?? [];
-  const current = rows[0];
+  // The newest version is not necessarily the one on screen: switching back
+  // leaves the list alone, so the panel has to be told which one is current.
+  const current = rows.find((row) => row.id === data.current) ?? null;
   versionLabel.textContent = current ? `${current.id} · ${current.title}` : '还没有版本';
   versionDot.hidden = !data.dirty;
   versionDot.title = data.dirty ? '有未保存为版本的修改' : '';
@@ -1190,10 +1192,9 @@ function renderVersions(data) {
     ? rows
         .map(
           (row, i) => `
-        <button class="version-row" data-id="${row.id}" aria-current="${i === 0}">
+        <button class="version-row" data-id="${row.id}" aria-current="${row.id === current?.id}">
           <span class="id">${row.id}</span>
           <span class="title">${row.title}</span>
-          <span class="meta">${row.author === 'user' ? '我' : 'agent'}</span>
         </button>`,
         )
         .join('')
@@ -1201,7 +1202,7 @@ function renderVersions(data) {
   for (const button of versionList.querySelectorAll('.version-row')) {
     button.addEventListener('click', async () => {
       const id = button.dataset.id;
-      if (id === rows[0]?.id) {
+      if (id === current?.id) {
         versionMenu.open = false;
         return;
       }

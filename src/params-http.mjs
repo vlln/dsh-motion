@@ -2,7 +2,7 @@
 // plugin's web routes (lib/index.mjs). Same reason as comments: one
 // implementation, two mount points.
 
-import { createVersion, isDirty, listVersions, useVersion } from './versions.mjs';
+import { createVersion, currentVersion, isDirty, listVersions, useVersion } from './versions.mjs';
 import { setProjectPoster, TEMPLATES, createProject, describeProject, exportProject, history, listProjects, rebakeAsset, restoreProject, revision, setProjectAsset, setProjectParam, setProjectScene, deleteProjectScene, setProjectPalette, setProjectText, setProjectValue } from './project.mjs';
 
 const json = (res, code, data) => {
@@ -92,16 +92,18 @@ export function paramsHandlers(root) {
       json(res, 200, { ok: true, palette: out.palette, snapshot: out.snapshot });
     }),
     versions: wrap(async (req, res) => {
-      if (req.method === 'GET') return json(res, 200, { versions: listVersions(root), dirty: isDirty(root) });
+      if (req.method === 'GET') {
+        return json(res, 200, { versions: listVersions(root), current: currentVersion(root), dirty: isDirty(root) });
+      }
       const { title } = await readBody(req);
       const created = createVersion(root, { title, author: 'agent' });
-      json(res, 200, { ok: true, created, versions: listVersions(root), dirty: isDirty(root) });
+      json(res, 200, { ok: true, created, versions: listVersions(root), current: currentVersion(root), dirty: isDirty(root) });
     }),
     'versions/use': wrap(async (req, res) => {
       const { id } = await readBody(req);
       if (!id) throw new Error('version switch needs id');
       const out = useVersion(root, id);
-      json(res, 200, { ok: true, restored: out.restored, versions: listVersions(root), dirty: isDirty(root) });
+      json(res, 200, { ok: true, restored: out.restored, versions: listVersions(root), current: currentVersion(root), dirty: isDirty(root) });
     }),
     export: wrap(async (req, res) => {
       const { format, fps, supersample, height, quality, timeline } = await readBody(req);

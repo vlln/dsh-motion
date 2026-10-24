@@ -26,9 +26,17 @@ export function listVersions(root, { includeSafety = false } = {}) {
   }
 }
 
-function saveIndex(root, versions) {
+export function currentVersion(root) {
+  try {
+    return JSON.parse(fs.readFileSync(meta(root), 'utf8')).current ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function saveIndex(root, versions, current = null) {
   fs.mkdirSync(dir(root), { recursive: true });
-  fs.writeFileSync(meta(root), `${JSON.stringify({ versions }, null, 2)}\n`);
+  fs.writeFileSync(meta(root), `${JSON.stringify({ versions, current }, null, 2)}\n`);
 }
 
 function readScenes(root) {
@@ -97,7 +105,7 @@ export function createVersion(root, { title, author = 'agent', kind = 'edit' } =
   fs.mkdirSync(dir(root), { recursive: true });
   fs.writeFileSync(path.join(dir(root), `${id}.json`), `${JSON.stringify(record, null, 2)}\n`);
   // newest first, so the panel renders top-down without sorting
-  saveIndex(root, [{ id, at, title: record.title, author, kind: record.kind, mtime: record.mtime }, ...versions]);
+  saveIndex(root, [{ id, at, title: record.title, author, kind: record.kind, mtime: record.mtime }, ...versions], id);
   return { id, at, title: record.title, author };
 }
 
@@ -126,5 +134,7 @@ export function useVersion(root, id) {
     fs.writeFileSync(to, source);
   }
   fs.writeFileSync(timelineFile(root), `${JSON.stringify(record.timeline, null, 2)}\n`);
+  // the film on disk is now exactly this version
+  saveIndex(root, versions, id);
   return { restored: id, title: record.title };
 }

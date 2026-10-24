@@ -246,11 +246,17 @@ function strokeField(kind, x, y, w, h, data, base) {
   return base + Math.PI / 4;
 }
 
-/** Push a colour away from mid-grey: what makes one stroke separate from its neighbour. */
-function tilt(color, contrast, brightness, seed) {
-  const mid = 118;
-  const j = 0.82 + hash1(seed * 3.7) * 0.36;
-  return color.map((c) => clamp255(mid + (c - mid) * contrast * brightness * j));
+/**
+ * One stroke's colour, nudged off the sampled one so neighbours separate.
+ *
+ * The nudge is multiplicative, not a push away from mid-grey. A night picture is
+ * mostly dark values, and shifting those by a constant destroys the silhouette
+ * they encode — the first version turned a lit street into a blue swirl. Scaling
+ * instead keeps 40 at 40±6 and 200 at 200±30, which is where paint varies anyway.
+ */
+function tilt(color, variation, brightness, seed) {
+  const j = 1 + (hash1(seed * 3.7) - 0.5) * variation;
+  return color.map((c) => clamp255(c * j * brightness));
 }
 
 function sampleColour(data, w, h, x, y, kind) {
@@ -282,7 +288,7 @@ function sampleColour(data, w, h, x, y, kind) {
  * The strokes, as data. Pure: no canvas, no DOM — a test can check them.
  * `density` 1 covers the surface roughly once in the medium's own stroke size.
  */
-export function planStrokes({ w, h, data }, { kind = 'broken', angle = 0, density = 1, seed = 1 } = {}) {
+export function planStrokes({ w, h, data }, { kind = 'broken', angle = 0, density = 1, seed = 1, size = 1 } = {}) {
   const strokes = [];
 
   // A halftone is a lattice, not a scattering: the dot spacing *is* the screen.
@@ -310,7 +316,7 @@ export function planStrokes({ w, h, data }, { kind = 'broken', angle = 0, densit
   // Strokes are sized relative to the frame, so a 640-wide render and a 1920-wide
   // render of the same scene read as the same painting rather than as paint and
   // confetti.
-  const u = Math.min(w, h) / 600;
+  const u = (Math.min(w, h) / 600) * size;
   const count = Math.round(((w * h) / ((STROKE_AREA[kind] ?? 110) * u * u)) * density);
   for (let i = 0; i < count; i++) {
     const x = hash1(i * 3.1 + seed * 17.3) * w;
@@ -321,7 +327,7 @@ export function planStrokes({ w, h, data }, { kind = 'broken', angle = 0, densit
     if (kind === 'silk') {
       strokes.push({
         x, y, a: a + jitter * 0.2, len: (50 + hash1(i + 5) * 110) * u, wid: (10 + hash1(i + 9) * 26) * u,
-        color: tilt(color, 1.05, 0.95, i + seed), alpha: 0.16 + hash1(i + 13) * 0.26, kind,
+        color: tilt(color, 0.14, 0.96, i + seed), alpha: 0.16 + hash1(i + 13) * 0.26, kind,
       });
     } else if (kind === 'charcoal') {
       strokes.push({
@@ -332,7 +338,7 @@ export function planStrokes({ w, h, data }, { kind = 'broken', angle = 0, densit
       // paint separates from its own ground by value, not by hue
       strokes.push({
         x, y, a: a + jitter * 0.3, len: (14 + hash1(i + 3) * 30) * u, wid: (4 + hash1(i + 8) * 7) * u,
-        color: tilt(color, 1.22, 1, i + seed),
+        color: tilt(color, 0.34, 1, i + seed),
         alpha: 0.86 + hash1(i + 11) * 0.14, kind,
       });
     }
@@ -369,7 +375,10 @@ export function drawStrokes(g, strokes) {
     // Impasto edge: a darker pass slightly wider than the stroke, then the
     // stroke itself. Paint has a lit side and a shadowed side; without that the
     // surface reads as a soft gradient, which is what a filter looks like.
-    if (s.kind === 'broken' || s.kind === 'silk') {
+    // Only where there is light to catch. On a dark stroke the darker edge is
+    // the loudest thing in it, and a night full of those reads as fur.
+    const lit = 0.299 * s.color[0] + 0.587 * s.color[1] + 0.114 * s.color[2] > 62;
+    if ((s.kind === 'broken' || s.kind === 'silk') && lit) {
       g.globalAlpha = Math.min(1, s.alpha * 0.55);
       g.strokeStyle = rgb(s.color, 0.72);
       g.lineWidth = s.wid * 1.45;

@@ -61,7 +61,20 @@ function measure({ data, w, h }) {
       n++;
     }
   }
-  return { flatness: Number(flatShare.toFixed(3)), texture: Number((sum / n).toFixed(2)) };
+  // Contrast travels with texture: a dark frame legitimately has less local
+  // energy than a bright one, so the two numbers are read together.
+  let mean = 0;
+  for (let i = 0; i < w * h; i++) mean += luma[i];
+  mean /= w * h;
+  let variance = 0;
+  for (let i = 0; i < w * h; i++) variance += (luma[i] - mean) ** 2;
+  const contrast = Math.sqrt(variance / (w * h));
+
+  return {
+    flatness: Number(flatShare.toFixed(3)),
+    texture: Number((sum / n).toFixed(2)),
+    contrast: Number(contrast.toFixed(1)),
+  };
 }
 
 /** Mean colour distance to a reference frame, if the film was made from one. */
@@ -173,9 +186,9 @@ if (flag('json')) {
     console.log(`  the reference has ${(refStats.texture / stats.texture).toFixed(1)}x the local detail of this frame.`);
   }
   if (!report.detailed) {
-    console.log(`  local detail ${stats.texture.toFixed(1)}: under ${YARD.graphics} reads as graphics, not as paint.`);
-    console.log(`  the exemplars measure ${YARD.exemplars}; the reference ${YARD.reference}.`);
-    console.log('  a material pass (ctx.medium.broken) on the drawn frame, or a borrowed plate, is what changes it.');
+    console.log(`  local detail ${stats.texture.toFixed(1)} (contrast ${stats.contrast}): under ${YARD.graphics} usually means graphics, not paint.`);
+    console.log(`  the exemplars measure ${YARD.exemplars}, the reference ${YARD.reference} — all on brighter frames.`);
+    console.log('  on a dark frame a lower number is expected; with a reference in out/ref the comparison is direct.');
   }
 }
 

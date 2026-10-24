@@ -121,6 +121,23 @@ export function createKernel({ timeline, modules }) {
       paint: verbs,
       /** Material passes: repaint an image as strokes, charcoal, ink, halftone or glass. */
       medium,
+      /**
+       * Draw once, into a canvas of the render's own size and coordinate space.
+       *
+       * This is the idiom that makes material affordable: draw the world once in
+       * mount(), pass it through a medium once, then blit it every frame and draw
+       * only what moves on top. A scene that redraws its geometry every frame can
+       * never afford a material pass, and ends up looking like flat graphics.
+       */
+      still(draw) {
+        const c = document.createElement('canvas');
+        c.width = canvas.width;
+        c.height = canvas.height;
+        const g = c.getContext('2d');
+        g.setTransform(dpr * scale, 0, 0, dpr * scale, 0, 0);
+        draw(g, width, height);
+        return c;
+      },
       /** Load every asset the scene declared. Called by the kernel before mount(). */
       async preload(names = []) {
         for (const name of names) {

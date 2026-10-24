@@ -51,7 +51,7 @@ export function render(t) {
     g.rect(0, y - size * 1.05, w, size * 1.35);
     g.clip();
     g.fillStyle = ctx.color('fg');
-    g.font = `700 ${size}px -apple-system, system-ui, "Helvetica Neue", Arial, sans-serif`;
+    g.font = `700 ${size}px ${ctx.font('display')}`;
     g.letterSpacing = '-0.035em';
     g.fillText(text, pad, y + (1 - p) * size * 0.9);
     g.letterSpacing = '0em';

@@ -9,11 +9,7 @@ import { layoutText } from './text.mjs';
 import { sceneTime } from './clock.mjs';
 import { fitRect, frameAt, frameRect } from './media.mjs';
 
-const FONTS = {
-  serif: '"Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif',
-  sans: 'Inter, "Helvetica Neue", Arial, sans-serif',
-  mono: 'ui-monospace, "SF Mono", Menlo, monospace',
-};
+import { fontStack } from './fonts.mjs';
 import { rng } from './rng.mjs';
 
 export function createKernel({ timeline, modules }) {
@@ -55,7 +51,7 @@ export function createKernel({ timeline, modules }) {
       const size = opts.size ?? Math.round(height * 0.03);
       const weight = opts.weight ?? 400;
       const lineHeight = opts.lineHeight ?? 1.35;
-      const family = FONTS[opts.family ?? 'sans'] ?? opts.family ?? FONTS.sans;
+      const family = fontStack(opts.family ?? 'sans');
       const align = opts.align ?? 'left';
       const x = opts.x ?? 0;
       const y = opts.y ?? 0;
@@ -165,8 +161,8 @@ export function createKernel({ timeline, modules }) {
         const hex = color(scene, token, elementId);
         return parseInt(hex.replace('#', ''), 16);
       },
-      font(family) {
-        return FONTS[family] ?? family;
+      font(role) {
+        return fontStack(role);
       },
       image(name, opts = {}) {
         if (!active) throw new Error(`image("${name}") called outside a render pass`);

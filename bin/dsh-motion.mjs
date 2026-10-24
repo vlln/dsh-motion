@@ -15,6 +15,7 @@ import { modules } from '../src/project.mjs';
 import { createFilm } from '../src/film.mjs';
 import { createVersion, listVersions, useVersion } from '../src/versions.mjs';
 import { createFilmFromTemplate, listTemplates } from '../src/film.mjs';
+import { listFonts } from '../src/fonts.mjs';
 
 const PKG = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
@@ -405,8 +406,17 @@ async function template() {
   console.log('next: dsh-motion validate && dsh-motion render --stills 0,3');
 }
 
+/** The four type roles a film may use. Printed so nobody goes looking for fonts. */
+async function fonts() {
+  for (const font of listFonts()) {
+    console.log(`${font.key.padEnd(8)} ${font.note}`);
+    console.log(`         ${font.stack}`);
+  }
+}
+
 const commands = {
   init,
+  fonts,
   template,
   frames,
   reference,
@@ -420,13 +430,14 @@ const commands = {
 };
 
 if (!cmd || !commands[cmd]) {
-  console.error('usage: dsh-motion <init|validate|render|export|template|frames|reference|storyboard|version|versions|use> [options]');
+  console.error('usage: dsh-motion <init|validate|render|export|template|frames|reference|storyboard|fonts|version|versions|use> [options]');
   console.error('');
   console.error('  init      [--title "…"] [--length 6]');
   console.error('  template list | template <id>   start a film from a template instead of blank');
   console.error('  frames <video> [--fps 2] [--cols 4]   frames + contact sheet + cuts into out/ref');
   console.error('  reference <video> [--template id]     template + frames + a brief, in one step');
   console.error('  storyboard [<video>] [--write]        cuts → shot list; --write rebuilds timeline.scenes');
+  console.error('  fonts                                 the four type roles a film may use');
   console.error('  validate  check the timeline and every scene it names');
   console.error('  render    [--stills 0,3,6] | [--video] [--out path] [--cols 3]');
   console.error('  export    [--gif] [--out path] [--fps 30] [--height 720|1080] [--quality high|medium|low]');

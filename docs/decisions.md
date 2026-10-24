@@ -689,3 +689,10 @@ skill 里写明：帧给构图、配色、字级、切点；**给不了缓动曲
 `storyboard --write` 现在会按每个 Beat 的中点渲一张静帧到 `out/ref/beats/beatNN.png`，
 并拼一张 `out/ref/beats.png`；`storyboard.json` 里每个 Beat 增加 `still` 字段。
 `--no-stills` 可跳过（只改时间轴时不需要起浏览器）。`gate:frames` 扩到 20 项。
+
+## D018 · 字体是封闭的四角色，不是自由发挥
+
+`src/fonts.mjs` 登记四个角色（sans / display / serif / mono），全部是系统栈：
+渲染不联网、不装字体、不依赖某台机器的私有字体。`ctx.font(role)` 与
+`drawText({ family })` 只接受登记过的角色，写错直接报错并列出可选项；
+`dsh-motion fonts` 打印清单。`gate:fonts`（8 项）锁住"四角色、无下载、未知角色报错、skill 有教学"。

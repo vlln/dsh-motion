@@ -154,7 +154,9 @@ dsh-motion validate && dsh-motion render --stills 0,3
 | `board` | 2D | 排行榜、名次变化、镜头爬升 |
 | `guide` | 2D | 手绘图鉴、引线、打字机、扫描 |
 | `desk` | 2D | 产品片：设备 + 悬浮卡片 |
-| `tree` / `prism` / `orbit` | 2D / 2D / WebGL | 氛围、星场、背景 |
+| `prism` | 2D | 光：光束、玻璃棱镜、光谱扇面 |
+| `orbit` | 2D | 星场、气态行星、环带前后遮挡 |
+| `tree` | 2D | 线描生长、粒子 |
 | `cards3d` | WebGL | 真三维：倒角卡片、PBR、投影地面、泛光 |
 
 **引擎选错等于白做。** 需要真透视、材质、灯光、阴影的，用 `kind: 'webgl'`；

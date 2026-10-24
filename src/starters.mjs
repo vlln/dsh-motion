@@ -85,7 +85,7 @@ function glassCard(g, x, y, w, h, card, p) {
   if (p <= 0) return;
   g.save();
   g.globalAlpha = Math.min(1, p * 1.6);
-  g.shadowColor = 'rgba(60, 40, 20, 0.18)';
+  g.shadowColor = 'rgba(60, 40, 20, 0.26)';
   g.shadowBlur = h * 0.18;
   g.shadowOffsetY = h * 0.06;
   g.fillStyle = 'rgba(255, 255, 255, 0.92)';
@@ -106,15 +106,15 @@ function glassCard(g, x, y, w, h, card, p) {
   for (let i = 0; i < 3; i++) {
     g.fillRect(x + w * 0.09, top + h * 0.22 + i * w * 0.045, w * 0.11 * (i === 1 ? 0.7 : 1), Math.max(1, w * 0.012));
   }
-  g.fillStyle = 'rgba(27,23,18,0.42)';
-  g.font = `500 ${Math.max(6, w * 0.038)}px ${MONO}`;
+  g.fillStyle = 'rgba(27,23,18,0.55)';
+  g.font = `600 ${Math.max(6, w * 0.038)}px ${MONO}`;
   g.letterSpacing = '0.16em';
   g.fillText(card.step, x + w * 0.3, top + h * 0.26);
   g.letterSpacing = '0em';
   g.fillStyle = '#1b1712';
   g.font = `600 ${Math.max(8, w * 0.062)}px ${SANS}`;
   g.fillText(card.title, x + w * 0.3, top + h * 0.5);
-  g.fillStyle = 'rgba(27,23,18,0.45)';
+  g.fillStyle = 'rgba(27,23,18,0.58)';
   g.font = `400 ${Math.max(6, w * 0.042)}px ${SANS}`;
   g.fillText(card.note, x + w * 0.3, top + h * 0.66);
   g.fillStyle = 'rgba(27,23,18,0.1)';
@@ -137,16 +137,16 @@ function boardRow(g, x, y, w, h, row, p, highlight) {
     g.fillStyle = 'rgba(126, 231, 135, 0.5)';
     g.fillRect(x - w * 0.01, y + h * 0.2, Math.max(1.5, w * 0.004), h * 0.6);
   }
-  g.fillStyle = highlight ? 'rgba(126,231,135,0.9)' : 'rgba(236,236,234,0.35)';
-  g.font = `400 ${Math.max(7, h * 0.34)}px ${MONO}`;
-  g.fillText(row.rank, x + w * 0.02, y + h * 0.68);
+  g.fillStyle = highlight ? 'rgba(126,231,135,0.9)' : 'rgba(236,236,234,0.42)';
+  g.font = `500 ${Math.max(8, h * 0.42)}px ${MONO}`;
+  g.fillText(row.rank, x + w * 0.02, y + h * 0.7);
 
   g.fillStyle = highlight ? '#7ee787' : '#ececea';
-  g.font = `500 ${Math.max(8, h * 0.5)}px ${SANS}`;
-  g.fillText(row.name, x + w * 0.1, y + h * 0.72);
+  g.font = `600 ${Math.max(9, h * 0.6)}px ${SANS}`;
+  g.fillText(row.name, x + w * 0.1, y + h * 0.74);
 
-  g.fillStyle = highlight ? '#7ee787' : 'rgba(236,236,234,0.82)';
-  g.font = `400 ${Math.max(8, h * 0.46)}px ${MONO}`;
+  g.fillStyle = highlight ? '#7ee787' : 'rgba(236,236,234,0.86)';
+  g.font = `500 ${Math.max(9, h * 0.56)}px ${MONO}`;
   g.textAlign = 'right';
   g.fillText(row.score, x + w * 0.93, y + h * 0.72);
   g.textAlign = 'left';
@@ -169,9 +169,9 @@ export const SAMPLES = [
     draw(g, w, h, t) {
       const look = this.look;
       const bg = g.createLinearGradient(0, 0, 0, h);
-      bg.addColorStop(0, '#e8d7c0');
-      bg.addColorStop(0.55, '#cdb193');
-      bg.addColorStop(1, '#9d7f60');
+      bg.addColorStop(0, '#d8c2a4');
+      bg.addColorStop(0.55, '#b19373');
+      bg.addColorStop(1, '#7a5f45');
       g.fillStyle = bg;
       g.fillRect(0, 0, w, h);
 
@@ -182,7 +182,7 @@ export const SAMPLES = [
       g.beginPath();
       g.ellipse(w * 0.92, h * 0.18, w * 0.12, h * 0.2, 0, 0, TAU);
       g.fill();
-      g.fillStyle = 'rgba(255,251,243,0.7)';
+      g.fillStyle = 'rgba(255,251,243,0.34)';
       g.beginPath();
       g.ellipse(w * 0.1, h * 0.12, w * 0.15, h * 0.13, 0, 0, TAU);
       g.fill();
@@ -216,8 +216,24 @@ export const SAMPLES = [
         g.fill();
       };
 
-      // Lid and its screen, both trapezoids.
-      poly([[w * 0.17, h * 0.19], [w * 0.83, h * 0.19], [w * 0.87, h * 0.67], [w * 0.13, h * 0.67]], '#1d1d22');
+      // The screen is a light source: a soft wash on the room behind it.
+      g.save();
+      g.globalCompositeOperation = 'lighter';
+      const spill = g.createRadialGradient(w * 0.5, h * 0.42, h * 0.04, w * 0.5, h * 0.42, w * 0.55);
+      spill.addColorStop(0, 'rgba(255, 244, 222, 0.22)');
+      spill.addColorStop(0.45, 'rgba(255, 236, 206, 0.07)');
+      spill.addColorStop(1, 'rgba(255, 236, 206, 0)');
+      g.fillStyle = spill;
+      g.fillRect(0, 0, w, h);
+      g.restore();
+
+      // Lid and its screen, both trapezoids. The lid is shaded top to bottom:
+      // flat black plastic is what made the machine read as a wireframe.
+      const lid = g.createLinearGradient(0, h * 0.19, 0, h * 0.67);
+      lid.addColorStop(0, '#2c2c33');
+      lid.addColorStop(0.5, '#1e1e24');
+      lid.addColorStop(1, '#141418');
+      poly([[w * 0.17, h * 0.19], [w * 0.83, h * 0.19], [w * 0.87, h * 0.67], [w * 0.13, h * 0.67]], lid);
       const screen = [[w * 0.185, h * 0.205], [w * 0.815, h * 0.205], [w * 0.853, h * 0.652], [w * 0.147, h * 0.652]];
       poly(screen, '#fbf8f2');
 
@@ -261,10 +277,51 @@ export const SAMPLES = [
       g.fillRect(sx + sw * 0.68, sy + sh * 0.24, sw * 0.26, sh * 0.34);
       g.fillStyle = 'rgba(255,255,255,0.3)';
       g.fillRect(sx + sw * 0.705, sy + sh * 0.28, sw * 0.09, sh * 0.09);
+      // A row of cards under the copy, so the page is not half empty.
+      for (let i = 0; i < 3; i++) {
+        const cxp = sx + sw * (0.32 + i * 0.22);
+        g.fillStyle = '#f2ece2';
+        g.beginPath();
+        g.roundRect(cxp, sy + sh * 0.62, sw * 0.18, sh * 0.26, Math.max(1.5, sw * 0.006));
+        g.fill();
+        g.fillStyle = i === 0 ? '#c4553f' : '#ddd5c7';
+        g.beginPath();
+        g.roundRect(cxp + sw * 0.015, sy + sh * 0.645, sw * 0.05, sw * 0.05, Math.max(1, sw * 0.004));
+        g.fill();
+        g.fillStyle = '#d8d0c2';
+        g.fillRect(cxp + sw * 0.015, sy + sh * 0.72, sw * 0.13, Math.max(1, sh * 0.012));
+        g.fillRect(cxp + sw * 0.015, sy + sh * 0.75, sw * 0.09, Math.max(1, sh * 0.012));
+      }
+      // Glass: a sheen across the panel and a soft inner shade at the edges.
+      const sheen = g.createLinearGradient(sx, sy, sx + sw * 0.9, sy + sh);
+      sheen.addColorStop(0, 'rgba(255,255,255,0.16)');
+      sheen.addColorStop(0.28, 'rgba(255,255,255,0.03)');
+      sheen.addColorStop(0.55, 'rgba(255,255,255,0)');
+      g.fillStyle = sheen;
+      g.fillRect(sx, sy, sw, sh);
+      const inner = g.createLinearGradient(sx, sy, sx, sy + sh);
+      inner.addColorStop(0, 'rgba(0,0,0,0.10)');
+      inner.addColorStop(0.18, 'rgba(0,0,0,0)');
+      g.fillStyle = inner;
+      g.fillRect(sx, sy, sw, sh * 0.18);
       g.restore();
 
+
+
       // Deck: keys with real gaps, narrowing with the perspective.
-      poly([[w * 0.13, h * 0.67], [w * 0.87, h * 0.67], [w * 0.98, h * 0.87], [w * 0.02, h * 0.87]], '#e3dccf');
+      const deck = g.createLinearGradient(0, h * 0.67, 0, h * 0.87);
+      deck.addColorStop(0, '#e6ded0');
+      deck.addColorStop(0.35, '#cfc6b6');
+      deck.addColorStop(1, '#a99e8b');
+      poly([[w * 0.13, h * 0.67], [w * 0.87, h * 0.67], [w * 0.98, h * 0.87], [w * 0.02, h * 0.87]], deck);
+      g.save();
+      g.globalCompositeOperation = 'lighter';
+      const pool = g.createRadialGradient(w * 0.5, h * 0.69, 0, w * 0.5, h * 0.69, w * 0.42);
+      pool.addColorStop(0, 'rgba(255, 246, 228, 0.22)');
+      pool.addColorStop(1, 'rgba(255, 246, 228, 0)');
+      g.fillStyle = pool;
+      g.fillRect(w * 0.02, h * 0.67, w * 0.96, h * 0.2);
+      g.restore();
       for (let r = 0; r < 4; r++) {
         const inset = w * (0.2 + r * 0.015);
         const y = h * (0.7 + r * 0.04);
@@ -550,6 +607,87 @@ export const SAMPLES = [
   },
 
   {
+    id: 'tree',
+    title: '树',
+    tag: '场景叙事',
+    ratio: 3 / 4,
+    template: 'tree',
+    look: { bg: '#0a0a0b', ink: '#ececea', dim: 'rgba(236,236,234,0.45)' },
+    prompt: brief(
+      '复刻这个动效：黑底上一棵树从一个点长出来，枝干逐段生长，末梢的金色叶点随后一盏盏亮起，右上角一轮暗月',
+      '要求：只用金色、墨黑和一点月光；生长要有先后，不要一帧全亮。',
+    ),
+    draw(g, w, h, t) {
+      ground(g, w, h, this.look);
+      const mx = w * 0.78;
+      const my = h * 0.15;
+      const mr = Math.min(w, h) * 0.065;
+      const halo = g.createRadialGradient(mx, my, mr * 0.4, mx, my, mr * 5);
+      halo.addColorStop(0, 'rgba(232, 232, 230, 0.14)');
+      halo.addColorStop(1, 'rgba(232, 232, 230, 0)');
+      g.fillStyle = halo;
+      g.fillRect(0, 0, w, h);
+      g.fillStyle = 'rgba(232, 232, 230, 0.85)';
+      g.beginPath();
+      g.arc(mx, my, mr, 0, TAU);
+      g.fill();
+
+      const glow = g.createRadialGradient(w * 0.5, h * 0.38, 0, w * 0.5, h * 0.38, w * 0.42);
+      glow.addColorStop(0, 'rgba(227, 189, 99, 0.08)');
+      glow.addColorStop(1, 'rgba(227, 189, 99, 0)');
+      g.fillStyle = glow;
+      g.fillRect(0, 0, w, h);
+
+      const grow = span(t, 0.25, 2.5);
+      const root = { x: w * 0.5, y: h * 0.92 };
+      const tips = [];
+      const STEP = 0.15;
+      const branch = (x, y, angle, len, depth, at) => {
+        if (depth <= 0 || len < 1) return;
+        const p = clamp01((grow - at) / STEP);
+        if (p <= 0) return;
+        const ex = x + Math.cos(angle) * len * p;
+        const ey = y + Math.sin(angle) * len * p;
+        g.strokeStyle = '#e3bd63';
+        g.globalAlpha = depth > 3 ? 0.85 : 0.55;
+        g.lineWidth = Math.max(0.6, depth * 0.3);
+        g.beginPath();
+        g.moveTo(x, y);
+        g.lineTo(ex, ey);
+        g.stroke();
+        if (p < 0.99) return;
+        if (depth === 1) {
+          tips.push([ex, ey]);
+          return;
+        }
+        branch(ex, ey, angle - 0.36 - noise(depth + x) * 0.16, len * 0.74, depth - 1, at + STEP);
+        branch(ex, ey, angle + 0.34 + noise(depth + y) * 0.16, len * 0.72, depth - 1, at + STEP);
+        if (depth >= 4) branch(ex, ey, angle + noise(depth * 3 + x) * 0.7 - 0.35, len * 0.56, depth - 1, at + STEP);
+      };
+      branch(root.x, root.y, -Math.PI / 2, h * 0.24, 6, 0);
+
+      const leaf = span(t, 1.9, 3.4);
+      for (let i = 0; i < tips.length; i++) {
+        const p = clamp01((leaf - i * 0.006) * 2.6);
+        if (p <= 0) continue;
+        const [tx, ty] = tips[i];
+        const r = Math.max(0.8, w * 0.006 * (0.6 + 0.4 * p));
+        g.fillStyle = '#e3bd63';
+        g.globalAlpha = 0.35 + 0.55 * p;
+        g.beginPath();
+        g.arc(tx, ty, r, 0, TAU);
+        g.fill();
+        g.globalAlpha *= 0.6;
+        g.beginPath();
+        g.arc(tx + r * 1.6, ty - r * 0.9, r * 0.7, 0, TAU);
+        g.fill();
+      }
+      g.globalAlpha = 1;
+      veil(g, w, h, t, this.look);
+    },
+  },
+
+  {
     id: 'board',
     title: '榜屏',
     tag: '界面演示',
@@ -557,8 +695,8 @@ export const SAMPLES = [
     template: 'board',
     look: LOOKS.night,
     prompt: brief(
-      '复刻这个动效：深色空间里一块排行榜屏幕，整体轻微透视倾斜，六行「名次 / 名字 / 型号 / 分数」，榜首一行绿色高亮，镜头缓慢推近',
-      '要求：四周有明显暗角和柔光、屏幕有边框和表头、文字在小尺寸下能读清；节奏是缓慢推近，不是快速切换。',
+      '复刻这个动效：深色空间里一块排行榜屏幕，整体轻微透视倾斜，四行「名次 / 名字 / 分数」，榜首一行绿色高亮，第二名在第三秒反超，镜头缓慢推近',
+      '要求：四周有明显暗角和柔光、屏幕有边框和表头、文字在小尺寸下也能读清（宁少勿小）；节奏是缓慢推近，不是快速切换。',
     ),
     draw(g, w, h, t) {
       const look = this.look;
@@ -574,13 +712,13 @@ export const SAMPLES = [
       const climb = 1 - outCubic(t / LOOP_SECONDS);
       g.save();
       g.translate(w * 0.5, h * 0.5 + climb * h * 0.05);
-      g.transform(1, 0, -0.17, 0.94, 0, 0);
+      g.transform(1, 0, -0.1, 0.97, 0, 0);
       g.scale(push, push);
       g.translate(-w * 0.5, -h * 0.5);
 
       // The screen itself: a panel, so the rows sit on something.
-      g.fillStyle = 'rgba(255, 255, 255, 0.035)';
-      g.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+      g.fillStyle = 'rgba(8, 10, 14, 0.72)';
+      g.strokeStyle = 'rgba(255, 255, 255, 0.12)';
       g.lineWidth = 1;
       g.beginPath();
       g.roundRect(w * 0.08, h * 0.08, w * 0.84, h * 0.84, Math.max(4, w * 0.012));
@@ -597,22 +735,22 @@ export const SAMPLES = [
       g.restore();
       label(g, 'LIVE', w * 0.86, h * 0.17, Math.max(4.5, h * 0.024), 'rgba(126,231,135,0.75)', span(t, 0.3, 0.9), '0.2em');
 
+      // Four rows, not six: at tile size six rows are unreadable, and a board
+      // nobody can read is a texture, not a screen.
       const rows = [
-        { rank: '01', name: 'Anthropic', model: 'claude-opus', score: '1496' },
-        { rank: '02', name: 'Alibaba', model: 'qwen', score: '1486' },
-        { rank: '03', name: 'Google', model: 'gemini', score: '1485' },
-        { rank: '04', name: 'Moonshot', model: 'kimi', score: '1483' },
-        { rank: '05', name: 'OpenAI', model: 'gpt', score: '1471' },
-        { rank: '06', name: 'Mistral', model: 'large', score: '1452' },
+        { rank: '01', name: 'Anthropic', score: '1496' },
+        { rank: '02', name: 'Alibaba', score: '1486' },
+        { rank: '03', name: 'Google', score: '1485' },
+        { rank: '04', name: 'Moonshot', score: '1483' },
       ];
       const x = w * 0.13;
       const rw = w * 0.74;
-      const rh = h * 0.108;
+      const rh = h * 0.165;
       // Row 02 overtakes row 01: positions swap, and the lead highlight moves.
       const swap = span(t, 2.1, 3.0);
       rows.forEach((row, i) => {
         const p = outCubic((t - 0.15 - i * 0.09) / 0.5);
-        const base = h * 0.22 + i * rh;
+        const base = h * 0.24 + i * rh;
         let y = base;
         if (i === 0) y = base + swap * rh;
         if (i === 1) y = base - swap * rh;
@@ -885,87 +1023,6 @@ export const SAMPLES = [
   },
 
   {
-    id: 'tree',
-    title: '树',
-    tag: '场景叙事',
-    ratio: 3 / 4,
-    template: 'tree',
-    look: { bg: '#0a0a0b', ink: '#ececea', dim: 'rgba(236,236,234,0.45)' },
-    prompt: brief(
-      '复刻这个动效：黑底上一棵树从一个点长出来，枝干逐段生长，末梢的金色叶点随后一盏盏亮起，右上角一轮暗月',
-      '要求：只用金色、墨黑和一点月光；生长要有先后，不要一帧全亮。',
-    ),
-    draw(g, w, h, t) {
-      ground(g, w, h, this.look);
-      const mx = w * 0.78;
-      const my = h * 0.15;
-      const mr = Math.min(w, h) * 0.065;
-      const halo = g.createRadialGradient(mx, my, mr * 0.4, mx, my, mr * 5);
-      halo.addColorStop(0, 'rgba(232, 232, 230, 0.14)');
-      halo.addColorStop(1, 'rgba(232, 232, 230, 0)');
-      g.fillStyle = halo;
-      g.fillRect(0, 0, w, h);
-      g.fillStyle = 'rgba(232, 232, 230, 0.85)';
-      g.beginPath();
-      g.arc(mx, my, mr, 0, TAU);
-      g.fill();
-
-      const glow = g.createRadialGradient(w * 0.5, h * 0.38, 0, w * 0.5, h * 0.38, w * 0.42);
-      glow.addColorStop(0, 'rgba(227, 189, 99, 0.08)');
-      glow.addColorStop(1, 'rgba(227, 189, 99, 0)');
-      g.fillStyle = glow;
-      g.fillRect(0, 0, w, h);
-
-      const grow = span(t, 0.25, 2.5);
-      const root = { x: w * 0.5, y: h * 0.92 };
-      const tips = [];
-      const STEP = 0.15;
-      const branch = (x, y, angle, len, depth, at) => {
-        if (depth <= 0 || len < 1) return;
-        const p = clamp01((grow - at) / STEP);
-        if (p <= 0) return;
-        const ex = x + Math.cos(angle) * len * p;
-        const ey = y + Math.sin(angle) * len * p;
-        g.strokeStyle = '#e3bd63';
-        g.globalAlpha = depth > 3 ? 0.85 : 0.55;
-        g.lineWidth = Math.max(0.6, depth * 0.3);
-        g.beginPath();
-        g.moveTo(x, y);
-        g.lineTo(ex, ey);
-        g.stroke();
-        if (p < 0.99) return;
-        if (depth === 1) {
-          tips.push([ex, ey]);
-          return;
-        }
-        branch(ex, ey, angle - 0.36 - noise(depth + x) * 0.16, len * 0.74, depth - 1, at + STEP);
-        branch(ex, ey, angle + 0.34 + noise(depth + y) * 0.16, len * 0.72, depth - 1, at + STEP);
-        if (depth >= 4) branch(ex, ey, angle + noise(depth * 3 + x) * 0.7 - 0.35, len * 0.56, depth - 1, at + STEP);
-      };
-      branch(root.x, root.y, -Math.PI / 2, h * 0.24, 6, 0);
-
-      const leaf = span(t, 1.9, 3.4);
-      for (let i = 0; i < tips.length; i++) {
-        const p = clamp01((leaf - i * 0.006) * 2.6);
-        if (p <= 0) continue;
-        const [tx, ty] = tips[i];
-        const r = Math.max(0.8, w * 0.006 * (0.6 + 0.4 * p));
-        g.fillStyle = '#e3bd63';
-        g.globalAlpha = 0.35 + 0.55 * p;
-        g.beginPath();
-        g.arc(tx, ty, r, 0, TAU);
-        g.fill();
-        g.globalAlpha *= 0.6;
-        g.beginPath();
-        g.arc(tx + r * 1.6, ty - r * 0.9, r * 0.7, 0, TAU);
-        g.fill();
-      }
-      g.globalAlpha = 1;
-      veil(g, w, h, t, this.look);
-    },
-  },
-
-  {
     id: 'orbit',
     title: '行星',
     tag: '场景叙事',
@@ -1159,7 +1216,7 @@ export const SAMPLES = [
     id: 'prism',
     title: '棱镜',
     tag: '背景特效',
-    ratio: 3 / 4,
+    ratio: 1,
     template: 'prism',
     look: LOOKS.dusk,
     prompt: brief(

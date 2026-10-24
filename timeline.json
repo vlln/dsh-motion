@@ -40,8 +40,8 @@
       "speed": 1
     },
     {
-      "id": "orbit",
-      "name": "Orbit",
+      "id": "cards3d",
+      "name": "Cards",
       "start": 15,
       "length": 4,
       "palette": "main",

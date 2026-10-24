@@ -129,13 +129,15 @@ export function createKernel({ timeline, modules }) {
        * only what moves on top. A scene that redraws its geometry every frame can
        * never afford a material pass, and ends up looking like flat graphics.
        */
-      still(draw) {
+      still(draw, { scale: atlas = 1 } = {}) {
         const c = document.createElement('canvas');
-        c.width = canvas.width;
-        c.height = canvas.height;
+        c.width = Math.round(canvas.width * atlas);
+        c.height = Math.round(canvas.height * atlas);
         const g = c.getContext('2d');
-        g.setTransform(dpr * scale, 0, 0, dpr * scale, 0, 0);
-        draw(g, width, height);
+        g.setTransform(dpr * scale * atlas, 0, 0, dpr * scale * atlas, 0, 0);
+        // A plate painted larger than the frame keeps its strokes when a shot
+        // pushes in on it. Painting at 1:1 and zooming turns strokes into blobs.
+        draw(g, width * atlas, height * atlas);
         return c;
       },
       /** Load every asset the scene declared. Called by the kernel before mount(). */

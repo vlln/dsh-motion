@@ -14,7 +14,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BIN = path.join(ROOT, 'bin/dsh-motion.mjs');
 const { check, finish } = createGate();
 
-const EXEMPLARS = ['plate', 'guide', 'tree', 'street'];
+const EXEMPLARS = ['plate', 'guide', 'tree', 'street', 'night'];
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-motion-exemplars-'));
 try {
@@ -30,6 +30,19 @@ try {
 
     const timeline = JSON.parse(fs.readFileSync(path.join(dir, 'motion/timeline.json'), 'utf8'));
     check(`${id}: it is a film, not a still`, timeline.duration >= 4, `${timeline.duration}s`);
+    if (id === 'night') {
+      // The one exemplar that is several shots: cutting between setups is the
+      // thing the single-shot templates cannot teach.
+      check('night: it has three shots', timeline.scenes.length >= 3, `${timeline.scenes.length} scene(s)`);
+      check('night: it is long enough to have a shape', timeline.duration >= 18 && timeline.duration <= 24, `${timeline.duration}s`);
+      // Not "all different" — two 7s cuts are fine — but not one uniform length
+      // either: a film where every shot is the same size has no shape.
+      check(
+        'night: the shots are not all the same length',
+        new Set(timeline.scenes.map((x) => x.length)).size > 1,
+        timeline.scenes.map((x) => x.length).join(', '),
+      );
+    }
     check(`${id}: it has a cover time`, typeof timeline.poster === 'number', String(timeline.poster));
 
     // Readable: either the template carries its scene, or it names a built-in.

@@ -1,0 +1,26 @@
+{
+  "width": 1920,
+  "height": 1080,
+  "fps": 24,
+  "duration": 20,
+  "palettes": {
+    "main": {
+      "bg": "#0b1016",
+      "fg": "#e8e2d4",
+      "accent": "#f0c078",
+      "muted": "#6b7a84",
+      "grid": "#1b242b",
+      "panel": "#0e151a"
+    }
+  },
+  "overrides": {},
+  "texts": {},
+  "values": {},
+  "assets": {},
+  "scenes": [
+    { "id": "wide", "name": "一 · 空场", "start": 0, "length": 7, "palette": "main", "speed": 1 },
+    { "id": "puddle", "name": "二 · 水里", "start": 7, "length": 7, "palette": "main", "speed": 1 },
+    { "id": "cup", "name": "三 · 停在杯上", "start": 14, "length": 6, "palette": "main", "speed": 1 }
+  ],
+  "poster": 17
+}

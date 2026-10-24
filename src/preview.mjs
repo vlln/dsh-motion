@@ -3,6 +3,7 @@
 
 import { mountMotion } from './mount.mjs';
 import { createComments } from './ui/comments.mjs';
+import { SPECIMENS, LOOP_SECONDS } from './starters.mjs';
 
 const $ = (id) => document.getElementById(id);
 const canvas = $('stage');
@@ -79,49 +80,11 @@ if (stageStack && 'ResizeObserver' in window) {
  * and points at the conversation, which is where a film gets asked for.
  */
 /**
- * No film yet is a starting point, not an error: offer a few directions, each a
- * specimen card plus the prompt that would produce that look. Sending the prompt
- * is the same channel a comment uses — the conversation is where work begins.
+ * No film yet is a starting point, not an error: four directions, each one a
+ * real animation drawn on its own canvas — the panel's first claim is "this is
+ * a moving image", so a still card here would be a lie about the product.
+ * Sending a prompt uses the same channel a comment does: the conversation.
  */
-const STARTERS = [
-  {
-    id: 'space',
-    name: '深空叙事',
-    blurb: '深底、暖金强调、纪录片式标注',
-    palette: { bg: '#070b14', fg: '#f2f2f0', accent: '#e0b040', muted: '#8b98ad' },
-    sample: { kicker: '1987 — 1991', title: 'The long orbit', sub: '一段关于距离的说明' },
-    prompt:
-      '用「深空叙事」的风格做一段 20 秒动画：深色底、暖金色强调、左上角小号年代标注、标题居中、下方时间轴式注记，动效克制（淡入 + 缓慢推移）。',
-  },
-  {
-    id: 'paper',
-    name: '纸感手作',
-    blurb: '米色纸面、铁锈红、手工拼贴感',
-    palette: { bg: '#f4f1ea', fg: '#1c1a17', accent: '#c25b3a', muted: '#6b645c' },
-    sample: { kicker: 'A SHORT STUDY', title: 'Paper, cut slow', sub: '手工纸张与停格质感' },
-    prompt:
-      '用「纸感手作」的风格做一段 20 秒动画：米色纸面质感、铁锈红强调、粗衬线标题、边框像剪贴纸片，动作做成停格感（每秒 8–12 帧的顿挫）。',
-  },
-  {
-    id: 'neon',
-    name: '数据冷光',
-    blurb: '近黑底、青绿描边、数据卡片',
-    palette: { bg: '#05060a', fg: '#e8fbff', accent: '#35e0c8', muted: '#6b7f88' },
-    sample: { kicker: 'THROUGHPUT', title: '1.4M / day', sub: '每一条都在变' },
-    prompt:
-      '用「数据冷光」的风格做一段 20 秒动画：近黑底、青绿描边、数字大字与细线卡片，数字滚动与线条生长作为主要动效，不要装饰性插画。',
-  },
-  {
-    id: 'mono',
-    name: '极简黑白',
-    blurb: '纯白底、超大排版、零装饰',
-    palette: { bg: '#ffffff', fg: '#111111', accent: '#111111', muted: '#6b6b6b' },
-    sample: { kicker: '', title: 'Form follows', sub: '只靠字号和留白' },
-    prompt:
-      '用「极简黑白」的风格做一段 20 秒动画：纯白底、黑色超大号排版、只用字号/字重/留白制造层次，动效是最小位移与遮罩揭示。',
-  },
-];
-
 function showEmptyFilm() {
   document.querySelector('.app')?.remove();
   document.querySelector('.timeline')?.remove();
@@ -130,17 +93,13 @@ function showEmptyFilm() {
   empty.innerHTML = `
     <header class="discover-head">
       <h2>从一个方向开始</h2>
-      <p>这个工作区还没有片子。挑一个方向，把提示词发到对话里，agent 就按这个调子做。</p>
+      <p>还没有片子。选一个方向，提示词会发到对话里。</p>
     </header>
     <div class="discover-grid">
-      ${STARTERS.map(
+      ${SPECIMENS.map(
         (style) => `
-        <button class="starter" data-id="${style.id}">
-          <span class="starter-frame" style="--s-bg:${style.palette.bg};--s-fg:${style.palette.fg};--s-accent:${style.palette.accent};--s-muted:${style.palette.muted}">
-            <span class="starter-kicker">${style.sample.kicker}</span>
-            <span class="starter-title">${style.sample.title}</span>
-            <span class="starter-sub">${style.sample.sub}</span>
-          </span>
+        <button class="starter" data-id="${style.id}" aria-pressed="false">
+          <span class="starter-shot"><canvas aria-hidden="true"></canvas></span>
           <span class="starter-name">${style.name}</span>
           <span class="starter-blurb">${style.blurb}</span>
         </button>`,
@@ -174,7 +133,7 @@ function showEmptyFilm() {
   };
 
   for (const button of empty.querySelectorAll('.starter')) {
-    button.addEventListener('click', () => pick(STARTERS.find((s) => s.id === button.dataset.id)));
+    button.addEventListener('click', () => pick(SPECIMENS.find((s) => s.id === button.dataset.id)));
   }
 
   copy?.addEventListener('click', async () => {
@@ -203,6 +162,8 @@ function showEmptyFilm() {
     }, 2000);
   });
 
+  playSpecimens(empty);
+
   // The film can appear while this page is open — the agent is often still
   // working when the column is opened. Watch for it instead of waiting for a
   // manual refresh.
@@ -217,6 +178,92 @@ function showEmptyFilm() {
       /* the host may be restarting; try again next tick */
     }
   }, 2000);
+}
+
+/**
+ * One clock drives every card: the samples run in sync, and nothing animates
+ * off-screen or while the tab is hidden. Reduced motion gets the settled frame.
+ */
+function playSpecimens(root) {
+  const cards = [...root.querySelectorAll('.starter')].map((card) => {
+    const canvas = card.querySelector('canvas');
+    return {
+      card,
+      spec: SPECIMENS.find((s) => s.id === card.dataset.id),
+      canvas,
+      g: canvas.getContext('2d'),
+      w: 0,
+      h: 0,
+      dpr: 1,
+      on: true,
+    };
+  });
+
+  const measure = () => {
+    for (const item of cards) {
+      const rect = item.canvas.getBoundingClientRect();
+      if (!rect.width || !rect.height) continue;
+      item.dpr = Math.min(2, window.devicePixelRatio || 1);
+      item.w = rect.width;
+      item.h = rect.height;
+      item.canvas.width = Math.round(rect.width * item.dpr);
+      item.canvas.height = Math.round(rect.height * item.dpr);
+    }
+  };
+
+  const frame = (t) => {
+    for (const item of cards) {
+      if (!item.on || !item.w) continue;
+      item.g.setTransform(item.dpr, 0, 0, item.dpr, 0, 0);
+      item.g.clearRect(0, 0, item.w, item.h);
+      item.spec.draw(item.g, item.w, item.h, t);
+    }
+  };
+
+  measure();
+  const start = performance.now();
+
+  if ('ResizeObserver' in window) {
+    const ro = new ResizeObserver(() => {
+      measure();
+      frame(0);
+    });
+    for (const item of cards) ro.observe(item.canvas);
+  }
+
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+    frame(2.4);
+    return;
+  }
+
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const item = cards.find((c) => c.canvas === entry.target);
+          if (item) item.on = entry.isIntersecting;
+        }
+        frame(((performance.now() - start) / 1000) % LOOP_SECONDS);
+      },
+      { root: root, threshold: 0.05 },
+    );
+    for (const item of cards) io.observe(item.canvas);
+  }
+
+  let raf = 0;
+  const tick = (now) => {
+    frame(((now - start) / 1000) % LOOP_SECONDS);
+    raf = requestAnimationFrame(tick);
+  };
+  raf = requestAnimationFrame(tick);
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      cancelAnimationFrame(raf);
+    } else {
+      raf = requestAnimationFrame(tick);
+    }
+  });
 }
 
 let mounted;

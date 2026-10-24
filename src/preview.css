@@ -2140,95 +2140,95 @@ summary:focus-visible {
 }
 
 
-/* Empty workspace: a few directions to start from, not a dead end. */
+/* Empty workspace: four directions, each one already moving. */
 .discover {
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
-  padding: 32px clamp(20px, 5vw, 56px) 40px;
+  padding: 28px 22px 34px;
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 20px;
 }
 
 .discover-head h2 {
   margin: 0 0 6px;
-  font: 600 20px/1.3 var(--font);
+  font: 600 17px/1.3 var(--font);
+  letter-spacing: -0.01em;
 }
 
 .discover-head p {
   margin: 0;
-  max-width: 640px;
+  max-width: 48ch;
   color: var(--muted);
-  font: 13px/1.6 var(--font);
+  font: 12.5px/1.6 var(--font);
 }
 
 .discover-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 16px;
-  max-width: 960px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  max-width: 620px;
 }
 
 .starter {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 8px;
-  border: 1px solid transparent;
-  border-radius: var(--radius);
-  background: transparent;
+  padding: 0;
+  border: 0;
+  border-radius: 9px;
+  background: none;
   text-align: left;
+  color: inherit;
+  font: inherit;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.starter:hover {
-  background: var(--hover);
-}
-
-.starter[aria-pressed='true'] {
-  border-color: var(--accent);
-  background: var(--hover);
-}
-
-.starter-frame {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 6px;
-  aspect-ratio: 16 / 9;
-  padding: 14px;
-  border-radius: 10px;
-  background: var(--s-bg);
-  color: var(--s-fg);
+.starter-shot {
+  position: relative;
+  display: block;
+  aspect-ratio: 16 / 10;
+  border-radius: 9px;
   overflow: hidden;
-  /* A white specimen still needs an edge, or it dissolves into the page. */
-  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 8%);
+  background: var(--surface-2);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 8%);
+  transition:
+    box-shadow var(--dur) var(--ease),
+    transform var(--dur) var(--ease);
 }
 
-.starter-kicker {
-  font: 500 9px/1 var(--mono);
-  letter-spacing: 0.08em;
-  color: var(--s-accent);
+.starter-shot canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
-.starter-title {
-  font: 600 18px/1.15 var(--font);
-  letter-spacing: -0.01em;
+.starter:hover .starter-shot {
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 20%);
 }
 
-.starter-sub {
-  font: 10px/1.3 var(--font);
-  color: var(--s-muted);
+.starter[aria-pressed='true'] .starter-shot {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.starter:focus-visible {
+  outline: none;
+}
+
+.starter:focus-visible .starter-shot {
+  box-shadow: 0 0 0 2px var(--accent);
 }
 
 .starter-name {
-  font: 500 13px/1.3 var(--font);
+  margin-top: 9px;
+  font: 600 12.5px/1.35 var(--font);
   color: var(--fg);
 }
 
 .starter-blurb {
-  font: 12px/1.4 var(--font);
+  margin-top: 2px;
+  font: 11.5px/1.5 var(--font);
   color: var(--muted);
 }
 
@@ -2237,7 +2237,7 @@ summary:focus-visible {
   flex-direction: column;
   gap: 12px;
   max-width: 720px;
-  padding: 14px 16px;
+  padding: 13px 15px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
@@ -2250,7 +2250,7 @@ summary:focus-visible {
 .discover-prompt {
   margin: 0;
   color: var(--fg);
-  font: 13px/1.6 var(--font);
+  font: 12.5px/1.65 var(--font);
 }
 
 .discover-buttons {

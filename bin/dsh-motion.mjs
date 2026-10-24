@@ -59,25 +59,48 @@ const ffmpeg = (args) =>
     execFile('ffmpeg', args, { env: withFilm() }, (err) => (err ? reject(new Error(err.message)) : resolve()));
   });
 
+/**
+ * Start a film. The default is a stage, not an empty room: an empty room makes
+ * the agent invent layout, palette, motion and material before it can think
+ * about the film, and the result is always the cheapest of each.
+ *
+ * `--blank` is the old behaviour for films that should start from nothing.
+ */
 async function init() {
   const from = opt('template');
+  if (from === 'list' || from === '') {
+    for (const name of listTemplates()) console.log(name);
+    return;
+  }
+  const plan = path.join(PKG, 'templates', 'plan.md');
+  const withPlan = (dir) => {
+    const dest = path.join(dir, 'PLAN.md');
+    if (fs.existsSync(plan) && !fs.existsSync(dest)) fs.copyFileSync(plan, dest);
+  };
+
+  if (from === undefined && !flag('blank')) {
+    const { dir, film } = createFilmFromTemplate(process.cwd(), 'plate');
+    withPlan(dir);
+    console.log(`motion/ ← template "plate" · ${film.scenes.length} scene(s) · ${film.duration}s`);
+    console.log(`  ${film.scenes.map((x) => x.id).join(', ')}  in ${path.relative(process.cwd(), dir)}`);
+    console.log('a real picture is the world and one sprite is the actor — replace both, keep the shape.');
+    console.log('for a type-led or product film instead: dsh-motion init --blank');
+    return;
+  }
   if (from !== undefined) {
-    if (!from || from === 'list') {
-      for (const name of listTemplates()) console.log(name);
-      return;
-    }
     const { dir, film } = createFilmFromTemplate(process.cwd(), from);
+    withPlan(dir);
     console.log(`motion/ ← template "${from}" · ${film.scenes.length} scene(s) · ${film.duration}s`);
     console.log(`  ${film.scenes.map((x) => x.id).join(', ')}  in ${path.relative(process.cwd(), dir)}`);
     return;
   }
+
   const { dir } = createFilm(process.cwd(), { title: opt('title', 'Untitled'), length: Number(opt('length', 6)) });
-  const plan = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'templates', 'plan.md');
-  if (fs.existsSync(plan)) fs.copyFileSync(plan, path.join(dir, 'PLAN.md'));
+  withPlan(dir);
   console.log('motion/timeline.json');
   console.log('motion/PLAN.md');
   console.log('motion/scenes/blank.mjs');
-  console.log('write PLAN.md first (seven sections), then replace the starter scene');
+  console.log('write PLAN.md first (eight sections), then replace the starter scene');
 }
 
 async function check() {

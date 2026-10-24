@@ -6,7 +6,7 @@
 // writes outside the workspace: Chromium's profile and ffmpeg's scratch files
 // land in motion/out/.tmp. That keeps the whole loop inside the sandbox.
 
-import { spawn, execFile } from 'node:child_process';
+import { spawn, spawnSync, execFile, execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -148,6 +148,84 @@ async function use() {
 }
 
 /**
+ * Read a reference video: frames at a fixed rate, one contact sheet, and the
+ * cuts. The agent gets composition and rhythm as data, not "a video it cannot
+ * watch". Stored inside the film, never next to it.
+ */
+async function frames() {
+  const src = argv[1];
+  if (!src) fail('usage: dsh-motion frames <video> [--fps 2] [--out out/ref] [--cols 4]');
+  if (!fs.existsSync(path.join(FILM, 'timeline.json'))) fail('no film here — run: dsh-motion init or template');
+  const source = path.resolve(src);
+  if (!fs.existsSync(source)) fail(`no such file: ${src}`);
+  const fps = Math.max(0.2, Math.min(10, Number(opt('fps', 2)) || 2));
+  const cols = Math.max(2, Math.min(8, Number(opt('cols', 4)) || 4));
+  const outDir = path.resolve(FILM, opt('out', 'out/ref'));
+  if (!outDir.startsWith(FILM + path.sep)) fail('--out must stay inside the film');
+
+  fs.rmSync(outDir, { recursive: true, force: true });
+  fs.mkdirSync(outDir, { recursive: true });
+  const env = withFilm(FILM);
+  const run = (args) =>
+    execFileSync('ffmpeg', ['-v', 'error', '-y', ...args], { env, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });
+
+  const probe = JSON.parse(
+    execFileSync(
+      'ffprobe',
+      ['-v', 'error', '-show_entries', 'format=duration', '-show_entries', 'stream=width,height', '-of', 'json', source],
+      { env, encoding: 'utf8' },
+    ),
+  );
+  const duration = Number(probe.format?.duration ?? 0);
+  const stream = probe.streams?.[0] ?? {};
+
+  run([
+    '-i', source,
+    '-vf', `fps=${fps},scale=480:-2`,
+    '-q:v', '3',
+    path.join(outDir, 'f%03d.jpg'),
+  ]);
+  const files = fs.readdirSync(outDir).filter((f) => /^f\d+\.jpg$/.test(f)).sort();
+  const rows = Math.ceil(files.length / cols);
+
+  run([
+    '-i', source,
+    '-vf', `fps=${fps},scale=320:-2,tile=${cols}x${rows}`,
+    '-frames:v', '1',
+    path.join(outDir, 'sheet.jpg'),
+  ]);
+
+  // Cuts: ffmpeg's scene score, printed by showinfo on stderr.
+  const scan = spawnSync(
+    'ffmpeg',
+    ['-hide_banner', '-v', 'info', '-i', source, '-vf', "select='gt(scene,0.25)',showinfo", '-f', 'null', '-'],
+    { env, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 },
+  );
+  const scanLog = `${scan.stdout ?? ''}\n${scan.stderr ?? ''}`;
+  const cuts = [];
+  for (const line of scanLog.split('\n')) {
+    const at = /pts_time:([0-9.]+)/.exec(line);
+    if (at) {
+      const time = Number(at[1]);
+      if (Number.isFinite(time) && !cuts.some((c) => Math.abs(c - time) < 0.08)) cuts.push(Number(time.toFixed(2)));
+    }
+  }
+
+  const index = {
+    source: path.relative(FILM, source),
+    duration: Number(duration.toFixed(2)),
+    size: stream.width ? `${stream.width}x${stream.height}` : null,
+    fps,
+    frames: files.length,
+    sheet: path.relative(FILM, path.join(outDir, 'sheet.jpg')),
+    cuts,
+  };
+  fs.writeFileSync(path.join(outDir, 'index.json'), `${JSON.stringify(index, null, 2)}\n`);
+  console.log(`${index.frames} frames · ${index.size} · ${index.duration}s → ${path.relative(FILM, outDir)}`);
+  console.log(`sheet: ${index.sheet}${cuts.length ? ` · cuts: ${cuts.join(', ')}` : ' · no hard cuts'}`);
+}
+
+/**
  * Start from one of the package's template films. The whole point of a template
  * is that the agent begins with a stage, not with an empty directory.
  */
@@ -166,6 +244,7 @@ async function template() {
 const commands = {
   init,
   template,
+  frames,
   validate,
   render,
   export: exportVideo,
@@ -175,10 +254,11 @@ const commands = {
 };
 
 if (!cmd || !commands[cmd]) {
-  console.error('usage: dsh-motion <init|validate|render|export|template|version|versions|use> [options]');
+  console.error('usage: dsh-motion <init|validate|render|export|template|frames|version|versions|use> [options]');
   console.error('');
   console.error('  init      [--title "…"] [--length 6]');
   console.error('  template list | template <id>   start a film from a template instead of blank');
+  console.error('  frames <video> [--fps 2] [--cols 4]   frames + contact sheet + cuts into out/ref');
   console.error('  validate  check the timeline and every scene it names');
   console.error('  render    [--stills 0,3,6] | [--video] [--out path] [--cols 3]');
   console.error('  export    [--gif] [--out path] [--fps 30] [--height 720|1080] [--quality high|medium|low]');

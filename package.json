@@ -22,7 +22,7 @@
     "link": "node scripts/dev-link.mjs",
     "build:client": "node scripts/build-client.mjs",
     "gate:client": "node scripts/gate-client.mjs",
-    "check": "npm run validate && npm run gates && npm run gate:audio && npm run gate:ui && npm run gate:layout && npm run gate:comments && npm run gate:params && npm run gate:surface && npm run gate:reference && npm run gate:text && npm run gate:media && npm run gate:tweaks && npm run gate:scale && npm run gate:values && npm run gate:assets && npm run gate:scene && npm run gate:export && npm run gate:project && npm run gate:live && npm run gate:split && npm run gate:client && npm run gate:plugin",
+    "check": "npm run validate && npm run gates && npm run gate:audio && npm run gate:ui && npm run gate:layout && npm run gate:comments && npm run gate:params && npm run gate:surface && npm run gate:reference && npm run gate:text && npm run gate:media && npm run gate:tweaks && npm run gate:scale && npm run gate:values && npm run gate:assets && npm run gate:scene && npm run gate:export && npm run gate:project && npm run gate:live && npm run gate:split && npm run gate:client && npm run gate:plugin && npm run gate:frames",
     "gate:split": "node scripts/gate-split.mjs",
     "gate:film": "node scripts/gate-film.mjs",
     "gate:layout": "node scripts/gate-layout.mjs",
@@ -39,7 +39,8 @@
     "gate:export": "node scripts/gate-export.mjs",
     "gate:project": "node scripts/gate-project.mjs",
     "gate:live": "node scripts/gate-live.mjs",
-    "assets": "node scripts/assets.mjs prep"
+    "assets": "node scripts/assets.mjs prep",
+    "gate:frames": "node scripts/gate-frames.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.28.2",

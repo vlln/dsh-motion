@@ -169,16 +169,14 @@ function buildChips(scenes) {
       // pointer press was already served by the strip's seek.
       const now = timeline.scenes.find((s) => s.id === el.dataset.scene);
       if (!now) return;
-      setTime(now.start + 0.001);
-      renderFrame();
+      seekTo(now.start + 0.001);
     });
     el.addEventListener('keydown', (e) => {
       if (e.key !== 'Enter' && e.key !== ' ') return;
       e.preventDefault();
       const now = timeline.scenes.find((s) => s.id === el.dataset.scene);
       if (!now) return;
-      setTime(now.start + 0.001);
-      renderFrame();
+      seekTo(now.start + 0.001);
     });
     el.querySelector('.chip-more').addEventListener('click', (e) => {
       e.stopPropagation();
@@ -213,8 +211,7 @@ function buildReel(scenes) {
     seg.title = scene.name;
     seg.setAttribute('aria-label', scene.name);
     seg.addEventListener('click', () => {
-      setTime(scene.start + 0.001);
-      renderFrame();
+      seekTo(scene.start + 0.001);
     });
     track.append(seg);
     reel.push({ seg, scene });
@@ -319,9 +316,7 @@ scenesEl.addEventListener('pointermove', (e) => {
   if (!stripDrag) return;
   if (!stripDrag.moved && Math.abs(e.clientX - stripDrag.x) < 3) return;
   stripDrag.moved = true;
-  const next = timeFromStrip(e.clientX, stripDrag.rect);
-  setTime(next);
-  kernel.renderAt(next);
+  seekTo(timeFromStrip(e.clientX, stripDrag.rect));
 });
 
 window.addEventListener('pointerup', (e) => {
@@ -335,10 +330,7 @@ window.addEventListener('pointerup', (e) => {
   // A press without movement is a seek to the pointer — not to the start of the
   // scene under it, and not a no-op while the film is playing.
   if (e.button !== 0) return;
-  const next = timeFromStrip(e.clientX, drag.rect);
-  setTime(next);
-  kernel.renderAt(next);
-  if (playing) soundSeek(next);
+  seekTo(timeFromStrip(e.clientX, drag.rect));
   suppressChip = true;
 });
 
@@ -407,6 +399,16 @@ function refreshSelection() {
 function renderFrame() {
   kernel.renderAt(t);
   setTime(t);
+}
+
+/**
+ * Move the film to a time, playing or not. While playing the audio is the clock,
+ * so a seek that does not also move the audio is undone by the next frame.
+ */
+function seekTo(next) {
+  setTime(next);
+  kernel.renderAt(t);
+  if (playing) soundSeek(t);
 }
 
 function tick(now) {
@@ -857,16 +859,14 @@ const sceneIndexAt = (at) => timeline.scenes.findIndex((s) => s.id === currentSc
 prevSceneBtn?.addEventListener('click', () => {
   const i = sceneIndexAt(t);
   if (i > 0) {
-    setTime(timeline.scenes[i - 1].start + 0.001);
-    renderFrame();
+    seekTo(timeline.scenes[i - 1].start + 0.001);
   }
 });
 
 nextSceneBtn?.addEventListener('click', () => {
   const i = sceneIndexAt(t);
   if (i >= 0 && i < timeline.scenes.length - 1) {
-    setTime(timeline.scenes[i + 1].start + 0.001);
-    renderFrame();
+    seekTo(timeline.scenes[i + 1].start + 0.001);
   }
 });
 
@@ -1216,8 +1216,7 @@ const comments = createComments({
   getTime: () => t,
   onHighlight: (rect) => highlightRect(rect, 1600),
   onSeek: (next) => {
-    setTime(next);
-    renderFrame();
+    seekTo(next);
   },
   onClearSelection: () => {
     selected = null;
@@ -1387,11 +1386,9 @@ window.addEventListener('keydown', (e) => {
     e.preventDefault();
     playBtn.click();
   } else if (e.code === 'ArrowRight') {
-    setTime(t + 1 / (timeline.fps ?? 30));
-    renderFrame();
+    seekTo(t + 1 / (timeline.fps ?? 30));
   } else if (e.code === 'ArrowLeft') {
-    setTime(t - 1 / (timeline.fps ?? 30));
-    renderFrame();
+    seekTo(t - 1 / (timeline.fps ?? 30));
   }
 });
 

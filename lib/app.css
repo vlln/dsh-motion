@@ -1303,22 +1303,35 @@ body:not(.tweaks) .app {
   max-width: 460px;
 }
 
+/* A 6px bar with a 22px hit area: easy to press, still a slim overview. */
 .reel-seg {
+  position: relative;
   flex: 1 1 0;
-  height: 5px;
+  height: 22px;
   padding: 0;
   border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.reel-seg::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 6px;
+  transform: translateY(-50%);
   border-radius: 999px;
   background: var(--line);
-  cursor: pointer;
   transition: background var(--dur) var(--ease);
 }
 
-.reel-seg.done {
+.reel-seg.done::before {
   background: var(--fg);
 }
 
-.reel-seg:hover {
+.reel-seg:hover::before {
   background: var(--muted);
 }
 

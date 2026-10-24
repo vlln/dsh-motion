@@ -166,8 +166,8 @@ export const SAMPLES = [
     featured: true,
     look: { ...LOOKS.desk, medium: 'photo' },
     prompt: brief(
-      '复刻这个动效：暖色房间里一台笔记本电脑，屏幕里是浏览器里的产品界面，四张半透明步骤卡从下方依次浮到前景，顶部一条胶囊写着这次要做什么',
-      '要求：背景有景深、卡片有柔和投影和轻微视差、卡片依次错开 0.15 秒；暖调配色，不要荧光。',
+      '复刻这个动效：暖色房间里一台笔记本电脑，屏幕里是一个真实的产品界面（深色侧栏 + 一大块橘红主视觉），三张白色步骤卡从下浮到前景，顶部一条胶囊写着这次要做什么',
+      '要求：背景有景深、卡片有柔和投影和轻微视差、卡片依次错开 0.15 秒；三张卡不遮住屏幕主体；暖调配色，不要荧光。',
     ),
     draw(g, w, h, t) {
       const look = this.look;
@@ -251,62 +251,51 @@ export const SAMPLES = [
       const sy = screen[0][1];
       const sw = screen[1][0] - screen[0][0];
       const sh = screen[3][1] - screen[0][1];
-      g.fillStyle = '#efeae1';
-      g.fillRect(sx, sy, sw, sh * 0.13);
+      // Browser chrome.
+      g.fillStyle = '#f1ece3';
+      g.fillRect(sx, sy, sw, sh * 0.12);
       for (let i = 0; i < 3; i++) {
         g.fillStyle = ['#e7a39c', '#d9d3c7', '#cfc8ba'][i];
         g.beginPath();
-        g.arc(sx + sw * 0.04 + i * sw * 0.028, sy + sh * 0.065, Math.max(1.2, sw * 0.007), 0, TAU);
+        g.arc(sx + sw * 0.035 + i * sw * 0.026, sy + sh * 0.06, Math.max(1.2, sw * 0.006), 0, TAU);
         g.fill();
       }
-      g.fillStyle = '#ded7cb';
+      g.fillStyle = '#e2dbcf';
       g.beginPath();
-      g.roundRect(sx + sw * 0.16, sy + sh * 0.035, sw * 0.7, sh * 0.06, sh * 0.03);
+      g.roundRect(sx + sw * 0.14, sy + sh * 0.033, sw * 0.66, sh * 0.055, sh * 0.028);
       g.fill();
-      // Sidebar
-      g.fillStyle = '#f7f3ea';
-      g.fillRect(sx, sy + sh * 0.13, sw * 0.26, sh * 0.87);
-      for (let i = 0; i < 4; i++) {
-        g.fillStyle = i === 1 ? '#c4553f' : '#ded7cb';
-        g.fillRect(sx + sw * 0.03, sy + sh * (0.24 + i * 0.1), sw * 0.18, Math.max(1, sh * 0.016));
-      }
-      // Headline and a picture
-      g.fillStyle = '#2b2a27';
-      g.fillRect(sx + sw * 0.32, sy + sh * 0.26, sw * 0.3, Math.max(2, sh * 0.035));
-      g.fillRect(sx + sw * 0.32, sy + sh * 0.33, sw * 0.22, Math.max(1.5, sh * 0.025));
-      g.fillStyle = '#d5cdbf';
-      for (let i = 0; i < 3; i++) g.fillRect(sx + sw * 0.32, sy + sh * (0.44 + i * 0.06), sw * (0.34 - i * 0.05), Math.max(1, sh * 0.014));
-      g.fillStyle = '#c4553f';
-      g.fillRect(sx + sw * 0.68, sy + sh * 0.24, sw * 0.26, sh * 0.34);
-      g.fillStyle = 'rgba(255,255,255,0.3)';
-      g.fillRect(sx + sw * 0.705, sy + sh * 0.28, sw * 0.09, sh * 0.09);
-      // A row of cards under the copy, so the page is not half empty.
-      for (let i = 0; i < 3; i++) {
-        const cxp = sx + sw * (0.32 + i * 0.22);
-        g.fillStyle = '#f2ece2';
+
+      // A dark rail, so the page is not one flat white rectangle.
+      g.fillStyle = '#332b25';
+      g.fillRect(sx, sy + sh * 0.12, sw * 0.12, sh * 0.88);
+      for (let i = 0; i < 5; i++) {
+        g.fillStyle = i === 1 ? '#e78a6a' : 'rgba(255,255,255,0.16)';
         g.beginPath();
-        g.roundRect(cxp, sy + sh * 0.62, sw * 0.18, sh * 0.26, Math.max(1.5, sw * 0.006));
+        g.roundRect(sx + sw * 0.038, sy + sh * (0.19 + i * 0.1), sw * 0.045, sw * 0.045, sw * 0.01);
         g.fill();
-        g.fillStyle = i === 0 ? '#c4553f' : '#ddd5c7';
-        g.beginPath();
-        g.roundRect(cxp + sw * 0.015, sy + sh * 0.645, sw * 0.05, sw * 0.05, Math.max(1, sw * 0.004));
-        g.fill();
-        g.fillStyle = '#d8d0c2';
-        g.fillRect(cxp + sw * 0.015, sy + sh * 0.72, sw * 0.13, Math.max(1, sh * 0.012));
-        g.fillRect(cxp + sw * 0.015, sy + sh * 0.75, sw * 0.09, Math.max(1, sh * 0.012));
       }
-      // Glass: a sheen across the panel and a soft inner shade at the edges.
-      const sheen = g.createLinearGradient(sx, sy, sx + sw * 0.9, sy + sh);
-      sheen.addColorStop(0, 'rgba(255,255,255,0.16)');
-      sheen.addColorStop(0.28, 'rgba(255,255,255,0.03)');
-      sheen.addColorStop(0.55, 'rgba(255,255,255,0)');
-      g.fillStyle = sheen;
-      g.fillRect(sx, sy, sw, sh);
-      const inner = g.createLinearGradient(sx, sy, sx, sy + sh);
-      inner.addColorStop(0, 'rgba(0,0,0,0.10)');
-      inner.addColorStop(0.18, 'rgba(0,0,0,0)');
-      g.fillStyle = inner;
-      g.fillRect(sx, sy, sw, sh * 0.18);
+
+      // Hero panel with the thing this film is about.
+      const hx = sx + sw * 0.19;
+      const hy = sy + sh * 0.17;
+      const hw = sw * 0.68;
+      const hh = sh * 0.5;
+      const hero = g.createLinearGradient(hx, hy, hx + hw, hy + hh);
+      hero.addColorStop(0, '#d0603f');
+      hero.addColorStop(1, '#b0402c');
+      g.fillStyle = hero;
+      g.beginPath();
+      g.roundRect(hx, hy, hw, hh, Math.max(2, sw * 0.012));
+      g.fill();
+      g.fillStyle = 'rgba(255,255,255,0.92)';
+      g.fillRect(hx + hw * 0.07, hy + hh * 0.16, hw * 0.5, Math.max(2, sh * 0.028));
+      g.fillStyle = 'rgba(255,255,255,0.55)';
+      g.fillRect(hx + hw * 0.07, hy + hh * 0.3, hw * 0.34, Math.max(1.5, sh * 0.018));
+      g.fillStyle = 'rgba(255,255,255,0.9)';
+      g.beginPath();
+      g.roundRect(hx + hw * 0.07, hy + hh * 0.66, hw * 0.24, hh * 0.2, hh * 0.1);
+      g.fill();
+
       g.restore();
 
 
@@ -340,14 +329,15 @@ export const SAMPLES = [
       g.restore();
 
       // Cards, each a beat later, floating over the machine.
+      // Three cards, not four: four covered the page they are supposed to be
+      // explaining, and each one got too small to read.
       const cards = [
-        { x: 0.03, y: 0.46, tile: '#e7a39c', glyph: 'rgba(255,255,255,0.85)', step: 'STEP 01', title: 'Lift', note: '+11 m travel' },
-        { x: 0.27, y: 0.4, tile: '#c8f24a', glyph: 'rgba(16,16,16,0.7)', step: 'STEP 02', title: 'Body', note: 'frame-ready' },
-        { x: 0.51, y: 0.44, tile: '#c4553f', glyph: 'rgba(255,255,255,0.85)', step: 'STEP 03', title: 'Tires', note: '0.9 m mud' },
-        { x: 0.75, y: 0.5, tile: '#1b1712', glyph: 'rgba(255,255,255,0.85)', step: 'STEP 04', title: 'Build', note: 'ready' },
+        { x: 0.05, y: 0.58, tile: '#c8f24a', glyph: 'rgba(16,16,16,0.7)', step: 'STEP 01', title: 'Lift', note: '+11 m travel' },
+        { x: 0.36, y: 0.62, tile: '#e7a39c', glyph: 'rgba(255,255,255,0.85)', step: 'STEP 02', title: 'Body', note: 'frame-ready' },
+        { x: 0.67, y: 0.58, tile: '#1b1712', glyph: 'rgba(255,255,255,0.85)', step: 'STEP 03', title: 'Build', note: 'ready' },
       ];
-      const cw = w * 0.23;
-      const ch = h * 0.21;
+      const cw = w * 0.28;
+      const ch = h * 0.24;
       const leave = span(t, 4.5, 5.4);
       cards.forEach((card, i) => {
         const enter = outCubic((t - 0.3 - i * 0.15) / 0.55);
@@ -388,7 +378,7 @@ export const SAMPLES = [
       g.fillStyle = '#c4553f';
       g.font = `600 ${Math.max(8, h * 0.043)}px ${MONO}`;
       g.textAlign = 'right';
-      g.fillText('0/4', px + pw * 0.95, py + ph * 0.62);
+      g.fillText('0/3', px + pw * 0.95, py + ph * 0.62);
       g.textAlign = 'left';
       g.restore();
 

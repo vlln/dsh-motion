@@ -49,6 +49,8 @@ function api(req, res, url, project) {
   if (write && url.pathname === '/api/assets/rebake') return PARAMS.rebake(req, res);
   if (write && url.pathname === '/api/scene') return PARAMS.scene(req, res);
   if (write && url.pathname === '/api/palette') return PARAMS.palette(req, res);
+  if (url.pathname === '/api/versions') return PARAMS.versions(req, res);
+  if (write && url.pathname === '/api/versions/use') return PARAMS['versions/use'](req, res);
   if (write && url.pathname === '/api/export') return PARAMS.export(req, res);
   if (!write && url.pathname === '/api/revision') return PARAMS.revision(req, res);
   if (url.pathname === '/api/history') return write ? PARAMS.restore(req, res) : PARAMS.history(req, res);

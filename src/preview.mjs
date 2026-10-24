@@ -49,7 +49,6 @@ const knobsEl = $('knobs');
 const knobList = $('knobList');
 const knobScene = $('knobScene');
 const knobNote = $('knobNote');
-const undoBtn = $('undo');
 
 // If this page was opened with ?timeline=, writes must land in that same file.
 const params = new URLSearchParams(location.search);
@@ -650,6 +649,66 @@ expRun.addEventListener('click', async () => {
   }
 });
 
+// --- versions: what the agent finished, switchable from the top bar ---
+const versionMenu = $('versionMenu');
+const versionList = $('versionList');
+const versionLabel = $('versionLabel');
+const versionDot = $('versionDot');
+
+function renderVersions(data) {
+  const rows = data.versions ?? [];
+  const current = rows[0];
+  versionLabel.textContent = current ? `${current.id} · ${current.title}` : '还没有版本';
+  versionDot.hidden = !data.dirty;
+  versionDot.title = data.dirty ? '有未保存为版本的修改' : '';
+  versionList.innerHTML = rows.length
+    ? rows
+        .map(
+          (row, i) => `
+        <button class="version-row" data-id="${row.id}" aria-current="${i === 0}">
+          <span class="id">${row.id}</span>
+          <span class="title">${row.title}</span>
+          <span class="meta">${row.author === 'user' ? '我' : 'agent'}</span>
+        </button>`,
+        )
+        .join('')
+    : '<p class="hint">agent 改完一段并收尾后，这里会出现可切换的版本。</p>';
+  for (const button of versionList.querySelectorAll('.version-row')) {
+    button.addEventListener('click', async () => {
+      const id = button.dataset.id;
+      if (id === rows[0]?.id) {
+        versionMenu.open = false;
+        return;
+      }
+      button.disabled = true;
+      try {
+        const res = await fetch('./api/versions/use', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: body({ id }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error ?? res.statusText);
+        }
+        // Scene code changed with the version: a reload is the honest refresh.
+        location.reload();
+      } catch (error) {
+        button.disabled = false;
+        versionList.insertAdjacentHTML('afterbegin', `<p class="hint">切换失败：${error.message}</p>`);
+      }
+    });
+  }
+}
+
+async function loadVersions() {
+  try {
+    renderVersions(await (await fetch('./api/versions')).json());
+  } catch {
+    versionLabel.textContent = '版本';
+  }
+}
+
 // --- style: the film's palettes are data, so a style is one lookup away ---
 const styleList = $('styleList');
 const paletteEditor = $('paletteEditor');
@@ -808,8 +867,36 @@ function buildStyles() {
   renderPaletteEditor(currentStyle);
 }
 
+const paletteAdd = $('paletteAdd');
+
+paletteAdd?.addEventListener('click', async () => {
+  // A new palette starts as a copy of the one you are looking at, so its colours
+  // are already legible; you then change the ones you disagree with.
+  const base = timeline.palettes?.[currentStyle] ?? timeline.palettes?.main ?? {};
+  const merged = { ...(timeline.palettes?.main ?? {}), ...base };
+  const names = new Set(Object.keys(timeline.palettes ?? {}));
+  let name = 'custom-1';
+  for (let i = 2; names.has(name); i += 1) name = `custom-${i}`;
+  try {
+    const res = await fetch('./api/palette', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: body({ name, tokens: merged, create: true }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? res.statusText);
+    timeline.palettes[name] = data.palette;
+    buildStyles();
+    applyStyle(name);
+  } catch (error) {
+    paletteNote.hidden = false;
+    paletteNote.textContent = `新建配色失败：${error.message}`;
+  }
+});
+
 buildStyles();
 applyStyle(currentStyle);
+loadVersions();
 
 // --- scene level: length and speed (structural, so the shell reloads) ---
 let sceneKey = '';
@@ -916,7 +1003,6 @@ async function persistAsset(name, src) {
     await kernel.reloadAssets();
     kernel.renderAt(t);
     assetNote.textContent = `已保存 · 快照 ${data.snapshot.id.slice(25)}`;
-    await refreshHistory();
     refreshAssets();
   } catch (err) {
     assetNote.textContent = `保存失败：${err.message}`;
@@ -1007,7 +1093,6 @@ async function persistValue(sceneId, key, value) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? res.statusText);
     textNote.textContent = `已保存 · 快照 ${data.snapshot.id.slice(25)}`;
-    await refreshHistory();
   } catch (err) {
     textNote.textContent = `保存失败：${err.message}`;
   }
@@ -1023,7 +1108,6 @@ async function persistText(sceneId, slot, value) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? res.statusText);
     textNote.textContent = `已保存 · 快照 ${data.snapshot.id.slice(25)}`;
-    await refreshHistory();
   } catch (err) {
     textNote.textContent = `保存失败：${err.message}`;
   }
@@ -1099,25 +1183,10 @@ function refreshTexts() {
 
 // --- params: dragging changes the frame now, releasing writes the file ---
 let knobOwner = null;
-let latestSnapshot = null;
 
 function fmtKnob(value, step) {
   const decimals = Math.min(3, String(step).split('.')[1]?.length ?? 2);
   return value.toFixed(decimals);
-}
-
-async function refreshHistory() {
-  try {
-    const { snapshots } = await (await fetch('./api/history')).json();
-    latestSnapshot = snapshots[0]?.id ?? null;
-    undoBtn.disabled = !latestSnapshot;
-    // The button is an icon now: never write text into it, or the svg is gone.
-    undoBtn.disabled = !latestSnapshot;
-    undoBtn.setAttribute('aria-label', latestSnapshot ? '回退到上一版' : '没有可回退的版本');
-  } catch {
-    latestSnapshot = null;
-    undoBtn.disabled = true;
-  }
 }
 
 async function persistParam(sceneId, key, value) {
@@ -1130,7 +1199,6 @@ async function persistParam(sceneId, key, value) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? res.statusText);
     knobNote.textContent = `已保存 · 快照 ${data.snapshot.id.slice(25)}`;
-    await refreshHistory();
   } catch (err) {
     knobNote.textContent = `保存失败：${err.message}`;
   }
@@ -1178,26 +1246,6 @@ function buildKnobs(scene, { force = false } = {}) {
 
   knobNote.textContent = rows.length ? '拖动即时生效，松手写入 timeline.json。' : '这一幕没有可调参数。';
 }
-
-undoBtn.addEventListener('click', async () => {
-  if (!latestSnapshot) return;
-  try {
-    const res = await fetch('./api/history/restore', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: body({ id: latestSnapshot }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error ?? res.statusText);
-    kernel.reload(data.timeline);
-    kernel.renderAt(t);
-    buildKnobs(currentScene(t), { force: true });
-    await refreshHistory();
-    knobNote.textContent = '已回退到上一版。';
-  } catch (err) {
-    knobNote.textContent = `回退失败：${err.message}`;
-  }
-});
 
 const comments = createComments({
   canvas,
@@ -1397,7 +1445,6 @@ updatePlayButton();
 renderFrame();
 
 comments.refreshThreads();
-refreshHistory();
 
 window.__PREVIEW__ = {
   ready: true,
@@ -1452,8 +1499,19 @@ window.__PREVIEW__ = {
   },
   history: async () => (await (await fetch('./api/history')).json()).snapshots,
   undo: async () => {
-    undoBtn.click();
-    await new Promise((r) => setTimeout(r, 200));
+    // Undo lives in the version menu now; restore the previous snapshot directly.
+    const { snapshots } = await (await fetch('./api/history')).json();
+    const id = snapshots[0]?.id;
+    if (!id) return;
+    const res = await fetch('./api/history/restore', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: body({ id }),
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    kernel.reload(data.timeline);
+    kernel.renderAt(t);
   },
   pixel: (x, y) => {
     const g = kernel.surface;

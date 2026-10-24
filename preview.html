@@ -18,6 +18,11 @@
   </head>
   <body>
     <header class="topbar">
+      <details class="version-menu" id="versionMenu">
+        <summary><span id="versionLabel">版本</span><span class="dot" id="versionDot" hidden></span></summary>
+        <div class="version-list" id="versionList"></div>
+      </details>
+
       <div class="stale" id="stale" hidden>
         <span>场景代码已更新</span>
         <button id="staleReload" class="btn ghost">刷新</button>
@@ -139,7 +144,10 @@
 
         <div class="rail-panel" data-panel="style" hidden>
           <p class="rail-label">配色</p>
-          <div id="styleList" class="palette-list"></div>
+          <div class="palette-row">
+            <div id="styleList" class="palette-list"></div>
+            <button id="paletteAdd" class="palette-add" aria-label="新建配色" title="新建配色">+</button>
+          </div>
 
           <div id="paletteEditor" class="palette-editor" hidden>
             <p class="rail-label" id="paletteName">—</p>
@@ -165,11 +173,6 @@
           <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
             <path d="M3.2 7.2a4.8 4.8 0 0 1 8-2.6M12.8 8.8a4.8 4.8 0 0 1-8 2.6" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
             <path d="M11.4 2.4v2.4H9M4.6 13.6v-2.4H7" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </button>
-        <button id="undo" class="icon-btn" disabled aria-label="回退" title="回到上一次写入前">
-          <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-            <path d="M6.6 4.2 3.4 7.4l3.2 3.2M3.6 7.4h5.2a3.4 3.4 0 0 1 0 6.8H5.6" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         </button>
 

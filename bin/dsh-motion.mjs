@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { validateTimeline } from '../src/validate.mjs';
 import { modules } from '../src/project.mjs';
 import { createFilm } from '../src/film.mjs';
+import { createVersion, listVersions, useVersion } from '../src/versions.mjs';
 
 const PKG = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
@@ -122,20 +123,49 @@ async function exportVideo() {
   );
 }
 
+async function version() {
+  const title = opt('m', opt('message', ''));
+  const out = createVersion(FILM, { title, author: opt('author', 'agent') });
+  console.log(`${out.id} · ${out.title}`);
+}
+
+async function versions() {
+  const rows = listVersions(FILM);
+  if (!rows.length) {
+    console.log('no versions yet — run: dsh-motion version -m "what changed"');
+    return;
+  }
+  for (const row of rows) console.log(`${row.id.padEnd(4)} ${row.at.slice(0, 16).replace('T', ' ')}  ${row.author.padEnd(5)}  ${row.title}`);
+}
+
+async function use() {
+  const id = argv[1];
+  if (!id) fail('usage: dsh-motion use v3');
+  const out = useVersion(FILM, id);
+  console.log(`回到 ${out.restored} · ${out.title}`);
+  console.log('reload the preview panel: scene code changed.');
+}
+
 const commands = {
   init,
   validate,
   render,
   export: exportVideo,
+  version,
+  versions,
+  use,
 };
 
 if (!cmd || !commands[cmd]) {
-  console.error('usage: dsh-motion <init|validate|render|export> [options]');
+  console.error('usage: dsh-motion <init|validate|render|export|version|versions|use> [options]');
   console.error('');
   console.error('  init      [--title "…"] [--length 6]');
   console.error('  validate  check the timeline and every scene it names');
   console.error('  render    [--stills 0,3,6] | [--video] [--out path] [--cols 3]');
   console.error('  export    [--gif] [--out path] [--fps 30] [--height 720|1080] [--quality high|medium|low]');
+  console.error('  version   -m "what changed"   save the film as a version the user can switch to');
+  console.error('  versions                      list saved versions');
+  console.error('  use v3                        restore a version (appends, never rewrites history)');
   process.exit(cmd ? 1 : 0);
 }
 

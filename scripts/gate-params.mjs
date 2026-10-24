@@ -137,8 +137,9 @@ try {
     read().params['first-peoples'].axisY === 0.8 && listSnapshots(ROOT).length === countBefore,
   );
 
-  // --- undo: previous file back, and the frame with it ---
-  await page.click('#undo');
+  // --- undo: previous file back, and the frame with it. The button lives in the
+  // version menu now; the restore path is the same one it calls. ---
+  await page.evaluate(() => window.__PREVIEW__.undo());
   // the restored file has no stored knob: absent means "use the declared default"
   const axisNow = () => read().params?.['first-peoples']?.axisY ?? 0.68;
   const undone = await until(() => axisNow() === 0.68);

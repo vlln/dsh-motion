@@ -26,9 +26,16 @@ dsh-motion validate                             # 校验时间轴和它引用的
 dsh-motion render --stills 0,3,6 [--cols 3]     # 拼一张静帧对照表（快，用来审）
 dsh-motion render --video [--out out/film.mp4]  # 整条视频
 dsh-motion export [--gif] [--out out/export.mp4]
+dsh-motion version -m "把 1945 的图钉改成红色"   # 收尾：存成用户可切换的版本
+dsh-motion versions                             # 列出所有版本
+dsh-motion use v3                               # 切回某个版本（会先保存当前状态）
 ```
 
 改完先 `validate`，再 `render --stills` 看几帧，最后才 `--video`。整条视频是逐帧渲染，慢。
+
+**收尾必须落版本**：每完成一次用户能看见的修改，最后一步跑 `dsh-motion version -m "…"`，
+标题写**用户看得见的变化**（"把片尾语速放慢"），不是"updated files"。用户在面板顶部
+的版本下拉里就是靠这句话找回来的。漏了这步，用户就只剩「未保存的修改」一个点，没有历史。
 
 ## 时间轴
 

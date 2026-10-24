@@ -887,8 +887,8 @@ body:not(.tweaks) .app {
 }
 
 .icon-btn svg {
-  width: 16px;
-  height: 16px;
+  width: 17px;
+  height: 17px;
 }
 
 .icon-btn:hover {
@@ -1805,6 +1805,13 @@ summary:focus-visible {
   font: 500 12px/1 var(--font);
 }
 
+.palette-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
 .palette-list {
   display: flex;
   flex-wrap: wrap;
@@ -1908,4 +1915,133 @@ summary:focus-visible {
 .token-color::-webkit-color-swatch {
   border: 0;
   border-radius: 5px;
+}
+
+
+/* A mode is shown by its icon, not by a second grey block next to the primary
+   button. */
+#loop[aria-pressed='true'] {
+  background: transparent;
+  color: var(--accent);
+}
+
+#loop[aria-pressed='true']:hover {
+  background: var(--hover);
+}
+
+/* New palette tile: same shape as a swatch, no colour yet. */
+.palette-add {
+  width: 34px;
+  height: 40px;
+  padding: 0;
+  border: 1px dashed var(--line-strong);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  font: 500 16px/1 var(--font);
+  cursor: pointer;
+}
+
+.palette-add:hover {
+  border-color: var(--accent);
+  color: var(--fg);
+}
+
+/* Version menu: the film's history, on the left of the top bar. */
+.version-menu {
+  position: relative;
+  margin-right: auto;
+}
+
+.version-menu > summary {
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  font: 500 12px/1 var(--font);
+  cursor: pointer;
+  user-select: none;
+}
+
+.version-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.version-menu > summary:hover,
+.version-menu[open] > summary {
+  background: var(--hover);
+  color: var(--fg);
+}
+
+.version-menu .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.version-list {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 6px);
+  width: 300px;
+  max-height: 320px;
+  overflow: auto;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 32px rgb(15 17 21 / 12%);
+  z-index: 40;
+}
+
+.version-list .hint {
+  margin: 6px 8px;
+}
+
+.version-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fg);
+  font: 13px/1.3 var(--font);
+  text-align: left;
+  cursor: pointer;
+}
+
+.version-row:hover {
+  background: var(--hover);
+}
+
+.version-row[aria-current='true'] {
+  background: var(--active);
+}
+
+.version-row .id {
+  flex: none;
+  min-width: 26px;
+  color: var(--muted);
+  font: 500 11px/1 var(--mono);
+}
+
+.version-row .title {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.version-row .meta {
+  flex: none;
+  color: var(--dim);
+  font: 11px/1 var(--font);
 }

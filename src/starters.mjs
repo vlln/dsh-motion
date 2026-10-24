@@ -169,9 +169,9 @@ export const SAMPLES = [
     draw(g, w, h, t) {
       const look = this.look;
       const bg = g.createLinearGradient(0, 0, 0, h);
-      bg.addColorStop(0, '#f3e7d7');
-      bg.addColorStop(0.55, '#e7d4be');
-      bg.addColorStop(1, '#c7ab8e');
+      bg.addColorStop(0, '#e8d7c0');
+      bg.addColorStop(0.55, '#cdb193');
+      bg.addColorStop(1, '#9d7f60');
       g.fillStyle = bg;
       g.fillRect(0, 0, w, h);
 

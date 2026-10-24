@@ -1,0 +1,28 @@
+{
+  "width": 1080,
+  "height": 1920,
+  "fps": 30,
+  "duration": 6,
+  "palettes": {
+    "main": {
+      "bg": "#0a0a0b",
+      "fg": "#ececea",
+      "accent": "#e3bd63",
+      "muted": "#8a8a8a",
+      "grid": "#1a1a1a",
+      "panel": "#101010"
+    }
+  },
+  "overrides": {},
+  "texts": {},
+  "scenes": [
+    {
+      "id": "tree",
+      "name": "Tree",
+      "start": 0,
+      "length": 6,
+      "palette": "main",
+      "speed": 1
+    }
+  ]
+}

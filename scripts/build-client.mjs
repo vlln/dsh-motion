@@ -11,6 +11,9 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const LIB = path.join(ROOT, 'lib');
 fs.mkdirSync(LIB, { recursive: true });
 
+// Hashed chunk names change on every edit; stale ones must not pile up.
+fs.rmSync(path.join(LIB, 'chunks'), { recursive: true, force: true });
+
 const result = await build({
   entryPoints: [path.join(ROOT, 'src/preview.mjs')],
   bundle: true,

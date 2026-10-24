@@ -1,0 +1,28 @@
+{
+  "width": 1080,
+  "height": 1920,
+  "fps": 30,
+  "duration": 6,
+  "palettes": {
+    "main": {
+      "bg": "#140c26",
+      "fg": "#f6ecff",
+      "accent": "#ff86c2",
+      "muted": "#8a8a8a",
+      "grid": "#1a1a1a",
+      "panel": "#101010"
+    }
+  },
+  "overrides": {},
+  "texts": {},
+  "scenes": [
+    {
+      "id": "prism",
+      "name": "Prism",
+      "start": 0,
+      "length": 6,
+      "palette": "main",
+      "speed": 1
+    }
+  ]
+}

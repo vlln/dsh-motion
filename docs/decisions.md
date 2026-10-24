@@ -640,3 +640,10 @@ D009 让每张卡有自己的颜色和字体，但版式仍是同一套"深色�
   生成，`scenes: ["cards3d"]`、`duration: 12`。
 - `listTemplates()` 现在只返回 `['cards3d','kinetic']`。
 - 全量门禁 22 组通过（exit 0）。
+
+### 落地结果（同一目标）
+
+- 八个样板全部带模板：`desk / guide / board / tree / prism / orbit / kinetic / cards3d`，各自 `timeline.json` 校验通过。
+- 样板场景复用画廊的绘制函数（`src/scenes/from-sample.mjs`），预览与成片同一份代码，不会“看一个样、做一个样”。
+- 端到端实测：点「图鉴」→「用这个样板开始」→ `motion/timeline.json` 生成 `scenes: ["guide"]`。
+- 构建时清理旧 chunk，避免哈希文件名堆叠。

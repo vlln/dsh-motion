@@ -1,0 +1,28 @@
+{
+  "width": 1920,
+  "height": 1080,
+  "fps": 30,
+  "duration": 6,
+  "palettes": {
+    "main": {
+      "bg": "#08090b",
+      "fg": "#ececea",
+      "accent": "#7ee787",
+      "muted": "#8a8a8a",
+      "grid": "#1a1a1a",
+      "panel": "#101010"
+    }
+  },
+  "overrides": {},
+  "texts": {},
+  "scenes": [
+    {
+      "id": "board",
+      "name": "Board",
+      "start": 0,
+      "length": 6,
+      "palette": "main",
+      "speed": 1
+    }
+  ]
+}

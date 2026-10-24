@@ -159,6 +159,7 @@ export const SAMPLES = [
     title: '产品片',
     tag: '界面演示',
     ratio: 16 / 9,
+    template: 'desk',
     featured: true,
     look: LOOKS.desk,
     prompt: brief(
@@ -340,6 +341,7 @@ export const SAMPLES = [
     title: '图鉴',
     tag: '信息图解',
     ratio: 4 / 3,
+    template: 'guide',
     look: LOOKS.paper,
     prompt: brief(
       '复刻这个动效：一本手绘动物图鉴的对页——米色纸、青色标题条、等宽小标签配衬线数值、虚线引线指向一只插画猫，右边是芯片编号与位置，一台青色扫描器扫过并读出编号',
@@ -552,6 +554,7 @@ export const SAMPLES = [
     title: '榜屏',
     tag: '界面演示',
     ratio: 16 / 9,
+    template: 'board',
     look: LOOKS.night,
     prompt: brief(
       '复刻这个动效：深色空间里一块排行榜屏幕，整体轻微透视倾斜，六行「名次 / 名字 / 型号 / 分数」，榜首一行绿色高亮，镜头缓慢推近',
@@ -616,7 +619,9 @@ export const SAMPLES = [
         const lead = (i === 0 && swap < 0.5) || (i === 1 && swap >= 0.5);
         // The rank label travels with the position, not with the name.
         const rank = i === 0 ? (swap >= 0.5 ? '02' : '01') : i === 1 ? (swap >= 0.5 ? '01' : '02') : row.rank;
-        boardRow(g, x, y, rw, rh, { ...row, rank }, p, lead);
+        // Rows crossing mid-swap would print on top of each other; nudge them apart.
+        const nudge = i < 2 ? (1 - Math.abs(swap - 0.5) * 2) * w * 0.04 * (i === 0 ? 1 : -1) : 0;
+        boardRow(g, x + nudge, y, rw, rh, { ...row, rank }, p, lead);
       });
 
       // A slow scan line: the screen is alive, not a screenshot.
@@ -634,121 +639,6 @@ export const SAMPLES = [
       g.fillStyle = vig;
       g.fillRect(0, 0, w, h);
       veil(g, w, h, t, look);
-    },
-  },
-
-  {
-    id: 'carousel',
-    title: '旋转海报',
-    tag: '场景叙事',
-    ratio: 16 / 9,
-    engine: 'webgl',
-    backdrop: 'radial-gradient(circle at 50% 42%, #2a63d8 0%, #123a94 55%, #07194a 100%)',
-    look: { bg: '#123a94', ink: '#ffffff', dim: 'rgba(255,255,255,0.6)' },
-    prompt: brief(
-      '复刻这个动效：蓝色渐变背景里，八张海报围成一个圈缓慢自转，像展示台；每张海报的正面朝向圆心外侧',
-      '要求：真 3D（WebGL 场景，kind: webgl），带透视和远近大小，海报纹理由 canvas 画出来；转速慢，不要抖动。',
-    ),
-    panel(g, w, h, i) {
-      const looks = [
-        { bg: '#2a1052', ink: '#f4ead8', accent: '#8d6bff' },
-        { bg: '#f6efe2', ink: '#241f1a', accent: '#d5532e' },
-        { bg: '#8f8a4f', ink: '#f7f2df', accent: '#d9d2a8' },
-        { bg: '#1d2f5c', ink: '#eef2ff', accent: '#7fb0ff' },
-      ];
-      const look = looks[i % looks.length];
-      g.fillStyle = look.bg;
-      g.fillRect(0, 0, w, h);
-      g.strokeStyle = 'rgba(255,255,255,0.14)';
-      g.lineWidth = 2;
-      g.strokeRect(0.6, 0.6, w - 1.2, h - 1.2);
-      g.textAlign = 'center';
-      if (i % 4 === 0) {
-        g.fillStyle = look.accent;
-        g.beginPath();
-        g.arc(w * 0.78, h * 0.18, w * 0.03, 0, TAU);
-        g.fill();
-        g.fillStyle = look.ink;
-        g.font = `500 ${h * 0.16}px ${SERIF}`;
-        g.fillText('BD', w / 2, h * 0.56);
-        g.font = `500 ${h * 0.03}px ${MONO}`;
-        g.fillText('ATELIER', w / 2, h * 0.62);
-      } else if (i % 4 === 1) {
-        g.strokeStyle = look.accent;
-        g.lineWidth = 4;
-        g.beginPath();
-        g.moveTo(w * 0.2, h * 0.3);
-        g.quadraticCurveTo(w * 0.34, h * 0.2, w * 0.42, h * 0.36);
-        g.quadraticCurveTo(w * 0.5, h * 0.52, w * 0.38, h * 0.6);
-        g.quadraticCurveTo(w * 0.28, h * 0.66, w * 0.24, h * 0.56);
-        g.stroke();
-        g.fillStyle = look.accent;
-        g.beginPath();
-        g.arc(w * 0.38, h * 0.44, w * 0.035, 0, TAU);
-        g.fill();
-      } else if (i % 4 === 2) {
-        g.textAlign = 'left';
-        g.fillStyle = look.ink;
-        g.font = `500 ${h * 0.035}px ${MONO}`;
-        g.letterSpacing = '0.14em';
-        g.fillText('CONSISTENCY', w * 0.1, h * 0.24);
-        g.letterSpacing = '0em';
-        g.fillStyle = look.accent;
-        const bars = [0.3, 0.45, 0.6, 0.78, 0.95];
-        bars.forEach((b, k) => {
-          g.fillRect(w * 0.1 + k * w * 0.135, h * 0.72 - h * 0.4 * b, w * 0.1, h * 0.4 * b);
-        });
-      } else {
-        const grad = g.createLinearGradient(0, 0, w, h);
-        grad.addColorStop(0, look.accent);
-        grad.addColorStop(1, look.bg);
-        g.fillStyle = grad;
-        g.fillRect(w * 0.14, h * 0.14, w * 0.72, h * 0.72);
-        g.fillStyle = 'rgba(255,255,255,0.35)';
-        g.beginPath();
-        g.arc(w * 0.38, h * 0.4, w * 0.1, 0, TAU);
-        g.fill();
-      }
-    },
-    /** Built by the gallery's WebGL player; returns a render(t). */
-    build({ THREE, renderer, width, height }) {
-      const scene = new THREE.Scene();
-      const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 60);
-      camera.position.set(0, 0.05, 7.4);
-      camera.lookAt(0, 0, 0);
-      const group = new THREE.Group();
-      scene.add(group);
-      const count = 8;
-      const radius = 2.3;
-      const posters = [];
-      for (let i = 0; i < count; i++) {
-        const face = document.createElement('canvas');
-        face.width = 256;
-        face.height = 320;
-        this.panel(face.getContext('2d'), 256, 320, i);
-        const texture = new THREE.CanvasTexture(face);
-        texture.colorSpace = THREE.SRGBColorSpace;
-        const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
-        const plane = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.88), material);
-        const angle = (i / count) * Math.PI * 2;
-        plane.position.set(Math.sin(angle) * radius, 0, Math.cos(angle) * radius);
-        plane.rotation.y = angle;
-        group.add(plane);
-        posters.push(material);
-      }
-      return {
-        resize(w, h) {
-          renderer.setSize(w, h, false);
-          camera.aspect = w / h;
-          camera.updateProjectionMatrix();
-        },
-        render(t) {
-          const env = Math.min(1, t / 0.5) * Math.min(1, (LOOP_SECONDS - t) / 0.55);
-          for (const material of posters) material.opacity = env;
-          group.rotation.y = t * 0.42;
-          renderer.render(scene, camera);
-        },
-      };
     },
   },
 
@@ -929,6 +819,7 @@ export const SAMPLES = [
     title: '树',
     tag: '场景叙事',
     ratio: 3 / 4,
+    template: 'tree',
     look: { bg: '#0a0a0b', ink: '#ececea', dim: 'rgba(236,236,234,0.45)' },
     prompt: brief(
       '复刻这个动效：黑底上一棵树从一个点长出来，枝干逐段生长，末梢的金色叶点随后一盏盏亮起，右上角一轮暗月',
@@ -1009,6 +900,7 @@ export const SAMPLES = [
     title: '轨道',
     tag: '场景叙事',
     ratio: 16 / 9,
+    template: 'orbit',
     look: LOOKS.navy,
     prompt: brief(
       '复刻这个动效：深蓝星场里一条很淡的椭圆轨道，一个金点沿轨道走，身后留一点余辉',
@@ -1061,6 +953,7 @@ export const SAMPLES = [
     title: '光晕',
     tag: '背景特效',
     ratio: 3 / 4,
+    template: 'prism',
     look: LOOKS.dusk,
     prompt: brief(
       '复刻这个动效：深紫底上三团洋红、橙、青的光缓慢漂移、互相叠加，画面内侧一圈 1px 细框，底部一行等宽小字',

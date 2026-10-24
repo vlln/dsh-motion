@@ -12,6 +12,11 @@ const STATIC = [firstPeoples, coldWar, textLab, mediaLab, dataLab];
 const LAZY = {
   orbit: () => import('./orbit.mjs'),
   cards3d: () => import('./cards3d.mjs'),
+  desk: () => import('./desk.mjs'),
+  guide: () => import('./guide.mjs'),
+  board: () => import('./board.mjs'),
+  tree: () => import('./tree.mjs'),
+  prism: () => import('./prism.mjs'),
 };
 
 /**

@@ -48,7 +48,12 @@ export function roleNames(timeline) {
 }
 
 export function filmFontOverrides(timeline) {
-  return Object.entries(timeline?.fonts ?? {}).filter(([, value]) => value && typeof value === 'object');
+  // No shape filter: validate.mjs already refuses a malformed entry, so a bad
+  // one here is a bug worth seeing, not a row worth hiding.
+  return Object.entries(timeline?.fonts ?? {}).map(([role, spec]) => {
+    if (!spec || typeof spec !== 'object') throw new Error(`fonts.${role} must be an object of { family, src? }`);
+    return [role, spec];
+  });
 }
 
 /**

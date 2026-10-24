@@ -1296,8 +1296,12 @@ body:not(.tweaks) .app {
   justify-content: center;
   align-items: center;
   gap: 10px;
+  /* Definite height: the artboard is fitted to it, so it must not grow to fit
+     the artboard (that loop made the film climb over the reel). */
+  height: 100%;
   min-height: 0;
   width: 100%;
+  overflow: hidden;
 }
 
 .stage-foot {

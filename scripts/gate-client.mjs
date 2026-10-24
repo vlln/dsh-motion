@@ -55,6 +55,9 @@ try {
   check('the tab mounts under the session prefix', Boolean(match), tabSrc || 'missing');
 
   const session = match?.[1] ?? '';
+  // Waiting for the count is not the same as counting once: under a full suite
+  // the tab is still mounting, and a bare count reads zero.
+  await tabFrame.locator('.chip').first().waitFor({ timeout: 15000 }).catch(() => {});
   const chips = await tabFrame.locator('.chip').count();
   check('the panel shows the workspace film', chips === 1, `${chips} chips`);
   const dur = await tabFrame.locator('body').evaluate(() => window.__PREVIEW__.duration);

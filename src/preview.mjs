@@ -510,9 +510,25 @@ function playTiles(root, tiles) {
   };
 }
 
+// Render at the size the stage actually occupies, capped by the film's own
+// resolution: a 1920-wide film in a 900px panel costs a quarter of the pixels.
+async function previewScale() {
+  const rect = canvas.getBoundingClientRect();
+  const shown = rect.width || canvas.clientWidth || 0;
+  if (!shown) return 1;
+  try {
+    const res = await fetch(target ?? './timeline.json', { cache: 'no-store' });
+    if (!res.ok) return 1;
+    const film = await res.json();
+    return Math.max(0.4, Math.min(1, shown / (film.width || 1920)));
+  } catch {
+    return 1;
+  }
+}
+
 let mounted;
 try {
-  mounted = await mountMotion({ canvas, dpr });
+  mounted = await mountMotion({ canvas, dpr, scale: await previewScale() });
 } catch (error) {
   if (error?.code !== 'NO_FILM') throw error;
   showEmptyFilm();

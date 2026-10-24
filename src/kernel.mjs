@@ -28,6 +28,10 @@ export function createKernel({ timeline, modules }) {
   let width = timeline.width ?? 1920;
   let height = timeline.height ?? 1080;
   let dpr = 1;
+  // Preview-only: draw the film at a fraction of its resolution. Scenes keep
+  // their coordinates; only the backing store shrinks, which is what makes a
+  // 1920x1080 film playable inside a 900px panel.
+  let scale = 1;
   let lastTime = 0;
 
   function sceneAt(t) {
@@ -245,8 +249,9 @@ export function createKernel({ timeline, modules }) {
     width = size?.width ?? width;
     height = size?.height ?? height;
     dpr = size?.dpr ?? dpr;
-    canvas.width = Math.round(width * dpr);
-    canvas.height = Math.round(height * dpr);
+    scale = size?.scale ?? scale;
+    canvas.width = Math.round(width * dpr * scale);
+    canvas.height = Math.round(height * dpr * scale);
     // Display surface composites one scene canvas per frame. Pinning the colour
     // space here keeps readback stable on macOS (display-P3 otherwise shifts values).
     surface = canvas.getContext('2d', { colorSpace: 'srgb' });
@@ -301,7 +306,7 @@ export function createKernel({ timeline, modules }) {
     frameText = [];
     frameNodes = [];
     if (entry.kind === 'canvas2d') {
-      entry.g.setTransform(dpr, 0, 0, dpr, 0, 0);
+      entry.g.setTransform(dpr * scale, 0, 0, dpr * scale, 0, 0);
       entry.g.clearRect(0, 0, width, height);
     }
     active = entry.kind === 'canvas2d' ? entry.g : null;
@@ -315,7 +320,7 @@ export function createKernel({ timeline, modules }) {
 
     // optional 2D overlay on top of the composited scene (3D + typography)
     if (entry.module.overlay) {
-      surface.setTransform(dpr, 0, 0, dpr, 0, 0);
+      surface.setTransform(dpr * scale, 0, 0, dpr * scale, 0, 0);
       active = surface;
       entry.module.overlay(surface, entry.ctx, sceneTime(scene, entry.module.duration, t));
     }

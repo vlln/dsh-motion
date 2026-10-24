@@ -2,13 +2,27 @@
   "width": 720,
   "height": 1280,
   "fps": 30,
-  "duration": 6,
+  "duration": 12,
   "palettes": {
-    "main": { "bg": "#060606", "fg": "#f4f4f4", "accent": "#ffffff", "muted": "#8c8c8c", "grid": "#1a1a1a", "panel": "#101010" }
+    "main": {
+      "bg": "#060606",
+      "fg": "#f4f4f4",
+      "accent": "#ffffff",
+      "muted": "#8c8c8c",
+      "grid": "#1a1a1a",
+      "panel": "#101010"
+    }
   },
   "overrides": {},
   "texts": {},
   "scenes": [
-    { "id": "mono", "name": "Mono", "start": 0, "length": 6, "palette": "main", "speed": 1 }
+    {
+      "id": "mono",
+      "name": "Mono",
+      "start": 0,
+      "length": 12,
+      "palette": "main",
+      "speed": 1
+    }
   ]
 }

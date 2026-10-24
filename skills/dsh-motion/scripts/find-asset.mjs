@@ -18,7 +18,7 @@ const opt = (k, d) => {
 const has = (k) => argv.includes(`--${k}`);
 const query = argv.find((a, i) => !a.startsWith('--') && !(i > 0 && argv[i - 1].startsWith('--')));
 if (!query) {
-  console.error('usage: find-asset.mjs "<what the shot needs>" [--n 6] [--get N] [--name slug] [--min-width 1400]');
+  console.error('usage: find-asset.mjs "<what the shot needs>" [--n 5] [--get N] [--name slug] [--min-width 1400]');
   process.exit(1);
 }
 

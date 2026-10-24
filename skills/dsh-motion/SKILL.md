@@ -54,6 +54,13 @@ motion/
 
 写完给用户看一眼再动手。**这是一次对话，不是一次校验。**
 
+### 先出一条能看的粗版，再回头精修
+
+**不要等到素材齐、镜头设计完才渲染第一帧。** 拿到素材的十分钟内就要有一条能跑的粗版：
+时间轴对、每镜有东西、`check` 绿。之后每次只改一处，改完立刻渲一帧看。
+
+这条规矩是为了防一种失败：整段时间都花在找素材和设计上，最后什么都没渲出来。
+
 ### 素材从哪来
 
 **不要凭空想象图片，也不要留白。** 三档，按顺序试：
@@ -62,9 +69,12 @@ motion/
 2. **找一张**——用标好的脚本去免费库里搜：
 
    ```bash
-   node <skill>/scripts/find-asset.mjs "modern living room interior" --n 6
+   node <skill>/scripts/find-asset.mjs "modern living room interior" --n 5
    node <skill>/scripts/find-asset.mjs "modern living room interior" --get 2 --name room-base
    ```
+
+   **有时间预算：最多搜两轮、最多拿 3 张，选一张就停。** 素材不是片子——找不到合适的就
+   进第 3 档，不要为了一张图换五个关键词。
 
    它搜 Wikimedia Commons（不需要 key），列出尺寸与许可；`--get` 会把图存进
    `motion/assets/plates/`，并**自动往 `CREDITS.md` 追加一行**（文件名、标题、许可、来源）。

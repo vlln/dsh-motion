@@ -14,10 +14,13 @@ const meta = (root) => path.join(dir(root), 'index.json');
 const timelineFile = (root) => path.join(root, 'timeline.json');
 const scenesDir = (root) => path.join(root, 'scenes');
 
-export function listVersions(root) {
+export function listVersions(root, { includeSafety = false } = {}) {
   try {
     const index = JSON.parse(fs.readFileSync(meta(root), 'utf8'));
-    return Array.isArray(index.versions) ? index.versions : [];
+    const all = Array.isArray(index.versions) ? index.versions : [];
+    // A safety copy is bookkeeping, not a version the user asked for: switching
+    // back and forth used to add two visible entries every time.
+    return includeSafety ? all : all.filter((v) => v.kind !== 'safety');
   } catch {
     return [];
   }
@@ -67,9 +70,10 @@ export function isDirty(root) {
 }
 
 /** Write one version of the working tree. `title` is what the user will read. */
-export function createVersion(root, { title, author = 'agent' } = {}) {
+export function createVersion(root, { title, author = 'agent', kind = 'edit' } = {}) {
   if (!fs.existsSync(timelineFile(root))) throw new Error('no film here (timeline.json missing)');
-  const versions = listVersions(root);
+  // ids count every record, hidden ones included, so they never get reused
+  const versions = listVersions(root, { includeSafety: true });
   const id = `v${versions.length + 1}`;
   const at = new Date().toISOString();
   const timeline = JSON.parse(fs.readFileSync(timelineFile(root), 'utf8'));
@@ -79,6 +83,7 @@ export function createVersion(root, { title, author = 'agent' } = {}) {
     at,
     title: String(title ?? '').trim() || `版本 ${id}`,
     author,
+    kind,
     mtime: filmMtime(root),
     timeline,
     scenes,
@@ -86,13 +91,14 @@ export function createVersion(root, { title, author = 'agent' } = {}) {
   fs.mkdirSync(dir(root), { recursive: true });
   fs.writeFileSync(path.join(dir(root), `${id}.json`), `${JSON.stringify(record, null, 2)}\n`);
   // newest first, so the panel renders top-down without sorting
-  saveIndex(root, [{ id, at, title: record.title, author, mtime: record.mtime }, ...versions]);
+  saveIndex(root, [{ id, at, title: record.title, author, kind: record.kind, mtime: record.mtime }, ...versions]);
   return { id, at, title: record.title, author };
 }
 
 /**
- * Switch to an older version. Appending, never rewriting history: the state you
- * leave is saved as a version first, and the arrival is saved as another one.
+ * Switch to an older version. Navigation, not an edit: the list does not grow.
+ * The state being replaced is kept as one *hidden* safety copy, and only when it
+ * actually differs from the target.
  */
 export function useVersion(root, id) {
   const versions = listVersions(root);
@@ -100,14 +106,25 @@ export function useVersion(root, id) {
   if (!target) throw new Error(`unknown version "${id}" (have: ${versions.map((v) => v.id).join(', ') || 'none'})`);
   const record = JSON.parse(fs.readFileSync(path.join(dir(root), `${id}.json`), 'utf8'));
 
-  if (fs.existsSync(timelineFile(root))) createVersion(root, { title: `切到 ${id} 之前`, author: 'user' });
+  // Switching is navigation, not an edit: the list must not grow. Keep one
+  // hidden safety copy of what is being replaced, and only when it differs.
+  const current = fs.existsSync(timelineFile(root))
+    ? {
+        timeline: JSON.parse(fs.readFileSync(timelineFile(root), 'utf8')),
+        scenes: Object.fromEntries(
+          fs.existsSync(scenesDir(root))
+            ? fs.readdirSync(scenesDir(root)).map((f) => [f, fs.readFileSync(path.join(scenesDir(root), f), 'utf8')])
+            : [],
+        ),
+      }
+    : null;
+  const same = current && JSON.stringify(current) === JSON.stringify({ timeline: record.timeline, scenes: record.scenes ?? {} });
+  if (current && !same) createVersion(root, { title: `切到 ${id} 之前`, author: 'user', kind: 'safety' });
 
   fs.mkdirSync(scenesDir(root), { recursive: true });
   for (const [file, source] of Object.entries(record.scenes ?? {})) {
     fs.writeFileSync(path.join(scenesDir(root), file), source);
   }
   fs.writeFileSync(timelineFile(root), `${JSON.stringify(record.timeline, null, 2)}\n`);
-
-  createVersion(root, { title: `回到 ${id}`, author: 'user' });
   return { restored: id, title: record.title };
 }

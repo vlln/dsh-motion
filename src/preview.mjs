@@ -128,6 +128,7 @@ function showEmptyFilm() {
     }
     promptEl.textContent = style.prompt;
     actions.hidden = false;
+    actions.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     send.disabled = !sessionId;
     send.textContent = sessionId ? '发到对话' : '在对话里打开才能发送';
   };

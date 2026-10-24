@@ -1,11 +1,11 @@
-// The empty workspace's gallery. A card here is not a picture of a style — it is
-// a small, real animation: a pure function of time, drawn with canvas 2D, looping
-// on its own. The panel's whole claim is "moving image", so the first thing it
-// ever shows has to move.
+// The empty workspace's gallery: one art direction, four studies.
 //
-// Names and palettes follow the style cards this engine took notes from
-// (navy / paper / ink / signal): a pick is a direction someone can describe, not
-// a mood word invented for the occasion.
+// The look is taken from the WebMotion site's hero film (webmotion.superhq.ai):
+// near-black ground, monospace uppercase micro-labels with wide tracking, a lot
+// of air, one hairline, and a single blue accent — the page states its argument
+// quietly and lets the motion carry it. A card here is a real animation, a pure
+// function of time on canvas 2D, looping on its own: the panel's first claim is
+// "moving image", so a still card would be a lie about the product.
 
 export const LOOP_SECONDS = 6;
 
@@ -15,6 +15,7 @@ const ease = (v) => {
   const x = clamp01(v);
   return x * x * (3 - 2 * x);
 };
+const outCubic = (v) => 1 - (1 - clamp01(v)) ** 3;
 /** Progress of a window inside the loop: 0 before `from`, 1 after `to`. */
 const span = (t, from, to) => ease((t - from) / (to - from));
 /** Deterministic pseudo-random, so a frame always looks the same. */
@@ -23,307 +24,276 @@ const noise = (n) => {
   return x - Math.floor(x);
 };
 
-const SERIF = '"Iowan Old Style", "Palatino Linotype", Georgia, "Times New Roman", serif';
 const SANS =
   '-apple-system, "system-ui", "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Helvetica Neue", Arial, sans-serif';
 const MONO = 'ui-monospace, "SF Mono", Menlo, monospace';
 
-/** Content fades in at the head of the loop and out at the tail, so it breathes. */
-const envelope = (t) => Math.min(1, t / 0.5) * Math.min(1, (LOOP_SECONDS - t) / 0.55);
+const INK = '#e8e8e6';
+const DIM = '#8a8a88';
+const FAINT = '#6d6d6b';
+const HAIRLINE = 'rgba(255, 255, 255, 0.1)';
+const ACCENT = '#5b83ff';
 
-/** Fade in and out by veiling the scene with its own ground colour. */
-function veil(g, w, h, t, colour) {
-  const fade = 1 - envelope(t);
+/** Ground: near-black with the faintest vertical lift, never a flat fill. */
+function ground(g, w, h) {
+  const sky = g.createLinearGradient(0, 0, 0, h);
+  sky.addColorStop(0, '#111113');
+  sky.addColorStop(1, '#09090a');
+  g.fillStyle = sky;
+  g.fillRect(0, 0, w, h);
+}
+
+/** Fade in and out by veiling the scene with its own ground, not by alpha. */
+function veil(g, w, h, t) {
+  const fade = 1 - Math.min(1, t / 0.5) * Math.min(1, (LOOP_SECONDS - t) / 0.55);
   if (fade <= 0) return;
   g.save();
   g.globalAlpha = fade;
-  g.fillStyle = colour;
-  g.fillRect(0, 0, w, h);
+  ground(g, w, h);
   g.restore();
 }
 
-/**
- * Text that rises through its own baseline mask. Cheap, and the one move that
- * makes a still frame read as a shot instead of a slide.
- */
-function riseText(g, text, x, y, w, size, font, color, p) {
+/** Monospace, uppercase, wide tracking — the site's micro-label voice. */
+function micro(g, text, x, y, size, color, p, track = '0.26em') {
   if (p <= 0) return;
-  const lift = (1 - p) * size * 0.55;
   g.save();
-  g.beginPath();
-  g.rect(x - size, y - size * 1.05, w, size * 1.25);
-  g.clip();
+  g.globalAlpha = p;
   g.fillStyle = color;
-  g.font = font;
-  g.textBaseline = 'alphabetic';
-  g.fillText(text, x, y + lift);
+  g.font = `400 ${size}px ${MONO}`;
+  g.letterSpacing = track;
+  g.fillText(text, x, y);
+  g.letterSpacing = '0em';
+  g.restore();
+}
+
+/** The one rule, drawn left to right. */
+function rule(g, x, y, width, p) {
+  if (p <= 0) return;
+  g.save();
+  g.strokeStyle = HAIRLINE;
+  g.lineWidth = 1;
+  g.beginPath();
+  g.moveTo(x, y);
+  g.lineTo(x + width * ease(p), y);
+  g.stroke();
   g.restore();
 }
 
 export const SPECIMENS = [
   {
-    id: 'navy',
-    name: '深空档案',
-    blurb: '深底、暖金、纪录片式标注',
-    palette: { bg: '#070b14', ink: '#f4f1ea', accent: '#d8a94a', dim: '#8b98ad' },
+    id: 'baseline',
+    name: '基线',
+    blurb: '柱列从基线长出来',
     prompt:
-      '做一段 20 秒的片子，用「深空档案」的路子：近黑深底、暖金色细线与标注、标题用衬线、信息像档案条目一样克制，动效只做位移和遮罩揭示，不加装饰。',
+      '做一段 20 秒的片子，用「基线」这套：近黑底、等宽大写微标签、一条 1px 分隔线、一根根细柱从基线按顺序长出来（每条晚一点、十几帧长成），全程只用一个蓝色强调，不放别的装饰。',
     draw(g, w, h, t) {
-      const { ink, accent, dim } = this.palette;
-      const sky = g.createLinearGradient(0, 0, 0, h);
-      sky.addColorStop(0, '#060a12');
-      sky.addColorStop(1, '#0c1526');
-      g.fillStyle = sky;
-      g.fillRect(0, 0, w, h);
+      ground(g, w, h);
+      const pad = w * 0.075;
+      const base = h * 0.79;
+      const inner = w - pad * 2;
 
-      g.save();
-
-      // A slow field of stars: the only thing that never stops moving.
-      for (let i = 0; i < 52; i++) {
-        const sx = noise(i) * w;
-        const sy = (noise(i + 90) * h + t * (1.4 + noise(i + 7) * 2.6)) % h;
-        g.globalAlpha = (0.14 + noise(i + 31) * 0.5);
-        g.fillStyle = '#cdd7ea';
-        g.beginPath();
-        g.arc(sx, sy, 0.4 + noise(i + 61) * 0.85, 0, TAU);
-        g.fill();
+      // A row of beats: each bar is one frame of the same idea.
+      const count = 30;
+      const step = inner / count;
+      const barW = Math.max(2, step * 0.36);
+      const wave = [];
+      for (let i = 0; i < count; i++) {
+        const v = Math.sin(i * 0.42 + 1.1) * 0.5 + 0.5;
+        wave.push(0.1 + v * 0.86 * (0.7 + 0.3 * Math.sin(i * 0.13)));
       }
-      g.globalAlpha = 1;
+      const tallest = Math.max(...wave) * h * 0.36;
+      const fill = g.createLinearGradient(0, base, 0, base - tallest);
+      fill.addColorStop(0, '#3d3d3d');
+      fill.addColorStop(1, '#ededed');
+      g.fillStyle = fill;
+      for (let i = 0; i < count; i++) {
+        const p = outCubic((t - 0.3 - i * 0.026) / 0.42);
+        if (p <= 0) continue;
+        const height = wave[i] * h * 0.36 * p;
+        g.fillRect(pad + i * step, base - height, barW, height);
+      }
 
-      const pad = w * 0.09;
-      g.fillStyle = accent;
-      g.font = `500 ${h * 0.052}px ${MONO}`;
-      g.letterSpacing = '0.14em';
-      g.globalAlpha = span(t, 0.15, 0.7);
-      g.fillText('ARCHIVE 1987', pad, h * 0.3);
-      g.letterSpacing = '0em';
-
-      const rule = span(t, 0.45, 1.5);
-      g.globalAlpha = 0.9;
-      g.strokeStyle = accent;
-      g.lineWidth = Math.max(0.6, h * 0.0035);
-      g.beginPath();
-      g.moveTo(pad, h * 0.365);
-      g.lineTo(pad + (w - pad * 2) * 0.62 * rule, h * 0.365);
-      g.stroke();
-
-      riseText(g, 'The long orbit', pad, h * 0.55, w, h * 0.155, `500 ${h * 0.155}px ${SERIF}`, ink, span(t, 0.6, 1.5));
-
-      g.globalAlpha = span(t, 1.2, 1.9);
-      g.fillStyle = dim;
-      g.font = `400 ${h * 0.056}px ${SANS}`;
-      g.fillText('一段关于距离的说明', pad, h * 0.665);
-
-      // A small live mark at the end of the rule: something is still running.
-      const pulse = 0.5 + 0.5 * Math.sin(t * 2.4);
-      const dotX = pad + (w - pad * 2) * 0.62 * span(t, 1.4, 2.6);
-      g.globalAlpha = (0.35 + pulse * 0.5);
-      g.fillStyle = accent;
-      g.beginPath();
-      g.arc(dotX, h * 0.365, h * 0.012, 0, TAU);
-      g.fill();
+      // Baseline, then the label that names what the row counts.
+      g.save();
+      g.globalAlpha = span(t, 0.15, 0.6);
+      g.fillStyle = 'rgba(255, 255, 255, 0.18)';
+      g.fillRect(pad, base, inner * span(t, 0.15, 1), 1);
       g.restore();
-      veil(g, w, h, t, '#081020');
+
+      micro(g, 'THROUGHPUT', pad, h * 0.17, h * 0.04, DIM, span(t, 0.2, 0.7), '0.3em');
+      rule(g, pad, h * 0.855, inner, (t - 0.9) / 0.9);
+
+      const frames = String(268).padStart(3, '0');
+      g.save();
+      g.globalAlpha = span(t, 1.3, 1.9);
+      g.font = `400 ${h * 0.036}px ${MONO}`;
+      g.letterSpacing = '0.22em';
+      g.fillStyle = FAINT;
+      const stamp = 'FRAME ';
+      g.fillText(stamp, pad, h * 0.925);
+      const stampW = g.measureText(stamp).width;
+      g.fillStyle = ACCENT;
+      g.fillText(frames, pad + stampW, h * 0.925);
+      g.letterSpacing = '0em';
+      g.restore();
+      veil(g, w, h, t);
     },
   },
 
   {
-    id: 'paper',
-    name: '纸本手作',
-    blurb: '米色纸、铁锈红、停格剪贴',
-    palette: { bg: '#efe7d8', ink: '#1d1a16', accent: '#b8543a', dim: '#6f675c' },
+    id: 'plate',
+    name: '展签',
+    blurb: '墙签式排版：小标签、大标题、一行注记',
     prompt:
-      '做一段 20 秒的片子，用「纸本手作」的路子：米色纸面、铁锈红强调、粗衬线标题，形状像剪贴的纸片，动作用低速停格（每秒 10 帧左右）做出手工感，不做顺滑缓动。',
+      '做一段 20 秒的片子，用「展签」这套：像美术馆墙签一样排版——等宽大写小标签、一行大标题、一行等宽注记，近黑底、大量留白、一条 1px 线；动效只有十几像素的上升与淡入，按帧错开。',
     draw(g, w, h, t) {
-      const { ink, accent, dim } = this.palette;
-      g.fillStyle = this.palette.bg;
-      g.fillRect(0, 0, w, h);
-      // Fibre: fine speckle, the cheap way to make a flat colour feel like paper.
-      for (let i = 0; i < 120; i++) {
-        g.globalAlpha = 0.05 + noise(i) * 0.05;
-        g.fillStyle = i % 3 ? '#8d8172' : '#ffffff';
-        g.fillRect(noise(i + 11) * w, noise(i + 23) * h, 1.2, 1.2);
-      }
-      g.globalAlpha = 1;
+      ground(g, w, h);
+      const pad = w * 0.075;
 
-      // Stop motion: the composition only moves ten times a second.
-      const q = Math.floor(t * 10) / 10;
+      // One accent tick, then the label rises into place.
+      const tick = span(t, 0.15, 0.55);
       g.save();
-      g.globalAlpha = 1;
-      g.translate(w / 2, h / 2);
-      g.rotate(-0.022);
-
-      // The rust scrap sits behind the sheet and only peeks out — one accent,
-      // not a composition built out of many little pieces.
-      const b = span(q, 0.3, 0.9);
-      g.save();
-      g.translate(w * 0.11 + (1 - b) * w * 0.16, h * 0.05 + (1 - b) * h * 0.14);
-      g.rotate(0.07);
-      g.fillStyle = accent;
-      g.shadowColor = 'rgba(60, 45, 30, 0.22)';
-      g.shadowBlur = h * 0.03;
-      g.shadowOffsetY = h * 0.01;
-      g.fillRect(0, 0, w * 0.19, h * 0.28);
+      g.globalAlpha = tick;
+      g.fillStyle = ACCENT;
+      g.fillRect(pad, h * 0.3, Math.max(2, w * 0.006), h * 0.09 * tick);
       g.restore();
 
-      const a = span(q, 0.15, 0.75);
+      const x = pad + w * 0.03;
+      const rise = (p) => (1 - p) * h * 0.035;
+
+      micro(g, 'STUDY 01', x, h * 0.3 + rise(span(t, 0.25, 0.85)), h * 0.038, DIM, span(t, 0.25, 0.85), '0.3em');
+
+      const titleP = span(t, 0.4, 1.05);
       g.save();
-      g.translate(-w * 0.31 + (1 - a) * -w * 0.16, -h * 0.27 + (1 - a) * h * 0.12);
-      g.rotate(-0.035);
-      g.fillStyle = '#f8f3e7';
-      g.shadowColor = 'rgba(60, 45, 30, 0.2)';
-      g.shadowBlur = h * 0.035;
-      g.shadowOffsetY = h * 0.012;
-      g.fillRect(0, 0, w * 0.46, h * 0.52);
-      g.shadowColor = 'transparent';
-      g.shadowBlur = 0;
-      g.shadowOffsetY = 0;
-
-      // Everything on the sheet is revealed by a mask that grows downward.
-      const titleP = span(q, 0.7, 1.4);
-      g.save();
-      g.beginPath();
-      g.rect(0, 0, w * 0.46, h * 0.52 * titleP);
-      g.clip();
-      g.fillStyle = ink;
-      g.font = `500 ${h * 0.115}px ${SERIF}`;
-      g.fillText('Paper,', w * 0.07, h * 0.18);
-      g.fillText('cut slow', w * 0.07, h * 0.31);
-      g.restore();
-
-      const stitch = span(q, 1.1, 2.2);
-      g.strokeStyle = dim;
-      g.lineWidth = Math.max(0.7, h * 0.004);
-      g.setLineDash([h * 0.016, h * 0.018]);
-      g.beginPath();
-      g.moveTo(w * 0.07, h * 0.37);
-      g.lineTo(w * 0.07 + w * 0.32 * stitch, h * 0.37);
-      g.stroke();
-      g.setLineDash([]);
-
-      g.fillStyle = dim;
-      g.globalAlpha = span(q, 1.4, 2);
-      g.font = `500 ${h * 0.042}px ${MONO}`;
-      g.letterSpacing = '0.1em';
-      g.fillText('A SHORT STUDY', w * 0.07, h * 0.45);
+      g.globalAlpha = titleP;
+      g.fillStyle = INK;
+      g.font = `400 ${h * 0.105}px ${SANS}`;
+      g.letterSpacing = '-0.015em';
+      g.fillText('The long orbit', x, h * 0.45 + rise(titleP));
       g.letterSpacing = '0em';
       g.restore();
-      veil(g, w, h, t, this.palette.bg);
+
+      micro(
+        g,
+        'cast · a note on distance',
+        x,
+        h * 0.53 + rise(span(t, 0.6, 1.2)),
+        h * 0.036,
+        FAINT,
+        span(t, 0.6, 1.2),
+        '0.16em',
+      );
+
+      g.save();
+      g.globalAlpha = span(t, 0.5, 1.2) * 0.06;
+      g.fillStyle = INK;
+      g.font = `400 ${h * 0.42}px ${MONO}`;
+      g.textAlign = 'right';
+      g.fillText('01', w - pad, h * 0.62);
+      g.textAlign = 'left';
+      g.restore();
+
+      rule(g, pad, h * 0.855, w - pad * 2, (t - 1.1) / 0.9);
+      micro(g, '16:10 · 6s loop', pad, h * 0.925, h * 0.036, FAINT, span(t, 1.5, 2), '0.18em');
+      veil(g, w, h, t);
     },
   },
 
   {
-    id: 'signal',
-    name: '冷光数据',
-    blurb: '近黑底、青绿细线、会动的数',
-    palette: { bg: '#05070b', ink: '#e8f7f3', accent: '#3fe0bf', dim: '#5f7a7f' },
+    id: 'halftone',
+    name: '网版',
+    blurb: '点阵逐行显影，一位深',
     prompt:
-      '做一段 20 秒的片子，用「冷光数据」的路子：近黑底、青绿细线与网格点、一个会滚动的数字和一个画出来的折线，动效只有生长和数字变化，不要插画和光晕堆叠。',
+      '做一段 20 秒的片子，用「网版」这套：近黑底上一个点阵按行显影，点的半径由一处焦点向外衰减，像一张被放大的一比特图片；四周留白、等宽小标签、一条 1px 线，动效只有点的生长。',
     draw(g, w, h, t) {
-      const { ink, accent, dim } = this.palette;
-      g.fillStyle = this.palette.bg;
-      g.fillRect(0, 0, w, h);
+      ground(g, w, h);
+      const pad = w * 0.075;
 
-      const pad = w * 0.09;
-      for (let x = pad; x < w - pad; x += w * 0.055) {
-        for (let y = h * 0.16; y < h * 0.9; y += h * 0.09) {
-          g.globalAlpha = 0.12;
-          g.fillStyle = accent;
-          g.fillRect(x, y, 1, 1);
+      // A dithered mass: the radius falls off from one centre, so the grid
+      // reads as a screened image rather than as a texture of dots.
+      const radius = Math.min(w * 0.26, h * 0.36);
+      const side = radius * 2.08;
+      const cols = 28;
+      const rows = 28;
+      const cell = side / cols;
+      const x0 = w * 0.5 - side / 2;
+      const y0 = h * 0.47 - side / 2;
+      const maxR = cell * 0.52;
+
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const cx = x0 + (c + 0.5) * cell;
+          const cy = y0 + (r + 0.5) * cell;
+          const fall = 1 - Math.hypot(cx - w * 0.5, cy - h * 0.46) / radius;
+          if (fall <= 0.02) continue;
+          const p = outCubic((t - 0.3 - (c / cols) * 0.9 - (r / rows) * 0.45) / 0.4);
+          const dot = maxR * fall ** 1.35 * p;
+          if (dot < 0.2) continue;
+          g.globalAlpha = 0.3 + fall * 0.7;
+          g.fillStyle = fall > 0.32 ? INK : DIM;
+          g.beginPath();
+          g.arc(cx, cy, dot, 0, TAU);
+          g.fill();
         }
       }
       g.globalAlpha = 1;
 
-      g.save();
-      g.globalAlpha = 1;
-
-      g.fillStyle = accent;
-      g.font = `500 ${h * 0.05}px ${MONO}`;
-      g.letterSpacing = '0.12em';
-      g.fillText('THROUGHPUT', pad, h * 0.28);
-      g.letterSpacing = '0em';
-
-      const p = span(t, 0.25, 2.4);
-      const value = 0.82 + 0.6 * p;
-      g.fillStyle = ink;
-      g.font = `400 ${h * 0.2}px ${MONO}`;
-      g.letterSpacing = '-0.02em';
-      g.fillText(`${value.toFixed(2)}M`, pad, h * 0.55);
-      g.letterSpacing = '0em';
-
-      g.globalAlpha = span(t, 1.1, 1.8);
-      g.fillStyle = dim;
-      g.font = `400 ${h * 0.052}px ${SANS}`;
-      g.fillText('每天处理的条目', pad, h * 0.625);
-
-      // The line is the story: it draws, and a lit head runs along it.
-      const pts = [0.3, 0.62, 0.52, 0.72, 0.6, 0.84, 0.76, 0.95];
-      const x0 = pad;
-      const x1 = w - pad;
-      const top = h * 0.9;
-      const band = h * 0.19;
-      const yOf = (v) => top - v * band;
-      g.strokeStyle = accent;
-      g.lineWidth = Math.max(1, h * 0.006);
-      g.lineJoin = 'round';
-      g.beginPath();
-      for (let i = 0; i < pts.length; i++) {
-        const x = x0 + ((x1 - x0) * i) / (pts.length - 1);
-        if (i === 0) g.moveTo(x, yOf(pts[0]));
-        else g.lineTo(x, yOf(pts[i]));
-      }
-      g.setLineDash([(x1 - x0) * p, x1 - x0]);
-      g.stroke();
-      g.setLineDash([]);
-
-      const headAt = Math.min(1, p);
-      const seg = headAt * (pts.length - 1);
-      const i0 = Math.min(pts.length - 2, Math.floor(seg));
-      const mid = seg - i0;
-      g.globalAlpha = (headAt > 0.02 ? 0.95 : 0);
-      g.fillStyle = accent;
-      g.shadowColor = accent;
-      g.shadowBlur = h * 0.05;
-      g.beginPath();
-      g.arc(x0 + (x1 - x0) * headAt, yOf(pts[i0] + (pts[i0 + 1] - pts[i0]) * mid), h * 0.012, 0, TAU);
-      g.fill();
-      g.shadowBlur = 0;
-      g.restore();
-      veil(g, w, h, t, this.palette.bg);
+      micro(g, 'HALFTONE 01', pad, h * 0.17, h * 0.04, DIM, span(t, 0.2, 0.7), '0.3em');
+      rule(g, pad, h * 0.855, w - pad * 2, (t - 1.2) / 0.9);
+      micro(g, '1-BIT', pad, h * 0.925, h * 0.036, FAINT, span(t, 1.5, 2), '0.22em');
+      veil(g, w, h, t);
     },
   },
 
   {
-    id: 'ink',
-    name: '黑白排版',
-    blurb: '近白纸、超大字号、只靠留白',
-    palette: { bg: '#faf8f3', ink: '#0f1115', accent: '#0f1115', dim: '#8a8f96' },
+    id: 'count',
+    name: '计时',
+    blurb: '数字滚动，一条线走到头',
     prompt:
-      '做一段 20 秒的片子，用「黑白排版」的路子：近白纸面、黑色超大号无衬线字、只靠字号/字重/留白制造层次，动效是遮罩上移和一条线的划过，不要颜色和装饰。',
+      '做一段 20 秒的片子，用「计时」这套：近黑底、一个等宽大数字从 000 滚到 268、下面一行小注记、一条 1px 进度线带着蓝色针脚走完；不要别的元素，节奏慢，结尾停住。',
     draw(g, w, h, t) {
-      const { ink, dim } = this.palette;
-      g.fillStyle = this.palette.bg;
-      g.fillRect(0, 0, w, h);
-      g.save();
-      g.globalAlpha = 1;
-
-      const pad = w * 0.085;
-      g.fillStyle = dim;
-      g.font = `500 ${h * 0.045}px ${MONO}`;
-      g.letterSpacing = '0.1em';
-      g.fillText('STUDY 02', pad, h * 0.2);
-      g.letterSpacing = '0em';
-
+      ground(g, w, h);
+      const pad = w * 0.075;
+      const p = outCubic((t - 0.35) / 1.6);
+      const value = Math.round(268 * p);
       const size = h * 0.27;
-      riseText(g, 'Form', pad, h * 0.55, w, size, `700 ${size}px ${SANS}`, ink, span(t, 0.3, 1.1));
-      riseText(g, 'follows', pad, h * 0.55 + size * 1.02, w, size, `700 ${size}px ${SANS}`, ink, span(t, 0.55, 1.35));
 
-      const rule = span(t, 1.2, 2.2);
-      g.globalAlpha = 0.9;
-      g.fillStyle = ink;
-      g.fillRect(pad, h * 0.9, (w - pad * 2) * 0.34 * rule, Math.max(1, h * 0.008));
+      g.save();
+      g.font = `400 ${size}px ${MONO}`;
+      g.letterSpacing = '-0.03em';
+      g.fillStyle = INK;
+      g.fillText(String(value).padStart(3, '0'), pad, h * 0.56);
+      const numberW = g.measureText('000').width;
+      g.letterSpacing = '0em';
       g.restore();
-      veil(g, w, h, t, this.palette.bg);
+
+      // The accent is one dot, at the end of the number.
+      g.save();
+      g.globalAlpha = span(t, 0.5, 1);
+      g.fillStyle = ACCENT;
+      const dot = Math.max(2, h * 0.014);
+      g.fillRect(pad + numberW + h * 0.02, h * 0.56 - dot, dot, dot);
+      g.restore();
+
+      micro(g, 'FRAMES AT 30 FPS', pad, h * 0.65, h * 0.036, FAINT, span(t, 0.9, 1.5), '0.2em');
+
+      // The rule, then the progress line that walks along it.
+      const lineY = h * 0.79;
+      const width = w - pad * 2;
+      rule(g, pad, lineY, width, (t - 0.3) / 1);
+
+      const walk = span(t, 0.4, 2.4);
+      g.save();
+      g.strokeStyle = ACCENT;
+      g.lineWidth = Math.max(1, h * 0.0035);
+      g.beginPath();
+      g.moveTo(pad, lineY);
+      g.lineTo(pad + width * walk, lineY);
+      g.stroke();
+      g.restore();
+
+      micro(g, 'TAKE 04', pad, h * 0.925, h * 0.036, FAINT, span(t, 1.7, 2.2), '0.22em');
+      veil(g, w, h, t);
     },
   },
 ];

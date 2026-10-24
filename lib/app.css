@@ -2166,9 +2166,9 @@ summary:focus-visible {
 
 .discover-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-  max-width: 620px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  max-width: 540px;
 }
 
 .starter {
@@ -2188,8 +2188,8 @@ summary:focus-visible {
 .starter-shot {
   position: relative;
   display: block;
-  aspect-ratio: 16 / 10;
-  border-radius: 9px;
+  aspect-ratio: 16 / 9;
+  border-radius: 10px;
   overflow: hidden;
   background: var(--surface-2);
   box-shadow: 0 0 0 1px rgb(0 0 0 / 8%);

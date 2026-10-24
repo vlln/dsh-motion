@@ -94,9 +94,13 @@ const edgeDensity = (file) => {
   return Number(hit?.[1] ?? 0);
 };
 
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-motion-medium-'));
-try {
-  const film = path.join(tmp, 'motion');
+/**
+ * Build a two-halves test film for one channel: the same picture drawn plainly on
+ * the left and passed through the medium on the right. Everything after this is
+ * a comparison, never an absolute.
+ */
+function buildFilm(dir, channel) {
+  const film = path.join(dir, 'motion');
   fs.mkdirSync(path.join(film, 'scenes'), { recursive: true });
   fs.writeFileSync(
     path.join(film, 'timeline.json'),
@@ -131,7 +135,15 @@ export function mount(context) {
   g.fillStyle = '#c79a45'; g.fillRect(0, 240, 640, 120);
   g.fillStyle = '#3d5a45';
   g.beginPath(); g.moveTo(0, 230); g.quadraticCurveTo(320, 150, 640, 230); g.lineTo(640, 360); g.lineTo(0, 360); g.fill();
-  painted = ctx.medium.broken(base, { density: 1, seed: 4 });
+  // Busy enough that "softening" is measurable: a wash of one colour proves
+  // nothing, a picture with detail in it does.
+  for (let i = 0; i < 90; i++) {
+    const x = (i * 61) % 620;
+    const y = 30 + ((i * 37) % 300);
+    g.fillStyle = i % 3 === 0 ? '#e8d9b0' : i % 3 === 1 ? '#7b3a2a' : '#22303a';
+    g.fillRect(x, y, 6 + (i % 5) * 3, 4 + (i % 4) * 2);
+  }
+  painted = ctx.medium.${channel}(base, { density: 1, seed: 4 });
   plain = base;
 }
 export function render(t) {
@@ -144,35 +156,60 @@ export function render(t) {
 `,
   );
 
-  const run = (out) =>
+  const run = (dir, out) =>
     execFileSync(process.execPath, [BIN, 'render', '--stills', '1', '--cols', '1', '--out', out], {
-      cwd: tmp,
+      cwd: dir,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
     });
 
-  run('out/a.png');
-  run('out/b.png');
+  run(dir, 'out/a.png');
+  run(dir, 'out/b.png');
   const a = path.join(film, 'out/a-frames/00.png');
   const b = path.join(film, 'out/b-frames/00.png');
-  check('a scene using a medium renders', fs.existsSync(a), 'out/a-frames/00.png');
-  check('the same scene renders byte-identically', sha(a) === sha(b), sha(a).slice(0, 12));
+  return { film, a, b };
+}
 
-  // Self-relative: the painted half must be busier than the unpainted half, so
-  // the check does not depend on anybody's absolute idea of "enough texture".
-  const halves = (file) => {
-    const left = path.join(path.dirname(file), 'left.png');
-    const right = path.join(path.dirname(file), 'right.png');
-    for (const [out, x] of [[left, 0], [right, 320]]) {
-      execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', file, '-vf', `crop=320:360:${x}:0`, out]);
-    }
-    return { left: edgeDensity(left), right: edgeDensity(right) };
-  };
-  const { left, right } = halves(a);
+/** Edge density of each half: the plain one and the passed-through one. */
+const halves = (file) => {
+  const left = path.join(path.dirname(file), 'left.png');
+  const right = path.join(path.dirname(file), 'right.png');
+  for (const [out, x] of [[left, 0], [right, 320]]) {
+    execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', file, '-vf', `crop=320:360:${x}:0`, out]);
+  }
+  return { left: edgeDensity(left), right: edgeDensity(right) };
+};
+
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-motion-medium-'));
+try {
+  // A hard channel: it must put edges *into* the picture.
+  const hard = buildFilm(path.join(tmp, 'hard'), 'broken');
+  check('a scene using a medium renders', fs.existsSync(hard.a), 'out/a-frames/00.png');
+  check('the same scene renders byte-identically', sha(hard.a) === sha(hard.b), sha(hard.a).slice(0, 12));
+  const h = halves(hard.a);
   check(
-    'the material pass changes the picture (painted half is busier)',
-    right > left * 1.5 && right > 1,
-    `plain ${left.toFixed(2)} → painted ${right.toFixed(2)}`,
+    'a hard channel puts edges into the picture',
+    h.right > h.left * 1.5 && h.right > 1,
+    `plain ${h.left.toFixed(2)} → broken ${h.right.toFixed(2)}`,
+  );
+
+  // A soft channel: fog has no edge, so it must take edges *out*.
+  const soft = buildFilm(path.join(tmp, 'soft'), 'mist');
+  const s = halves(soft.a);
+  check(
+    'a soft channel takes edges out of the picture',
+    s.right < s.left * 0.75,
+    `plain ${s.left.toFixed(2)} → mist ${s.right.toFixed(2)}`,
+  );
+  check(
+    'a soft channel softens rather than erases',
+    s.right > s.left * 0.05,
+    `mist keeps ${Math.round((s.right / Math.max(0.01, s.left)) * 100)}% of the edges`,
+  );
+  check(
+    'soft and hard are not the same pass',
+    Math.abs(s.right - h.right) > 1,
+    `mist ${s.right.toFixed(2)} vs broken ${h.right.toFixed(2)}`,
   );
 } finally {
   fs.rmSync(tmp, { recursive: true, force: true });

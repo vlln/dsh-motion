@@ -207,9 +207,10 @@ const GROUND = {
   charcoal: '#141210',
   silk: '#efe7d6',
   print: '#efe6d2',
+  mist: null, // fog sits *in front of* the picture, it does not replace it
 };
 
-const STROKE_AREA = { broken: 60, charcoal: 45, silk: 1500 };
+const STROKE_AREA = { broken: 60, charcoal: 45, silk: 1500, mist: 22000 };
 
 const clamp255 = (v) => (v < 0 ? 0 : v > 255 ? 255 : v);
 const lumaOf = (r, g, b) => 0.299 * r + 0.587 * g + 0.114 * b;
@@ -231,6 +232,7 @@ function strokeField(kind, x, y, w, h, data, base) {
   if (kind === 'broken') {
     return base + 1.1 * Math.sin(x * 0.011 + y * 0.007) + 0.5 * Math.sin(y * 0.02 + 1.7);
   }
+  if (kind === 'mist') return base; // no direction: a blob has no brush line
   if (kind === 'charcoal') {
     const at = (xx, yy) => {
       const cx = Math.max(0, Math.min(w - 1, Math.round(xx)));
@@ -324,7 +326,19 @@ export function planStrokes({ w, h, data }, { kind = 'broken', angle = 0, densit
     const color = sampleColour(data, w, h, x, y, kind);
     const a = strokeField(kind, x, y, w, h, data, angle);
     const jitter = hash1(i * 11.3 + seed) - 0.5;
-    if (kind === 'silk') {
+    if (kind === 'mist') {
+      // Soft material: a big translucent blob with no edge at all. Fog, steam,
+      // breath on glass — anything whose whole character is an absence of edge.
+      strokes.push({
+        x, y, a: 0, len: 0, wid: 0,
+        r: (60 + hash1(i + 5) * 120) * u,
+        color: tilt(color, 0.08, 1.04, i + seed),
+        // Fog softens; it does not erase. Anything above ~0.08 stacked a dozen
+        // deep turns a detailed picture into a flat wash.
+        alpha: 0.02 + hash1(i + 13) * 0.05,
+        kind,
+      });
+    } else if (kind === 'silk') {
       strokes.push({
         x, y, a: a + jitter * 0.2, len: (50 + hash1(i + 5) * 110) * u, wid: (10 + hash1(i + 9) * 26) * u,
         color: tilt(color, 0.14, 0.96, i + seed), alpha: 0.16 + hash1(i + 13) * 0.26, kind,
@@ -364,6 +378,19 @@ export function drawStrokes(g, strokes) {
     `rgb(${clamp255(c[0] * k) | 0},${clamp255(c[1] * k) | 0},${clamp255(c[2] * k) | 0})`;
 
   for (const s of strokes) {
+    if (s.kind === 'mist') {
+      // A radial gradient, not a filled circle: the falloff *is* the material.
+      const grad = g.createRadialGradient(s.x, s.y, 0, s.x, s.y, s.r);
+      const rgbStr = `rgb(${clamp255(s.color[0]) | 0},${clamp255(s.color[1]) | 0},${clamp255(s.color[2]) | 0})`;
+      grad.addColorStop(0, rgbStr);
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      g.globalAlpha = s.alpha;
+      g.fillStyle = grad;
+      g.beginPath();
+      g.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      g.fill();
+      continue;
+    }
     if (s.kind === 'print') {
       g.globalAlpha = s.alpha;
       g.fillStyle = rgb(s.color);
@@ -513,6 +540,7 @@ export const medium = {
   halftone,
   bleed,
   broken: (src, opts) => repaint(src, { ...opts, kind: 'broken' }),
+  mist: (src, opts) => repaint(src, { ...opts, kind: 'mist' }),
   charcoal: (src, opts) => repaint(src, { ...opts, kind: 'charcoal' }),
   silk: (src, opts) => repaint(src, { ...opts, kind: 'silk' }),
   print: (src, opts) => repaint(src, { ...opts, kind: 'print' }),
@@ -520,5 +548,5 @@ export const medium = {
   repaint,
   planStrokes,
   drawStrokes,
-  KINDS: ['broken', 'charcoal', 'silk', 'print'],
+  KINDS: ['broken', 'charcoal', 'silk', 'print', 'mist'],
 };

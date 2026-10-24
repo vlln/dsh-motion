@@ -212,13 +212,25 @@ g.fill(cam.quad([1.55,0.4,-4], [1.55,0.4,-3.9], [1.55,0.9,-3.9], [1.55,0.9,-4]))
 ```js
 // mount() 里做一次：把画好的底过成材料，render(t) 只 drawImage
 plate = ctx.medium.broken(base, { density: 1, seed: 7 });   // 顺方向场的弯笔
-// 或者：charcoal（炭笔夜景）／silk（墨与淡彩）／print（网点）／film（光晕+颗粒+暗角）
+// 或者：charcoal（炭笔夜景）／silk（墨与淡彩）／print（网点）／mist（雾、水汽、玻璃）
+// 以及 film：光晕 + 颗粒 + 暗角（唯一不重画的通道，任何"还是渲染感"的画面过一遍就对了）
 plate = ctx.medium.film(plate, { grain: 0.06 });           // 最后过一遍镜头
 ```
 
-`broken` 是默认：它顺着画面的明暗和走势落笔，最像"油画"。`film` 是唯一不重画的通道——
-光晕、颗粒、暗角，任何"还是渲染感"的画面过一遍它都会立刻像被拍下来的。
-四个重画通道 + 一个镜头通道，都返回新画布，都是确定性的。
+`broken` 是默认：它顺着画面的明暗和走势落笔，最像"油画"。
+`mist` 是**软**的那一个——大而半透明的团块、边缘化开，用来做雾、水汽、玻璃；它和硬边笔触正好相反：
+`broken` 给画面加边缘，`mist` 减边缘。**雾要局部用**：把 mist 出来的图层用渐变蒙版裁成一条带
+（远处厚、脚下薄），再叠回画面——整幅糊一遍会把笔触全糊掉。
+
+```js
+const haze = document.createElement('canvas');            // 和底板同尺寸
+hz.drawImage(ctx.medium.mist(painted, { density: 1 }), 0, 0);
+hz.globalCompositeOperation = 'destination-in';           // 用渐变当蒙版
+hz.fillStyle = mask; hz.fillRect(0, 0, w, h);
+cg.drawImage(painted, 0, 0); cg.drawImage(haze, 0, 0);    // 叠在画上，别替换它
+```
+
+五个通道都返回新画布、都是确定性的。
 
 **材料要上得去，必须先把世界画一次。** 每帧重绘几何的场景永远付不起这道工序，于是一辈子像图形：
 

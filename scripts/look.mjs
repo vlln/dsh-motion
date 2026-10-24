@@ -186,9 +186,12 @@ if (flag('json')) {
     console.log(`  the reference has ${(refStats.texture / stats.texture).toFixed(1)}x the local detail of this frame.`);
   }
   if (!report.detailed) {
-    console.log(`  local detail ${stats.texture.toFixed(1)} (contrast ${stats.contrast}): under ${YARD.graphics} usually means graphics, not paint.`);
-    console.log(`  the exemplars measure ${YARD.exemplars}, the reference ${YARD.reference} — all on brighter frames.`);
-    console.log('  on a dark frame a lower number is expected; with a reference in out/ref the comparison is direct.');
+    // A number, not a verdict: measured across the corpus a painted night
+    // street scores 7.5 and a flat daylight frame 7.7, so the same value proves
+    // nothing on its own. Print it with the yardstick and the way to compare.
+    console.log(`  local detail ${stats.texture.toFixed(1)} at contrast ${stats.contrast}; the exemplars measure ${YARD.exemplars}.`);
+    console.log('  on a dark frame a lower number is expected — this alone cannot say "painted".');
+    console.log('  `dsh-motion reference <video>` puts a frame in out/ref, and the next check compares directly.');
   }
 }
 

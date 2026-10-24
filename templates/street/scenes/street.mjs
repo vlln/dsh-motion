@@ -160,7 +160,36 @@ export function mount(context) {
   // Paint once, at a stroke size the mass can survive. Detail is *not* painted:
   // it is drawn on top of the plate every frame.
   const painted = ctx.medium.broken(base, { density: 1.1, size: 0.5, seed: 11 });
-  plate = ctx.medium.film(painted, { grain: 0.05, halation: 0.16, vignette: 0.5, seed: 3 });
+
+  // Haze, masked to the distance. A soft pass over the whole frame just mushes
+  // the paint; fog belongs where the air is thick — near the horizon — and the
+  // mask is what makes it a place rather than a filter.
+  const haze = document.createElement('canvas');
+  haze.width = base.width;
+  haze.height = base.height;
+  const hz = haze.getContext('2d');
+  hz.drawImage(ctx.medium.mist(painted, { density: 1, seed: 5 }), 0, 0);
+  hz.globalCompositeOperation = 'destination-in';
+  // A band, not a veil: the air is thick at the horizon and clear at the feet.
+  const mask = hz.createLinearGradient(0, base.height * 0.24, 0, base.height * 0.66);
+  mask.addColorStop(0, 'rgba(0,0,0,0)');
+  mask.addColorStop(0.45, 'rgba(0,0,0,0.5)');
+  mask.addColorStop(0.72, 'rgba(0,0,0,0.25)');
+  mask.addColorStop(1, 'rgba(0,0,0,0)');
+  hz.fillStyle = mask;
+  hz.fillRect(0, 0, base.width, base.height);
+
+  // Three layers, in order: paint, then the masked haze *over* it, then film.
+  // Passing the haze layer to film() on its own would throw the picture away —
+  // the mask leaves most of it transparent.
+  const composed = document.createElement('canvas');
+  composed.width = base.width;
+  composed.height = base.height;
+  const cg = composed.getContext('2d');
+  cg.drawImage(painted, 0, 0);
+  cg.drawImage(haze, 0, 0);
+
+  plate = ctx.medium.film(composed, { grain: 0.05, halation: 0.16, vignette: 0.5, seed: 3 });
 }
 
 const drop = (i) => ({ x: (i * 149) % 1000, y: (i * 83) % 1000, len: 20 + ((i * 37) % 40), speed: 700 + ((i * 61) % 420) });

@@ -1,4 +1,4 @@
-// Annotation UI: drag a box on the canvas, write a note, send it to Claude.
+// Annotation UI: drag a box on the canvas, write a note, send it to the conversation.
 // Owns the popover and the thread list; the canvas click-to-pick stays in preview.
 
 const escapeHtml = (str) =>

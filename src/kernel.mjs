@@ -8,6 +8,7 @@ import { checkValue, describeValues, formatValue, resolveValue } from './values.
 import { layoutText } from './text.mjs';
 import { sceneTime } from './clock.mjs';
 import { paint } from './paint.mjs';
+import { medium } from './medium.mjs';
 import { fitRect, frameAt, frameRect } from './media.mjs';
 
 import { fontStack, resolveFont } from './fonts.mjs';
@@ -116,8 +117,10 @@ export function createKernel({ timeline, modules }) {
     };
 
     return {
-      /** Drawing verbs: space, smoothPath, capsule, wash, strokeOutline, grain. */
+      /** Drawing verbs: space, smoothPath, capsule, wash, strokeOutline, grain, sprite. */
       paint: verbs,
+      /** Material passes: repaint an image as strokes, charcoal, ink, halftone or glass. */
+      medium,
       /** Load every asset the scene declared. Called by the kernel before mount(). */
       async preload(names = []) {
         for (const name of names) {

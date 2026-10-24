@@ -190,3 +190,326 @@ export function bleed(g, w, h, { color = [38, 30, 22], amount = 0.12 } = {}) {
   g.fillRect(0, 0, w, h);
   g.restore();
 }
+
+// --- passes: repaint a finished picture as a medium ---------------------------
+//
+// The helpers above put a material *on a surface* while you draw; the passes
+// below take a picture that is already drawn and paint it again. Both are
+// needed: `paper` and `inkStroke` are for a scene that draws in ink from the
+// start, `broken` is for one that has a picture and wants it to look painted.
+//
+// A pass is deliberately not a brush API: a scene says "I have the picture, now
+// make it paint" without learning a drawing system. It is cheap enough to run
+// once per shot (in mount), which is what a static plate is.
+
+const GROUND = {
+  broken: null, // the picture's own colours underwrite it
+  charcoal: '#141210',
+  silk: '#efe7d6',
+  print: '#efe6d2',
+};
+
+const STROKE_AREA = { broken: 60, charcoal: 45, silk: 1500 };
+
+const clamp255 = (v) => (v < 0 ? 0 : v > 255 ? 255 : v);
+const lumaOf = (r, g, b) => 0.299 * r + 0.587 * g + 0.114 * b;
+const hash1 = (n) => {
+  const v = Math.sin(n * 127.1 + 311.7) * 43758.5453;
+  return v - Math.floor(v);
+};
+
+/**
+ * The direction a stroke at (x, y) follows, in radians. Each medium has a
+ * different relationship between the picture and the brush:
+ *   broken   — a slow swirl laid over the image (moving sky, moving water)
+ *   charcoal — follows the picture's own luminance gradient, like a rubbed stick
+ *   silk     — near-horizontal with a slow drift (a brush on absorbent paper)
+ *   print    — a fixed screen angle; the tone lives in the dot, not the stroke
+ *   glass    — long diagonals: the reflection, not the object
+ */
+function strokeField(kind, x, y, w, h, data, base) {
+  if (kind === 'broken') {
+    return base + 1.1 * Math.sin(x * 0.011 + y * 0.007) + 0.5 * Math.sin(y * 0.02 + 1.7);
+  }
+  if (kind === 'charcoal') {
+    const at = (xx, yy) => {
+      const cx = Math.max(0, Math.min(w - 1, Math.round(xx)));
+      const cy = Math.max(0, Math.min(h - 1, Math.round(yy)));
+      const i = (cy * w + cx) * 4;
+      return lumaOf(data[i], data[i + 1], data[i + 2]);
+    };
+    const dx = at(x + 4, y) - at(x - 4, y);
+    const dy = at(x, y + 4) - at(x, y - 4);
+    return Math.atan2(dy, dx) + Math.PI / 2;
+  }
+  if (kind === 'silk') return base + 0.22 * Math.sin(x * 0.006);
+  return base + Math.PI / 4;
+}
+
+/** Push a colour away from mid-grey: what makes one stroke separate from its neighbour. */
+function tilt(color, contrast, brightness, seed) {
+  const mid = 118;
+  const j = 0.82 + hash1(seed * 3.7) * 0.36;
+  return color.map((c) => clamp255(mid + (c - mid) * contrast * brightness * j));
+}
+
+function sampleColour(data, w, h, x, y, kind) {
+  const cx = Math.max(0, Math.min(w - 1, Math.round(x)));
+  const cy = Math.max(0, Math.min(h - 1, Math.round(y)));
+  const i = (cy * w + cx) * 4;
+  let r = data[i];
+  let g = data[i + 1];
+  let b = data[i + 2];
+  if (kind === 'charcoal') {
+    // Chalk is light and it sits on dark paper: the brighter the picture, the
+    // whiter the stick. Multiplying the source down would just dim the image.
+    const l = lumaOf(r, g, b) / 255;
+    const k = 0.25 + 0.75 * l ** 1.15;
+    r = r * (0.45 + 0.55 * k) + 232 * (1 - 0.45 - 0.55 * k);
+    g = g * (0.45 + 0.55 * k) + 226 * (1 - 0.45 - 0.55 * k);
+    b = b * (0.45 + 0.55 * k) + 214 * (1 - 0.45 - 0.55 * k);
+  } else if (kind === 'silk') {
+    // ink is darker than the picture, and it pools: keep the hue, drop the value
+    const k = 0.3 + 0.55 * (lumaOf(r, g, b) / 255);
+    r = 26 + (r - 26) * k;
+    g = 28 + (g - 28) * k;
+    b = 30 + (b - 30) * k;
+  }
+  return [r, g, b];
+}
+
+/**
+ * The strokes, as data. Pure: no canvas, no DOM — a test can check them.
+ * `density` 1 covers the surface roughly once in the medium's own stroke size.
+ */
+export function planStrokes({ w, h, data }, { kind = 'broken', angle = 0, density = 1, seed = 1 } = {}) {
+  const strokes = [];
+
+  // A halftone is a lattice, not a scattering: the dot spacing *is* the screen.
+  if (kind === 'print') {
+    const step = Math.max(3, Math.round(6 / Math.max(0.2, density)));
+    for (let y = 0; y < h; y += step) {
+      for (let x = 0; x < w; x += step) {
+        const color = sampleColour(data, w, h, x, y, kind);
+        const l = lumaOf(color[0], color[1], color[2]) / 255;
+        // The dot is ink, so it keeps the colour but never goes lighter than the
+        // paper: a halftone has no white dots, only bigger and smaller ones.
+        strokes.push({
+          x: x + (hash1(x * 0.7 + y) - 0.5) * step * 0.4,
+          y: y + (hash1(y * 0.9 + x) - 0.5) * step * 0.4,
+          r: Math.max(0.4, (1 - l) * step * 0.72),
+          color,
+          alpha: 1,
+          kind,
+        });
+      }
+    }
+    return strokes;
+  }
+
+  // Strokes are sized relative to the frame, so a 640-wide render and a 1920-wide
+  // render of the same scene read as the same painting rather than as paint and
+  // confetti.
+  const u = Math.min(w, h) / 600;
+  const count = Math.round(((w * h) / ((STROKE_AREA[kind] ?? 110) * u * u)) * density);
+  for (let i = 0; i < count; i++) {
+    const x = hash1(i * 3.1 + seed * 17.3) * w;
+    const y = hash1(i * 7.7 + seed * 23.9) * h;
+    const color = sampleColour(data, w, h, x, y, kind);
+    const a = strokeField(kind, x, y, w, h, data, angle);
+    const jitter = hash1(i * 11.3 + seed) - 0.5;
+    if (kind === 'silk') {
+      strokes.push({
+        x, y, a: a + jitter * 0.2, len: (50 + hash1(i + 5) * 110) * u, wid: (10 + hash1(i + 9) * 26) * u,
+        color: tilt(color, 1.05, 0.95, i + seed), alpha: 0.16 + hash1(i + 13) * 0.26, kind,
+      });
+    } else if (kind === 'charcoal') {
+      strokes.push({
+        x, y, a: a + jitter * 0.35, len: (9 + hash1(i + 3) * 24) * u, wid: (2 + hash1(i + 8) * 5) * u,
+        color, alpha: 0.12 + hash1(i + 11) * 0.32, kind,
+      });
+    } else {
+      // paint separates from its own ground by value, not by hue
+      strokes.push({
+        x, y, a: a + jitter * 0.3, len: (14 + hash1(i + 3) * 30) * u, wid: (4 + hash1(i + 8) * 7) * u,
+        color: tilt(color, 1.22, 1, i + seed),
+        alpha: 0.86 + hash1(i + 11) * 0.14, kind,
+      });
+    }
+  }
+  return strokes;
+}
+
+/** Draw pre-planned strokes. The only part that needs a canvas. */
+export function drawStrokes(g, strokes) {
+  g.save();
+  g.lineCap = 'round';
+  g.lineJoin = 'round';
+  const path = (s) => {
+    const dx = Math.cos(s.a) * s.len * 0.5;
+    const dy = Math.sin(s.a) * s.len * 0.5;
+    const bend = 0.22 * s.len * (s.a > 0 ? 1 : -1);
+    g.beginPath();
+    g.moveTo(s.x - dx, s.y - dy);
+    // one quadratic bend: a straight stroke reads as a smear, not a brush
+    g.quadraticCurveTo(s.x - dy * bend * 0.04, s.y + dx * bend * 0.04, s.x + dx, s.y + dy);
+  };
+  const rgb = (c, k = 1) =>
+    `rgb(${clamp255(c[0] * k) | 0},${clamp255(c[1] * k) | 0},${clamp255(c[2] * k) | 0})`;
+
+  for (const s of strokes) {
+    if (s.kind === 'print') {
+      g.globalAlpha = s.alpha;
+      g.fillStyle = rgb(s.color);
+      g.beginPath();
+      g.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      g.fill();
+      continue;
+    }
+    // Impasto edge: a darker pass slightly wider than the stroke, then the
+    // stroke itself. Paint has a lit side and a shadowed side; without that the
+    // surface reads as a soft gradient, which is what a filter looks like.
+    if (s.kind === 'broken' || s.kind === 'silk') {
+      g.globalAlpha = Math.min(1, s.alpha * 0.55);
+      g.strokeStyle = rgb(s.color, 0.72);
+      g.lineWidth = s.wid * 1.45;
+      path(s);
+      g.stroke();
+    }
+    g.globalAlpha = s.alpha;
+    g.strokeStyle = rgb(s.color);
+    g.lineWidth = s.wid;
+    path(s);
+    g.stroke();
+  }
+  g.restore();
+}
+
+/**
+ * Repaint `src` as a medium. Returns a new canvas the size of the source.
+ *
+ * The ground matters: paint goes onto a surface, so the picture's own colour is
+ * laid down first (softened) and the strokes go over it. Without that, a pass at
+ * low density leaves holes and reads as a filter, not as material.
+ */
+export function repaint(src, opts = {}) {
+  const w = opts.width ?? src.width ?? src.naturalWidth;
+  const h = opts.height ?? src.height ?? src.naturalHeight;
+  const kind = opts.kind ?? 'broken';
+
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const g = canvas.getContext('2d');
+
+  if (GROUND[kind]) {
+    g.fillStyle = GROUND[kind];
+    g.fillRect(0, 0, w, h);
+  }
+
+  // The halftone is the one medium with no picture underneath: the dots *are*
+  // the tone, so an image under them would only dull the screen.
+  if (kind !== 'print') {
+    const small = document.createElement('canvas');
+    small.width = Math.max(2, Math.round(w / 8));
+    small.height = Math.max(2, Math.round(h / 8));
+    const sg = small.getContext('2d');
+    sg.imageSmoothingEnabled = true;
+    sg.drawImage(src, 0, 0, small.width, small.height);
+    g.save();
+    // No paper under `broken`, so the ground has to be opaque or the whole
+    // canvas comes out half-transparent and composites as a dark stain.
+    g.globalAlpha = GROUND[kind] ? (kind === 'charcoal' ? 0.4 : 0.62) : 1;
+    g.imageSmoothingEnabled = true;
+    g.drawImage(small, 0, 0, w, h);
+    g.restore();
+  }
+
+  const read = document.createElement('canvas');
+  read.width = w;
+  read.height = h;
+  const rg = read.getContext('2d', { willReadFrequently: true });
+  rg.drawImage(src, 0, 0, w, h);
+  const { data } = rg.getImageData(0, 0, w, h);
+
+  drawStrokes(g, planStrokes({ w, h, data }, { ...opts, kind }));
+  return canvas;
+}
+
+/**
+ * Film: the one channel that does not repaint. A picture that is already right
+ * still reads as "rendered" until it has been through a lens — halation on the
+ * highlights, grain, and a vignette that lets the edges fall away.
+ */
+export function film(src, opts = {}) {
+  const w = opts.width ?? src.width ?? src.naturalWidth;
+  const h = opts.height ?? src.height ?? src.naturalHeight;
+  const grain = opts.grain ?? 0.055;
+  const halo = opts.halation ?? 0.22;
+  const vig = opts.vignette ?? 0.55;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const g = canvas.getContext('2d');
+  g.drawImage(src, 0, 0, w, h);
+
+  // halation: the brightest parts bleed into their neighbours
+  const small = document.createElement('canvas');
+  small.width = Math.max(2, Math.round(w / 6));
+  small.height = Math.max(2, Math.round(h / 6));
+  const sg = small.getContext('2d');
+  if ('filter' in sg) sg.filter = 'brightness(1.5) contrast(1.8) blur(5px)';
+  sg.drawImage(src, 0, 0, small.width, small.height);
+  g.save();
+  g.globalCompositeOperation = 'lighter';
+  g.globalAlpha = halo;
+  g.drawImage(small, 0, 0, w, h);
+  g.restore();
+
+  // grain, seeded: an image without noise reads as an illustration
+  if (grain > 0) {
+    const noise = document.createElement('canvas');
+    noise.width = w;
+    noise.height = h;
+    const ng = noise.getContext('2d');
+    const img = ng.createImageData(w, h);
+    for (let i = 0, p = 0; i < w * h; i++, p += 4) {
+      const v = 128 + (hash1(i * 0.37 + (opts.seed ?? 1) * 11.3) - 0.5) * 255;
+      img.data[p] = img.data[p + 1] = img.data[p + 2] = v;
+      img.data[p + 3] = 255;
+    }
+    ng.putImageData(img, 0, 0);
+    g.save();
+    g.globalCompositeOperation = 'overlay';
+    g.globalAlpha = grain;
+    g.drawImage(noise, 0, 0);
+    g.restore();
+  }
+
+  if (vig > 0) {
+    const v = g.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.28, w / 2, h / 2, Math.max(w, h) * 0.72);
+    v.addColorStop(0, 'rgba(0,0,0,0)');
+    v.addColorStop(1, `rgba(0,0,0,${vig})`);
+    g.fillStyle = v;
+    g.fillRect(0, 0, w, h);
+  }
+  return canvas;
+}
+
+/** The material channel: per-surface helpers above, whole-picture passes here. */
+export const medium = {
+  paper,
+  inkStroke,
+  halftone,
+  bleed,
+  broken: (src, opts) => repaint(src, { ...opts, kind: 'broken' }),
+  charcoal: (src, opts) => repaint(src, { ...opts, kind: 'charcoal' }),
+  silk: (src, opts) => repaint(src, { ...opts, kind: 'silk' }),
+  print: (src, opts) => repaint(src, { ...opts, kind: 'print' }),
+  film,
+  repaint,
+  planStrokes,
+  drawStrokes,
+  KINDS: ['broken', 'charcoal', 'silk', 'print'],
+};

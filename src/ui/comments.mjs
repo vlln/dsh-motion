@@ -13,8 +13,6 @@ export function createComments({
   popText,
   popSubmit,
   popClose,
-  threadsEl,
-  threadCount,
   timeline,
   kernel,
   fmt,
@@ -30,10 +28,6 @@ export function createComments({
   // which speaks it into the session the panel belongs to. Without a session
   // there is no reader, so there is no comment surface at all.
   const embedded = window.parent !== window && Boolean(session);
-  if (!embedded) {
-    const section = threadsEl.closest('section');
-    if (section) section.hidden = true;
-  }
 
   const pendingAcks = new Map();
 
@@ -267,41 +261,11 @@ export function createComments({
 
   async function refreshThreads() {
     try {
-      const data = await (await fetch('./api/comments')).json();
-      const threads = data.threads ?? [];
+      const { threads = [] } = await (await fetch('./api/comments')).json();
       threadsCache.length = 0;
       threadsCache.push(...threads);
       paintAnchors();
-      threadCount.textContent = String(threads.length);
-      if (!threads.length) {
-        threadsEl.innerHTML = '';
-        return;
-      }
-      const section = threadsEl.closest('section');
-      if (section && embedded) section.hidden = threads.length === 0;
-      threadsEl.innerHTML = threads
-        .map((th) => {
-          // No status: a comment is a message the agent already received. The
-          // pin is the anchor, not a ticket that needs closing.
-          return `
-        <div class="thread" data-id="${th.id}" data-t="${th.anchor.t}" data-rect="${escapeHtml(JSON.stringify(th.anchor.rect ?? null))}">
-          <div class="meta"><span>${fmt(th.anchor.t)}</span></div>
-          <div class="text">${escapeHtml(th.messages?.[0]?.text ?? '')}</div>
-        </div>`;
-        })
-        .join('');
       onThreadsChanged?.();
-      for (const el of threadsEl.querySelectorAll('.thread')) {
-        el.addEventListener('click', () => {
-          onSeek(Number(el.dataset.t));
-          try {
-            onHighlight?.(JSON.parse(el.dataset.rect));
-          } catch {
-            /* no anchor rect: just seek */
-          }
-        });
-      }
-
     } catch {
       /* preview works without the API */
     }

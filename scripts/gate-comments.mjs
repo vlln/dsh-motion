@@ -37,10 +37,15 @@ await page.evaluate(() => window.__PREVIEW__.setTime(3.2));
 
 // --- no session, no comment surface ---
 const surface = await page.evaluate(() => {
-  const section = document.querySelector('.threads');
-  return { hidden: section ? section.hidden : 'missing', hasSubmit: Boolean(document.querySelector('#popSubmit')) };
+  return {
+    list: Boolean(document.querySelector('.threads')),
+    hasSubmit: Boolean(document.querySelector('#popSubmit')),
+  };
 });
-check('standalone hides the comment surface', surface.hidden === true, JSON.stringify(surface));
+// Standing alone there is no conversation to send to, and the list lives on the
+// 批注 page now — the rail has no separate comment section any more.
+const popoverHidden = await page.isHidden('#popover');
+check('standalone opens no note card', surface.list === false && popoverHidden, JSON.stringify({ ...surface, popoverHidden }));
 
 const box = await page.evaluate(() => window.__PREVIEW__.boxRect());
 const toClient = (x, y) => ({ x: box.left + (x / 1920) * box.width, y: box.top + (y / 1080) * box.height });
@@ -84,7 +89,11 @@ check('the anchor keeps time and rect', Math.abs((th.anchor?.t ?? 0) - 3.2) < 0.
 
 await page.reload();
 await page.waitForFunction(() => window.__PREVIEW__?.ready === true, { timeout: 30000 });
-check('the pin is listed in the panel', (await page.textContent('#threadCount')) === '1');
+await page.click('#tweaksToggle'); // the rail starts closed
+await page.locator('.rail-tab[data-tab="comments"]').click();
+await page.waitForTimeout(400);
+const listedText = await page.textContent('#allComments');
+check('the pin is listed on the 批注 page', (await page.locator('.comment-row').count()) === 1 && listedText.includes('th') === false, (await page.locator('.comment-row').count()) + ' rows');
 await page.screenshot({ path: path.join(ROOT, 'out/ui-comments.png') });
 
 // --- tool contract: list with crops ---

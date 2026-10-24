@@ -22,8 +22,6 @@ const popT = $('popT');
 const popText = $('popText');
 const popSubmit = $('popSubmit');
 const popClose = $('popClose');
-const threadsEl = $('threads');
-const threadCount = $('threadCount');
 const assetsEl = $('assets');
 const assetList = $('assetList');
 const assetScope = $('assetScope');
@@ -776,8 +774,15 @@ async function loadAllComments() {
         </section>`,
       )
       .join('');
+    const rectOf = new Map(threads.map((thread) => [Number(thread.anchor?.t), thread.anchor?.rect ?? null]));
     for (const row of allComments.querySelectorAll('.comment-row')) {
-      row.addEventListener('click', () => seekTo(Number(row.dataset.t)));
+      row.addEventListener('click', () => {
+        const at = Number(row.dataset.t);
+        seekTo(at);
+        // Same behaviour the 调整 page used to have: jump there and show the box.
+        const rect = rectOf.get(at);
+        if (rect) highlightRect(rect, 1600);
+      });
     }
   } catch {
     allComments.innerHTML = '<p class="hint">读不到批注。</p>';
@@ -1314,8 +1319,6 @@ const comments = createComments({
   popText,
   popSubmit,
   popClose,
-  threadsEl,
-  threadCount,
   timeline,
   kernel,
   fmt,

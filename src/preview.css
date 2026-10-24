@@ -1580,6 +1580,9 @@ body:not(.tweaks) .app {
 .transport #play svg {
   width: 14px;
   height: 14px;
+  /* The icon is drawn with paths, so it has to take the button's colour or the
+     triangle disappears into the black circle. */
+  fill: currentColor;
 }
 
 
@@ -2115,4 +2118,26 @@ summary:focus-visible {
 .comment-row .txt {
   flex: 1 1 auto;
   min-width: 0;
+}
+
+
+/* Transport icons share one size and one weight of ink. */
+.transport .icon-btn svg {
+  width: 17px;
+  height: 17px;
+}
+
+/* The speaker glyph sits inside a wider box than the others; nudge it so the
+   row reads as one weight. */
+#mute svg {
+  width: 18px;
+  height: 18px;
+}
+
+.transport {
+  gap: 12px;
+}
+
+.transport .readout {
+  margin-left: 2px;
 }

@@ -18,9 +18,10 @@ export function listVersions(root, { includeSafety = false } = {}) {
   try {
     const index = JSON.parse(fs.readFileSync(meta(root), 'utf8'));
     const all = Array.isArray(index.versions) ? index.versions : [];
-    // A safety copy is bookkeeping, not a version the user asked for: switching
-    // back and forth used to add two visible entries every time.
-    return includeSafety ? all : all.filter((v) => v.kind !== 'safety');
+    // The list is edits only. A safety copy is undo scratch, and a row written
+    // before 'kind' existed is not a version either — the list must never show
+    // "切到 v2 之前" as if it were a name someone chose.
+    return includeSafety ? all : all.filter((v) => v.kind === 'edit');
   } catch {
     return [];
   }
@@ -125,7 +126,17 @@ export function useVersion(root, id) {
     ? { timeline: JSON.parse(fs.readFileSync(timelineFile(root), 'utf8')), scenes: readScenes(root) }
     : null;
   const same = current && JSON.stringify(current) === JSON.stringify({ timeline: record.timeline, scenes: record.scenes ?? {} });
-  if (current && !same) createVersion(root, { title: `切到 ${id} 之前`, kind: 'safety' });
+  // Keep the displaced state, but outside the list: it is undo scratch, not a
+  // version anyone named. Switching must not write a row that looks like one.
+  if (current && !same) {
+    const safety = JSON.parse(JSON.stringify(record));
+    safety.id = `safety-${Date.now()}`;
+    safety.kind = 'safety';
+    safety.timeline = current.timeline;
+    safety.scenes = current.scenes;
+    fs.mkdirSync(path.join(dir(root), 'safety'), { recursive: true });
+    fs.writeFileSync(path.join(dir(root), 'safety', `${safety.id}.json`), `${JSON.stringify(safety, null, 2)}\n`);
+  }
 
   for (const [file, source] of Object.entries(record.scenes ?? {})) {
     const to = path.join(scenesDir(root), file);

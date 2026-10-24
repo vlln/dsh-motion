@@ -17,7 +17,9 @@ export function makeSampleScene(id) {
     render(t) {
       const g = ctx.canvas.getContext('2d');
       g.clearRect(0, 0, ctx.width, ctx.height);
-      sample.draw(g, ctx.width, ctx.height, t % 6);
+      // Start on content, not on the blank frame every entrance begins with:
+      // a film created from a sample opens showing the sample.
+      sample.draw(g, ctx.width, ctx.height, (t + 0.8) % 6);
     },
   };
 }

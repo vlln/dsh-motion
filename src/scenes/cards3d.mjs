@@ -40,7 +40,7 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
-import { FilmPass } from 'three/examples/jsm/postprocessing/FilmPass.js';
+import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 
 export const id = 'cards3d';
 export const kind = 'webgl';
@@ -58,6 +58,7 @@ let wheelGroup = null;
 let wheelMesh = null;
 let typeGroup = null;
 let pointer = null;
+let grainPass = null;
 const falling = [];
 
 const clamp01 = (v) => Math.min(1, Math.max(0, v));
@@ -375,8 +376,21 @@ export function mount(context) {
   composer.addPass(new RenderPass(scene, camera));
   const bloom = new UnrealBloomPass(new Vector3(ctx.width, ctx.height), 0.34, 0.6, 0.86);
   composer.addPass(bloom);
-  // Grain, so the 3D shot sits in the same emulsion as the 2D tiles.
-  composer.addPass(new FilmPass(0.34, false));
+  // Grain, so the 3D shot sits in the same emulsion as the 2D tiles. It has to
+  // be driven by t, not by frame delta: render(t) must stay a pure function.
+  grainPass = new ShaderPass({
+    uniforms: { tDiffuse: { value: null }, uTime: { value: 0 }, uAmount: { value: 0.09 } },
+    vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+    fragmentShader: `uniform sampler2D tDiffuse; uniform float uTime; uniform float uAmount; varying vec2 vUv;
+      float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      void main() {
+        vec4 c = texture2D(tDiffuse, vUv);
+        float n = hash(floor(vUv * 900.0) + uTime) - 0.5;
+        c.rgb = clamp(c.rgb + n * uAmount, 0.0, 1.0);
+        gl_FragColor = c;
+      }`,
+  });
+  composer.addPass(grainPass);
   composer.addPass(new OutputPass());
 }
 
@@ -433,5 +447,6 @@ export function render(t) {
     typeGroup.rotation.y = Math.sin(t * 0.5) * 0.06;
   }
 
+  if (grainPass) grainPass.uniforms.uTime.value = Math.floor(t * 24) % 48;
   composer.render();
 }

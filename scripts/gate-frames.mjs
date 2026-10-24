@@ -48,6 +48,28 @@ try {
 
   const stray = fs.readdirSync(tmp).filter((f) => f !== 'motion' && f !== 'clip.mp4');
   check('nothing was written beside the film', stray.length === 0, stray.join(', '));
+
+  // --- reference: template + frames + brief in one step
+  const ref = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-motion-ref-'));
+  try {
+    fs.copyFileSync(path.join(tmp, 'clip.mp4'), path.join(ref, 'clip.mp4'));
+    const out = execFileSync(process.execPath, [BIN, 'reference', 'clip.mp4', '--template', 'kinetic'], {
+      cwd: ref,
+      encoding: 'utf8',
+    });
+    check('reference starts a film', fs.existsSync(path.join(ref, 'motion/timeline.json')), out.split('\n')[0]);
+    const timeline = JSON.parse(fs.readFileSync(path.join(ref, 'motion/timeline.json'), 'utf8'));
+    check('the film uses the chosen template', timeline.scenes[0]?.id === 'kinetic', timeline.scenes[0]?.id);
+
+    const brief = JSON.parse(fs.readFileSync(path.join(ref, 'motion/out/ref/brief.json'), 'utf8'));
+    check('the brief records the cut', brief.reference.cuts.some((c) => Math.abs(c - 1) < 0.2), brief.reference.cuts.join(', '));
+    check('the brief names the next steps', Array.isArray(brief.next) && brief.next.length >= 3, String(brief.next?.length));
+
+    const ok = execFileSync(process.execPath, [BIN, 'validate'], { cwd: ref, encoding: 'utf8' });
+    check('the new film validates', /ok · 1 scene/.test(ok), ok.trim().split('\n').pop());
+  } finally {
+    fs.rmSync(ref, { recursive: true, force: true });
+  }
 } finally {
   fs.rmSync(tmp, { recursive: true, force: true });
 }

@@ -148,21 +148,10 @@ async function use() {
 }
 
 /**
- * Read a reference video: frames at a fixed rate, one contact sheet, and the
- * cuts. The agent gets composition and rhythm as data, not "a video it cannot
- * watch". Stored inside the film, never next to it.
+ * Read a reference video into the film: frames, a contact sheet, and the cuts.
+ * The agent gets composition and rhythm as data, not "a video it cannot watch".
  */
-async function frames() {
-  const src = argv[1];
-  if (!src) fail('usage: dsh-motion frames <video> [--fps 2] [--out out/ref] [--cols 4]');
-  if (!fs.existsSync(path.join(FILM, 'timeline.json'))) fail('no film here — run: dsh-motion init or template');
-  const source = path.resolve(src);
-  if (!fs.existsSync(source)) fail(`no such file: ${src}`);
-  const fps = Math.max(0.2, Math.min(10, Number(opt('fps', 2)) || 2));
-  const cols = Math.max(2, Math.min(8, Number(opt('cols', 4)) || 4));
-  const outDir = path.resolve(FILM, opt('out', 'out/ref'));
-  if (!outDir.startsWith(FILM + path.sep)) fail('--out must stay inside the film');
-
+function readVideo(source, { fps = 2, cols = 4, outDir } = {}) {
   fs.rmSync(outDir, { recursive: true, force: true });
   fs.mkdirSync(outDir, { recursive: true });
   const env = withFilm(FILM);
@@ -179,12 +168,7 @@ async function frames() {
   const duration = Number(probe.format?.duration ?? 0);
   const stream = probe.streams?.[0] ?? {};
 
-  run([
-    '-i', source,
-    '-vf', `fps=${fps},scale=480:-2`,
-    '-q:v', '3',
-    path.join(outDir, 'f%03d.jpg'),
-  ]);
+  run(['-i', source, '-vf', `fps=${fps},scale=480:-2`, '-q:v', '3', path.join(outDir, 'f%03d.jpg')]);
   const files = fs.readdirSync(outDir).filter((f) => /^f\d+\.jpg$/.test(f)).sort();
   const rows = Math.ceil(files.length / cols);
 
@@ -221,8 +205,68 @@ async function frames() {
     cuts,
   };
   fs.writeFileSync(path.join(outDir, 'index.json'), `${JSON.stringify(index, null, 2)}\n`);
+  return index;
+}
+
+function refDir(name) {
+  return path.resolve(FILM, name);
+}
+
+function frames() {
+  const src = argv[1];
+  if (!src) fail('usage: dsh-motion frames <video> [--fps 2] [--out out/ref] [--cols 4]');
+  if (!fs.existsSync(path.join(FILM, 'timeline.json'))) fail('no film here — run: dsh-motion init or template');
+  const source = path.resolve(src);
+  if (!fs.existsSync(source)) fail(`no such file: ${src}`);
+  const fps = Math.max(0.2, Math.min(10, Number(opt('fps', 2)) || 2));
+  const cols = Math.max(2, Math.min(8, Number(opt('cols', 4)) || 4));
+  const outDir = refDir(opt('out', 'out/ref'));
+  if (!outDir.startsWith(FILM + path.sep)) fail('--out must stay inside the film');
+
+  const index = readVideo(source, { fps, cols, outDir });
   console.log(`${index.frames} frames · ${index.size} · ${index.duration}s → ${path.relative(FILM, outDir)}`);
-  console.log(`sheet: ${index.sheet}${cuts.length ? ` · cuts: ${cuts.join(', ')}` : ' · no hard cuts'}`);
+  console.log(`sheet: ${index.sheet}${index.cuts.length ? ` · cuts: ${index.cuts.join(', ')}` : ' · no hard cuts'}`);
+}
+
+/**
+ * One command for the reference-first loop: start the film from a template, read
+ * the reference into out/ref, and write a brief the agent can work from.
+ */
+async function reference() {
+  const src = argv[1];
+  if (!src) fail('usage: dsh-motion reference <video> [--template kinetic] [--fps 2]');
+  const source = path.resolve(src);
+  if (!fs.existsSync(source)) fail(`no such file: ${src}`);
+  const templateId = opt('template', 'kinetic');
+  const fps = Math.max(0.2, Math.min(10, Number(opt('fps', 2)) || 2));
+
+  let created = null;
+  if (!fs.existsSync(path.join(FILM, 'timeline.json'))) {
+    created = createFilmFromTemplate(process.cwd(), templateId);
+  }
+  const film = JSON.parse(fs.readFileSync(path.join(FILM, 'timeline.json'), 'utf8'));
+  const index = readVideo(source, { fps, cols: 4, outDir: refDir('out/ref') });
+  const brief = {
+    template: created ? templateId : null,
+    film: {
+      width: film.width,
+      height: film.height,
+      duration: film.duration,
+      scenes: film.scenes.map((s) => s.id),
+    },
+    reference: index,
+    next: [
+      'compare the sheet with motion/out/ref/sheet.jpg',
+      'pick one beat from cuts and rebuild it on the template scene',
+      'dsh-motion validate && dsh-motion render --stills 0,2,4',
+      'dsh-motion version -m "what changed"',
+    ],
+  };
+  fs.writeFileSync(path.join(refDir('out/ref'), 'brief.json'), `${JSON.stringify(brief, null, 2)}\n`);
+  console.log(
+    `${created ? `film ← template "${templateId}"` : 'film kept'} · ${index.frames} frames · ${index.cuts.length} cuts`,
+  );
+  console.log(`brief: motion/out/ref/brief.json`);
 }
 
 /**
@@ -245,6 +289,7 @@ const commands = {
   init,
   template,
   frames,
+  reference,
   validate,
   render,
   export: exportVideo,
@@ -254,11 +299,12 @@ const commands = {
 };
 
 if (!cmd || !commands[cmd]) {
-  console.error('usage: dsh-motion <init|validate|render|export|template|frames|version|versions|use> [options]');
+  console.error('usage: dsh-motion <init|validate|render|export|template|frames|reference|version|versions|use> [options]');
   console.error('');
   console.error('  init      [--title "…"] [--length 6]');
   console.error('  template list | template <id>   start a film from a template instead of blank');
   console.error('  frames <video> [--fps 2] [--cols 4]   frames + contact sheet + cuts into out/ref');
+  console.error('  reference <video> [--template id]     template + frames + a brief, in one step');
   console.error('  validate  check the timeline and every scene it names');
   console.error('  render    [--stills 0,3,6] | [--video] [--out path] [--cols 3]');
   console.error('  export    [--gif] [--out path] [--fps 30] [--height 720|1080] [--quality high|medium|low]');

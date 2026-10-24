@@ -161,6 +161,24 @@ dsh-motion validate && dsh-motion render --stills 0,3
 二维的排印、图表、界面，用 canvas 2D。不要在 2D 里假装 3D（斜切矩形一眼假），
 也不要用 WebGL 画本来就该是排版的字。
 
+## 参考优先的一条工序
+
+用户丢来一条参考片时，不要"看一遍凭感觉"，也不要从空目录开始。一条命令把两件事做完：
+
+```
+dsh-motion reference ref.mp4 --template kinetic
+```
+
+它会：没有片子就先按模板建一条 → 把参考抽成帧、接触表、切点写进 `motion/out/ref/` →
+再写一份 `brief.json`（模板、片子的画幅与时长、参考的切点、下一步建议）。
+接着读 `out/ref/sheet.jpg` 决定改哪一幕，然后：
+
+```
+dsh-motion validate
+dsh-motion render --stills 0,2,4
+dsh-motion version -m "用户看得见的变化"
+```
+
 ## 读参考视频：抽帧、接触表、切点
 
 拿到一条参考片，不要"看一遍凭感觉"，先把它变成可读的数据：

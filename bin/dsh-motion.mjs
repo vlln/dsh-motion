@@ -319,6 +319,31 @@ async function storyboard() {
     }));
     fs.writeFileSync(file, `${JSON.stringify(timeline, null, 2)}\n`);
     await validate();
+
+    // One still per beat, so the shot list is something you can look at.
+    if (!flag('no-stills')) {
+      const mids = beats.map((beat) => (beat.start + beat.length / 2).toFixed(2));
+      await run(
+        'capture.mjs',
+        ['--stills', mids.join(','), '--cols', String(Math.min(4, beats.length)), '--out', 'out/ref/beats.png'],
+        FILM,
+      );
+      const framesDir = path.join(FILM, 'out/ref/beats-frames');
+      const stillsDir = path.join(FILM, 'out/ref/beats');
+      fs.rmSync(stillsDir, { recursive: true, force: true });
+      fs.mkdirSync(stillsDir, { recursive: true });
+      if (fs.existsSync(framesDir)) {
+        const shots = fs.readdirSync(framesDir).filter((f) => /\.(png|jpg)$/i.test(f)).sort();
+        shots.forEach((name, i) => {
+          const target = `beat${String(i + 1).padStart(2, '0')}${path.extname(name)}`;
+          fs.copyFileSync(path.join(framesDir, name), path.join(stillsDir, target));
+          if (story.beats[i]) story.beats[i].still = `out/ref/beats/${target}`;
+        });
+        fs.rmSync(framesDir, { recursive: true, force: true });
+      }
+      fs.writeFileSync(path.join(refDir('out/ref'), 'storyboard.json'), `${JSON.stringify(story, null, 2)}\n`);
+      console.log(`stills: ${story.beats.filter((b) => b.still).length} in out/ref/beats/ · sheet out/ref/beats.png`);
+    }
   }
   console.log('storyboard: motion/out/ref/storyboard.json');
 }

@@ -83,6 +83,11 @@ try {
     );
     const after = execFileSync(process.execPath, [BIN, 'validate'], { cwd: ref, encoding: 'utf8' });
     check('the rebuilt film validates', /ok ·/.test(after), after.trim().split('\n').pop());
+
+    const still = path.join(ref, 'motion/out/ref/beats/beat01.png');
+    check('each beat got a still', fs.existsSync(still), 'out/ref/beats/beat01.png');
+    const story2 = JSON.parse(fs.readFileSync(path.join(ref, 'motion/out/ref/storyboard.json'), 'utf8'));
+    check('the storyboard links the still', story2.beats[0]?.still === 'out/ref/beats/beat01.png', story2.beats[0]?.still);
   } finally {
     fs.rmSync(ref, { recursive: true, force: true });
   }

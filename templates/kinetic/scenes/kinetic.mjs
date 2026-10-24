@@ -36,22 +36,25 @@ export function render(t) {
   });
 
   const size = Math.round(h * 0.13);
-  [['a', 0.35], ['b', 0.55], ['c', 0.75]].forEach(([slot, at], i) => {
+  const words = ['a', 'b', 'c'];
+  const at = [0.35, 0.55, 0.75];
+  g.textAlign = 'left';
+  g.textBaseline = 'alphabetic';
+  words.forEach((slot, i) => {
     const p = outCubic((t - 0.25 - i * 0.22) / 0.7);
     if (p <= 0) return;
+    const text = ctx.text(slot);
+    const y = h * at[i];
     g.save();
+    // The mask and the text share one baseline: no per-glyph boxes involved.
     g.beginPath();
-    g.rect(0, h * at - size * 1.05, w, size * 1.25);
+    g.rect(0, y - size * 1.05, w, size * 1.35);
     g.clip();
-    g.translate(0, (1 - p) * size * 0.95);
-    ctx.drawText(slot, {
-      x: pad,
-      y: h * at,
-      w: w * 0.86,
-      size,
-      weight: 700,
-      color: ctx.color('fg'),
-    });
+    g.fillStyle = ctx.color('fg');
+    g.font = `700 ${size}px -apple-system, system-ui, "Helvetica Neue", Arial, sans-serif`;
+    g.letterSpacing = '-0.035em';
+    g.fillText(text, pad, y + (1 - p) * size * 0.9);
+    g.letterSpacing = '0em';
     g.restore();
   });
 

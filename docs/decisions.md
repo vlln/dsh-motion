@@ -683,3 +683,9 @@ skill 里写明：帧给构图、配色、字级、切点；**给不了缓动曲
 `dsh-motion storyboard [<video>] [--min 1.2] [--max 8] [--write]`：把切点之间的段落变成 Beat，
 过短合并、过长拆分；`--write` 为每个 Beat 复制一份场景（独立 id），重排 `timeline.scenes` 并校验。
 内置场景没有文件可复制时会明确报错并要求先把场景拷进工作区。`gate:frames` 扩到 18 项。
+
+### 每个 Beat 一张静帧
+
+`storyboard --write` 现在会按每个 Beat 的中点渲一张静帧到 `out/ref/beats/beatNN.png`，
+并拼一张 `out/ref/beats.png`；`storyboard.json` 里每个 Beat 增加 `still` 字段。
+`--no-stills` 可跳过（只改时间轴时不需要起浏览器）。`gate:frames` 扩到 20 项。

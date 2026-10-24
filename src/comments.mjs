@@ -1,6 +1,6 @@
 // Comment store shared by the preview server, the CLI and the future plugin.
 // A thread is anchored to { t, rect, elementId } and only becomes actionable
-// when the viewer explicitly activates it ("Send to Claude").
+// when the viewer explicitly sends it to the conversation.
 
 import fs from 'node:fs';
 import path from 'node:path';

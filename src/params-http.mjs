@@ -3,7 +3,7 @@
 // implementation, two mount points.
 
 import { createVersion, isDirty, listVersions, useVersion } from './versions.mjs';
-import { TEMPLATES, createProject, describeProject, exportProject, history, listProjects, rebakeAsset, restoreProject, revision, setProjectAsset, setProjectParam, setProjectScene, deleteProjectScene, setProjectPalette, setProjectText, setProjectValue } from './project.mjs';
+import { setProjectPoster, TEMPLATES, createProject, describeProject, exportProject, history, listProjects, rebakeAsset, restoreProject, revision, setProjectAsset, setProjectParam, setProjectScene, deleteProjectScene, setProjectPalette, setProjectText, setProjectValue } from './project.mjs';
 
 const json = (res, code, data) => {
   res.writeHead(code, { 'content-type': 'application/json; charset=utf-8' });
@@ -80,6 +80,10 @@ export function paramsHandlers(root) {
       }
       const out = await setProjectScene(root, scene, { name, length, speed }, timeline);
       json(res, 200, { ok: true, scene: out.scene, duration: out.duration, snapshot: out.snapshot });
+    }),
+    poster: wrap(async (req, res) => {
+      const data = await readBody(req);
+      json(res, 200, await setProjectPoster(root, data.time, data.timeline));
     }),
     palette: wrap(async (req, res) => {
       const { name, tokens, timeline, create } = await readBody(req);

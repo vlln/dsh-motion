@@ -705,6 +705,7 @@ function openChipMenu(scene, chipEl) {
   hoverAt = -1;
   chipMenu.innerHTML = `
     <p class="chip-menu-name">${scene.name}</p>
+    <button id="chipPoster" type="button">用当前帧作封面 · ${fmt(t)}</button>
     <button id="chipDelete" type="button">删除这一段</button>`;
   chipMenu.hidden = false;
   const left = Math.min(
@@ -712,6 +713,24 @@ function openChipMenu(scene, chipEl) {
     scenesEl.clientWidth - chipMenu.offsetWidth,
   );
   chipMenu.style.left = `${left}px`;
+  chipMenu.querySelector('#chipPoster').addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const button = e.currentTarget;
+    try {
+      const res = await fetch('./api/poster', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: body({ time: t }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? res.statusText);
+      timeline.poster = data.poster;
+      button.textContent = `封面：${fmt(data.poster)}`;
+      setTimeout(closeChipMenu, 700);
+    } catch (err) {
+      button.textContent = `失败：${err.message}`;
+    }
+  });
   chipMenu.querySelector('#chipDelete').addEventListener('click', async (e) => {
     e.stopPropagation();
     closeChipMenu();
@@ -2012,6 +2031,17 @@ window.__PREVIEW__ = {
     })),
     status: knobNote.textContent,
   }),
+  setPoster: async (time) => {
+    const res = await fetch('./api/poster', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: body({ time }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? res.statusText);
+    timeline.poster = data.poster;
+    return data.poster;
+  },
   setParam: async (scene, key, value, persist = true) => {
     kernel.setParam(scene, key, value);
     kernel.renderAt(t);

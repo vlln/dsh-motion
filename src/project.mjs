@@ -141,6 +141,18 @@ export async function setProjectPalette(root, name, tokens, file = 'timeline.jso
   return { palette: timeline.palettes[name], snapshot: snap };
 }
 
+/** The cover frame: one number, inside the film, snapshotted like any edit. */
+export async function setProjectPoster(root, time, file = 'timeline.json') {
+  const timeline = readTimeline(root, file);
+  const at = Number(time);
+  if (!Number.isFinite(at) || at < 0 || at > timeline.duration) {
+    throw new Error(`poster must be 0..${timeline.duration} (got ${time})`);
+  }
+  timeline.poster = Number(at.toFixed(2));
+  const snap = await writeTimeline(root, timeline, 'poster', file);
+  return { poster: timeline.poster, snapshot: snap };
+}
+
 export async function setProjectValue(root, sceneId, key, value, file = 'timeline.json') {
   const timeline = readTimeline(root, file);
   const scene = timeline.scenes.find((s) => s.id === sceneId);

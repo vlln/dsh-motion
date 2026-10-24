@@ -164,7 +164,7 @@ async function version() {
     return use(argv[2]);
   }
   const title = opt('m', opt('message', ''));
-  const out = createVersion(FILM, { title, author: opt('author', 'agent') });
+  const out = createVersion(FILM, { title });
   console.log(`${out.id} · ${out.title}`);
 }
 
@@ -174,7 +174,7 @@ async function versions() {
     console.log('no versions yet — run: dsh-motion version -m "what changed"');
     return;
   }
-  for (const row of rows) console.log(`${row.id.padEnd(4)} ${row.at.slice(0, 16).replace('T', ' ')}  ${row.author.padEnd(5)}  ${row.title}`);
+  for (const row of rows) console.log(`${row.id.padEnd(4)} ${row.at.slice(0, 16).replace('T', ' ')}  ${row.title}`);
 }
 
 async function use(id = argv[1]) {

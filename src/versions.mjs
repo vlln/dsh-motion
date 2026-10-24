@@ -84,7 +84,7 @@ export function isDirty(root) {
 }
 
 /** Write one version of the working tree. `title` is what the user will read. */
-export function createVersion(root, { title, author = 'agent', kind = 'edit' } = {}) {
+export function createVersion(root, { title, kind = 'edit' } = {}) {
   if (!fs.existsSync(timelineFile(root))) throw new Error('no film here (timeline.json missing)');
   // ids count every record, hidden ones included, so they never get reused
   const versions = listVersions(root, { includeSafety: true });
@@ -96,7 +96,6 @@ export function createVersion(root, { title, author = 'agent', kind = 'edit' } =
     id,
     at,
     title: String(title ?? '').trim() || `版本 ${id}`,
-    author,
     kind,
     mtime: filmMtime(root),
     timeline,
@@ -105,8 +104,8 @@ export function createVersion(root, { title, author = 'agent', kind = 'edit' } =
   fs.mkdirSync(dir(root), { recursive: true });
   fs.writeFileSync(path.join(dir(root), `${id}.json`), `${JSON.stringify(record, null, 2)}\n`);
   // newest first, so the panel renders top-down without sorting
-  saveIndex(root, [{ id, at, title: record.title, author, kind: record.kind, mtime: record.mtime }, ...versions], id);
-  return { id, at, title: record.title, author };
+  saveIndex(root, [{ id, at, title: record.title, kind: record.kind, mtime: record.mtime }, ...versions], id);
+  return { id, at, title: record.title };
 }
 
 /**
@@ -126,7 +125,7 @@ export function useVersion(root, id) {
     ? { timeline: JSON.parse(fs.readFileSync(timelineFile(root), 'utf8')), scenes: readScenes(root) }
     : null;
   const same = current && JSON.stringify(current) === JSON.stringify({ timeline: record.timeline, scenes: record.scenes ?? {} });
-  if (current && !same) createVersion(root, { title: `切到 ${id} 之前`, author: 'user', kind: 'safety' });
+  if (current && !same) createVersion(root, { title: `切到 ${id} 之前`, kind: 'safety' });
 
   for (const [file, source] of Object.entries(record.scenes ?? {})) {
     const to = path.join(scenesDir(root), file);

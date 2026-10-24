@@ -96,7 +96,7 @@ export function paramsHandlers(root) {
         return json(res, 200, { versions: listVersions(root), current: currentVersion(root), dirty: isDirty(root) });
       }
       const { title } = await readBody(req);
-      const created = createVersion(root, { title, author: 'agent' });
+      const created = createVersion(root, { title });
       json(res, 200, { ok: true, created, versions: listVersions(root), current: currentVersion(root), dirty: isDirty(root) });
     }),
     'versions/use': wrap(async (req, res) => {

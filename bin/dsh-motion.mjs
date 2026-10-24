@@ -14,6 +14,7 @@ import { validateTimeline } from '../src/validate.mjs';
 import { modules } from '../src/project.mjs';
 import { createFilm } from '../src/film.mjs';
 import { createVersion, listVersions, useVersion } from '../src/versions.mjs';
+import { createFilmFromTemplate, listTemplates } from '../src/film.mjs';
 
 const PKG = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
@@ -146,8 +147,25 @@ async function use() {
   console.log('reload the preview panel: scene code changed.');
 }
 
+/**
+ * Start from one of the package's template films. The whole point of a template
+ * is that the agent begins with a stage, not with an empty directory.
+ */
+async function template() {
+  const id = argv[1];
+  if (!id || id === 'list' || flag('list')) {
+    for (const name of listTemplates()) console.log(name);
+    return;
+  }
+  const { dir, film } = createFilmFromTemplate(process.cwd(), id);
+  console.log(`motion/ ← template "${id}" · ${film.scenes.length} scene(s) · ${film.duration}s`);
+  console.log(`  ${film.scenes.map((s) => s.id).join(', ')}  in ${path.relative(process.cwd(), dir)}`);
+  console.log('next: dsh-motion validate && dsh-motion render --stills 0,3');
+}
+
 const commands = {
   init,
+  template,
   validate,
   render,
   export: exportVideo,
@@ -157,9 +175,10 @@ const commands = {
 };
 
 if (!cmd || !commands[cmd]) {
-  console.error('usage: dsh-motion <init|validate|render|export|version|versions|use> [options]');
+  console.error('usage: dsh-motion <init|template|validate|render|export|version|versions|use> [options]');
   console.error('');
   console.error('  init      [--title "…"] [--length 6]');
+  console.error('  template list | template <id>   start a film from a template instead of blank');
   console.error('  validate  check the timeline and every scene it names');
   console.error('  render    [--stills 0,3,6] | [--video] [--out path] [--cols 3]');
   console.error('  export    [--gif] [--out path] [--fps 30] [--height 720|1080] [--quality high|medium|low]');

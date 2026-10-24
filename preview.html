@@ -55,6 +55,8 @@
 
     <div class="app">
       <main class="stage-wrap">
+        <nav class="reel" id="reel" aria-label="段落导航"></nav>
+        <div class="stage-stack">
         <div class="canvas-box" id="canvasBox">
           <canvas id="stage"></canvas>
           <div class="selection" id="selection" hidden></div>
@@ -77,7 +79,7 @@
 
         <div class="stage-foot">
           <span id="sceneName" class="scene-name">—</span>
-          <nav class="reel" id="reel" aria-label="段落导航"></nav>
+        </div>
         </div>
       </main>
 
@@ -85,6 +87,7 @@
         <div class="rail-tabs" role="tablist">
           <button class="rail-tab" role="tab" data-tab="tweaks" aria-selected="true">调整</button>
           <button class="rail-tab" role="tab" data-tab="style" aria-selected="false">风格</button>
+          <button class="rail-tab" role="tab" data-tab="comments" aria-selected="false">批注</button>
         </div>
 
         <div class="rail-panel" data-panel="tweaks">
@@ -140,6 +143,10 @@
           </div>
         </details>
 
+        </div>
+
+        <div class="rail-panel" data-panel="comments" hidden>
+          <div id="allComments" class="comment-list"></div>
         </div>
 
         <div class="rail-panel" data-panel="style" hidden>

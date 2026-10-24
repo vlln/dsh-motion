@@ -23,6 +23,7 @@ export function createComments({
   onHighlight,
   onClearSelection,
   onError,
+  onThreadsChanged,
   session = '',
 }) {
   // A comment is a message. This page hands the sentence to the client half,
@@ -289,6 +290,7 @@ export function createComments({
         </div>`;
         })
         .join('');
+      onThreadsChanged?.();
       for (const el of threadsEl.querySelectorAll('.thread')) {
         el.addEventListener('click', () => {
           onSeek(Number(el.dataset.t));

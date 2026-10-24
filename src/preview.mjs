@@ -67,6 +67,15 @@ const body = (payload) => JSON.stringify(target ? { ...payload, timeline: target
 
 const dpr = Math.min(2, window.devicePixelRatio || 1);
 
+// The artboard is width-driven, so its ceiling has to come from the stage's own
+// height — otherwise a wide window lets it overflow the row and cover the reel.
+const stageStack = document.querySelector('.stage-stack');
+if (stageStack && 'ResizeObserver' in window) {
+  const fit = () => stageStack.style.setProperty('--stage-h', `${Math.max(120, stageStack.clientHeight - 34)}px`);
+  new ResizeObserver(fit).observe(stageStack);
+  fit();
+}
+
 /**
  * A workspace with no film is a normal state, not an error: the panel says so
  * and points at the conversation, which is where a film gets asked for.
@@ -727,9 +736,58 @@ try {
   /* private mode */
 }
 
+const allComments = $('allComments');
+const escapeHtml = (value) =>
+  String(value).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+
+/** The 批注 page: every note, grouped by the section it was made in. */
+async function loadAllComments() {
+  try {
+    const { threads = [] } = await (await fetch('./api/comments')).json();
+    if (!threads.length) {
+      allComments.innerHTML = '<p class="hint">还没有批注。开启批注模式，在画面上点选或框选。</p>';
+      return;
+    }
+    const groups = new Map();
+    for (const thread of threads) {
+      const t = Number(thread.anchor?.t ?? 0);
+      const scene =
+        timeline.scenes.find((sc) => t >= sc.start && t < sc.start + sc.length) ?? timeline.scenes.at(-1);
+      if (!scene) continue;
+      if (!groups.has(scene.id)) groups.set(scene.id, { scene, rows: [] });
+      groups.get(scene.id).rows.push(thread);
+    }
+    allComments.innerHTML = [...groups.values()]
+      .sort((a, b) => a.scene.start - b.scene.start)
+      .map(
+        ({ scene, rows }) => `
+        <section class="comment-group">
+          <h3>${escapeHtml(scene.name)}<span>${rows.length}</span></h3>
+          ${rows
+            .sort((a, b) => Number(a.anchor.t) - Number(b.anchor.t))
+            .map(
+              (thread) => `
+            <button class="comment-row" data-t="${Number(thread.anchor.t)}">
+              <span class="t">${fmt(Number(thread.anchor.t))}</span>
+              <span class="txt">${escapeHtml(thread.messages?.[0]?.text ?? '')}</span>
+            </button>`,
+            )
+            .join('')}
+        </section>`,
+      )
+      .join('');
+    for (const row of allComments.querySelectorAll('.comment-row')) {
+      row.addEventListener('click', () => seekTo(Number(row.dataset.t)));
+    }
+  } catch {
+    allComments.innerHTML = '<p class="hint">读不到批注。</p>';
+  }
+}
+
 function setRailTab(name) {
   for (const tab of railTabs) tab.setAttribute('aria-selected', String(tab.dataset.tab === name));
   for (const panel of railPanels) panel.hidden = panel.dataset.panel !== name;
+  if (name === 'comments') loadAllComments();
   try {
     localStorage.setItem('dshm:rail', name);
   } catch {
@@ -1269,6 +1327,7 @@ const comments = createComments({
   onClearSelection: () => {
     selected = null;
   },
+  onThreadsChanged: () => loadAllComments(),
   onError: (message) => {
     console.error('[comments]', message);
   },
@@ -1445,6 +1504,7 @@ updatePlayButton();
 renderFrame();
 
 comments.refreshThreads();
+loadAllComments();
 
 window.__PREVIEW__ = {
   ready: true,

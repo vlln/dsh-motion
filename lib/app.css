@@ -55,7 +55,7 @@ body {
 
 .stage-wrap {
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr);
   place-items: center;
   gap: 10px;
   padding: 16px 20px 20px;
@@ -66,7 +66,8 @@ body {
 .canvas-box {
   position: relative;
   aspect-ratio: 16 / 9;
-  width: min(100%, calc((100vh - 200px) * 16 / 9));
+  max-height: 100%;
+  width: min(100%, calc(var(--stage-h, 60vh) * 16 / 9));
   background: #000;
   border-radius: var(--radius);
   overflow: hidden;
@@ -857,12 +858,6 @@ body:not(.tweaks) .app {
   grid-template-rows: minmax(0, 1fr);
 }
 
-#tweaksToggle[aria-pressed='true'],
-#commentMode[aria-pressed='true'] {
-  background: var(--hover);
-  color: var(--fg);
-}
-
 
 
 /* The document bar has three weights, not four styles: quiet icons, one
@@ -1295,11 +1290,21 @@ body:not(.tweaks) .app {
 
 /* A section overview, not a second scrubber: one pill per scene, filled up to
    the one you are watching. The strip at the bottom stays the scrubber. */
+.stage-stack {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  min-height: 0;
+  width: 100%;
+}
+
 .stage-foot {
-  justify-self: stretch;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  width: 100%;
   min-width: 0;
 }
 
@@ -2044,4 +2049,66 @@ summary:focus-visible {
   flex: none;
   color: var(--dim);
   font: 11px/1 var(--font);
+}
+
+
+/* Pressed wins over hover, whichever the cascade order happens to be. */
+.icon-btn[aria-pressed='true'],
+.icon-btn[aria-pressed='true']:hover,
+.rail-tab[aria-selected='true'],
+.rail-tab[aria-selected='true']:hover {
+  background: var(--active);
+  color: var(--fg);
+}
+
+
+/* All comments, grouped by the section they belong to. */
+.comment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.comment-group h3 {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0 0 6px;
+  color: var(--muted);
+  font: 500 12px/1.3 var(--font);
+}
+
+.comment-group h3 span {
+  color: var(--dim);
+  font-weight: 400;
+}
+
+.comment-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fg);
+  font: 12px/1.4 var(--font);
+  text-align: left;
+  cursor: pointer;
+}
+
+.comment-row:hover {
+  background: var(--hover);
+}
+
+.comment-row .t {
+  flex: none;
+  color: var(--muted);
+  font: 500 11px/1.4 var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.comment-row .txt {
+  flex: 1 1 auto;
+  min-width: 0;
 }

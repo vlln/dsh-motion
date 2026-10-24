@@ -6,7 +6,7 @@ import { loadFilmFonts } from './fonts.mjs';
 import { assertTimeline } from './validate.mjs';
 import { loadModules } from './scenes/index.mjs';
 
-export async function mountMotion({ canvas, width, height, dpr = window.devicePixelRatio || 1 }) {
+export async function mountMotion({ canvas, width, height, dpr = window.devicePixelRatio || 1, scale = 1 }) {
   // Optional ?timeline= for tests/fixtures. Only same-origin relative paths are
   // accepted: the panel is embedded in the host UI and must not become a fetcher.
   const requested = new URLSearchParams(location.search).get('timeline');
@@ -36,6 +36,7 @@ export async function mountMotion({ canvas, width, height, dpr = window.devicePi
 
   const kernel = createKernel({ timeline, modules });
   await kernel.mountAll(canvas, {
+    scale,
     width: width ?? timeline.width,
     height: height ?? timeline.height,
     dpr,

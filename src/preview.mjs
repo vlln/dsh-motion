@@ -513,8 +513,10 @@ function playTiles(root, tiles) {
 // Render at the size the stage actually occupies, capped by the film's own
 // resolution: a 1920-wide film in a 900px panel costs a quarter of the pixels.
 async function previewScale() {
+  // innerWidth is known before layout settles; the canvas rect can still be 0
+  // when mount runs, which silently disabled the whole optimisation.
   const rect = canvas.getBoundingClientRect();
-  const shown = rect.width || canvas.clientWidth || 0;
+  const shown = rect.width || canvas.clientWidth || window.innerWidth || 0;
   if (!shown) return 1;
   try {
     const res = await fetch(target ?? './timeline.json', { cache: 'no-store' });

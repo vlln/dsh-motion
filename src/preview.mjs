@@ -28,6 +28,8 @@ const assetList = $('assetList');
 const assetScope = $('assetScope');
 const assetNote = $('assetNote');
 const staleEl = $('stale');
+let beatPeek = document.getElementById('beatPeek');
+let beatStills = [];
 const exportOpen = $('exportOpen');
 const exportModal = $('exportModal');
 const exportClose = $('exportClose');
@@ -534,6 +536,46 @@ const fmt = (s) => {
 // that got shorter moves every scene after it
 let chips = [];
 
+/** Beat stills from out/ref/storyboard.json, if this film was read from a reference. */
+let beatStillsLoading = false;
+function applyStills() {
+  chips.forEach(({ el }, i) => {
+    const beat = beatStills[i];
+    el.dataset.still = beat?.still ?? '';
+    el.dataset.beat = beat?.name ?? '';
+  });
+}
+function loadBeatStills() {
+  if (beatStillsLoading || beatStills.length) return;
+  beatStillsLoading = true;
+  fetch('./out/ref/storyboard.json', { cache: 'no-store' })
+    .then((res) => (res.ok ? res.json() : null))
+    .then((story) => {
+      const beats = Array.isArray(story?.beats) ? story.beats : [];
+      beatStills = beats.filter((beat) => typeof beat.still === 'string' && beat.still.startsWith('out/ref/'));
+      applyStills();
+    })
+    .catch(() => {})
+    .finally(() => {
+      beatStillsLoading = false;
+    });
+}
+
+/** A still of this beat, shown over the strip while the pointer rests on a chip. */
+function showBeatPeek(el) {
+  const still = el.dataset.still;
+  if (!still || !beatPeek) return;
+  const img = beatPeek.querySelector('img');
+  const label = beatPeek.querySelector('.beat-peek-label');
+  img.src = `./${still}`;
+  label.textContent = `${el.dataset.beat ?? ''} ${el.querySelector('.len')?.textContent ?? ''}`.trim();
+  const rect = el.getBoundingClientRect();
+  beatPeek.hidden = false;
+  const width = beatPeek.offsetWidth || 148;
+  beatPeek.style.left = `${Math.min(window.innerWidth - width - 8, Math.max(8, rect.left + rect.width / 2 - width / 2))}px`;
+  beatPeek.style.top = `${Math.max(8, rect.top - beatPeek.offsetHeight - 8)}px`;
+}
+
 function buildChips(scenes) {
   const sameOrder = chips.length === scenes.length && chips.every((c, i) => c.scene.id === scenes[i].id);
   if (sameOrder) {
@@ -546,6 +588,8 @@ function buildChips(scenes) {
       el.dataset.scene = scene.id;
       chips[i].scene = scene;
     });
+    applyStills();
+    loadBeatStills();
     return;
   }
   for (const { el } of chips) el.remove();
@@ -571,6 +615,10 @@ function buildChips(scenes) {
       if (!now) return;
       seekTo(now.start + 0.001);
     });
+    el.addEventListener('pointerenter', () => showBeatPeek(el));
+    el.addEventListener('pointerleave', () => {
+      if (beatPeek) beatPeek.hidden = true;
+    });
     el.addEventListener('keydown', (e) => {
       if (e.key !== 'Enter' && e.key !== ' ') return;
       e.preventDefault();
@@ -586,6 +634,8 @@ function buildChips(scenes) {
     scenesEl.insertBefore(el, playhead);
     return { el, scene };
   });
+  applyStills();
+  loadBeatStills();
 }
 
 buildChips(timeline.scenes);

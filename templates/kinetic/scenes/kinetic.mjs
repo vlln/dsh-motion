@@ -32,7 +32,7 @@ export function render(t) {
     size: Math.round(h * 0.018),
     weight: 500,
     color: ctx.color('muted'),
-    alpha: outCubic((t - 0.15) / 0.6),
+    alpha: outCubic((t + 0.35) / 0.6),
   });
 
   const size = Math.round(h * 0.13);
@@ -41,7 +41,7 @@ export function render(t) {
   g.textAlign = 'left';
   g.textBaseline = 'alphabetic';
   words.forEach((slot, i) => {
-    const p = outCubic((t - 0.25 - i * 0.22) / 0.7);
+    const p = outCubic((t + 0.42 - i * 0.22) / 0.7);
     if (p <= 0) return;
     const text = ctx.text(slot);
     const y = h * at[i];
@@ -58,7 +58,7 @@ export function render(t) {
     g.restore();
   });
 
-  const rule = outCubic((t - 1.4) / 0.9);
+  const rule = outCubic((t + 0.2) / 1.7);
   if (rule > 0) {
     g.strokeStyle = ctx.color('fg');
     g.lineWidth = Math.max(1, h * 0.003);

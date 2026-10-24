@@ -55,7 +55,7 @@ body {
 
 .stage-wrap {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
   place-items: center;
   gap: 10px;
   padding: 16px 20px 20px;
@@ -1304,11 +1304,8 @@ body:not(.tweaks) .app {
   overflow: hidden;
 }
 
-.stage-foot {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: 100%;
+.stage-head {
+  justify-self: stretch;
   min-width: 0;
 }
 
@@ -2140,4 +2137,123 @@ summary:focus-visible {
 
 .transport .readout {
   margin-left: 2px;
+}
+
+
+/* Empty workspace: a few directions to start from, not a dead end. */
+.discover {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 32px clamp(20px, 5vw, 56px) 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.discover-head h2 {
+  margin: 0 0 6px;
+  font: 600 20px/1.3 var(--font);
+}
+
+.discover-head p {
+  margin: 0;
+  max-width: 640px;
+  color: var(--muted);
+  font: 13px/1.6 var(--font);
+}
+
+.discover-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+  max-width: 960px;
+}
+
+.starter {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.starter:hover {
+  background: var(--hover);
+}
+
+.starter[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--hover);
+}
+
+.starter-frame {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  aspect-ratio: 16 / 9;
+  padding: 14px;
+  border-radius: 10px;
+  background: var(--s-bg);
+  color: var(--s-fg);
+  overflow: hidden;
+  /* A white specimen still needs an edge, or it dissolves into the page. */
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 8%);
+}
+
+.starter-kicker {
+  font: 500 9px/1 var(--mono);
+  letter-spacing: 0.08em;
+  color: var(--s-accent);
+}
+
+.starter-title {
+  font: 600 18px/1.15 var(--font);
+  letter-spacing: -0.01em;
+}
+
+.starter-sub {
+  font: 10px/1.3 var(--font);
+  color: var(--s-muted);
+}
+
+.starter-name {
+  font: 500 13px/1.3 var(--font);
+  color: var(--fg);
+}
+
+.starter-blurb {
+  font: 12px/1.4 var(--font);
+  color: var(--muted);
+}
+
+.discover-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 720px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.discover-actions[hidden] {
+  display: none;
+}
+
+.discover-prompt {
+  margin: 0;
+  color: var(--fg);
+  font: 13px/1.6 var(--font);
+}
+
+.discover-buttons {
+  display: flex;
+  gap: 8px;
 }

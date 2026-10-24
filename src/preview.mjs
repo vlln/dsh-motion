@@ -78,21 +78,130 @@ if (stageStack && 'ResizeObserver' in window) {
  * A workspace with no film is a normal state, not an error: the panel says so
  * and points at the conversation, which is where a film gets asked for.
  */
+/**
+ * No film yet is a starting point, not an error: offer a few directions, each a
+ * specimen card plus the prompt that would produce that look. Sending the prompt
+ * is the same channel a comment uses — the conversation is where work begins.
+ */
+const STARTERS = [
+  {
+    id: 'space',
+    name: '深空叙事',
+    blurb: '深底、暖金强调、纪录片式标注',
+    palette: { bg: '#070b14', fg: '#f2f2f0', accent: '#e0b040', muted: '#8b98ad' },
+    sample: { kicker: '1987 — 1991', title: 'The long orbit', sub: '一段关于距离的说明' },
+    prompt:
+      '用「深空叙事」的风格做一段 20 秒动画：深色底、暖金色强调、左上角小号年代标注、标题居中、下方时间轴式注记，动效克制（淡入 + 缓慢推移）。',
+  },
+  {
+    id: 'paper',
+    name: '纸感手作',
+    blurb: '米色纸面、铁锈红、手工拼贴感',
+    palette: { bg: '#f4f1ea', fg: '#1c1a17', accent: '#c25b3a', muted: '#6b645c' },
+    sample: { kicker: 'A SHORT STUDY', title: 'Paper, cut slow', sub: '手工纸张与停格质感' },
+    prompt:
+      '用「纸感手作」的风格做一段 20 秒动画：米色纸面质感、铁锈红强调、粗衬线标题、边框像剪贴纸片，动作做成停格感（每秒 8–12 帧的顿挫）。',
+  },
+  {
+    id: 'neon',
+    name: '数据冷光',
+    blurb: '近黑底、青绿描边、数据卡片',
+    palette: { bg: '#05060a', fg: '#e8fbff', accent: '#35e0c8', muted: '#6b7f88' },
+    sample: { kicker: 'THROUGHPUT', title: '1.4M / day', sub: '每一条都在变' },
+    prompt:
+      '用「数据冷光」的风格做一段 20 秒动画：近黑底、青绿描边、数字大字与细线卡片，数字滚动与线条生长作为主要动效，不要装饰性插画。',
+  },
+  {
+    id: 'mono',
+    name: '极简黑白',
+    blurb: '纯白底、超大排版、零装饰',
+    palette: { bg: '#ffffff', fg: '#111111', accent: '#111111', muted: '#6b6b6b' },
+    sample: { kicker: '', title: 'Form follows', sub: '只靠字号和留白' },
+    prompt:
+      '用「极简黑白」的风格做一段 20 秒动画：纯白底、黑色超大号排版、只用字号/字重/留白制造层次，动效是最小位移与遮罩揭示。',
+  },
+];
+
 function showEmptyFilm() {
   document.querySelector('.app')?.remove();
   document.querySelector('.timeline')?.remove();
   const empty = document.createElement('div');
-  empty.className = 'empty-film';
+  empty.className = 'discover';
   empty.innerHTML = `
-    <div class="empty-icon" aria-hidden="true">
-      <svg viewBox="0 0 24 24" width="28" height="28" focusable="false">
-        <path d="M9 7.5v9l7.5-4.5z" fill="currentColor" />
-      </svg>
+    <header class="discover-head">
+      <h2>从一个方向开始</h2>
+      <p>这个工作区还没有片子。挑一个方向，把提示词发到对话里，agent 就按这个调子做。</p>
+    </header>
+    <div class="discover-grid">
+      ${STARTERS.map(
+        (style) => `
+        <button class="starter" data-id="${style.id}">
+          <span class="starter-frame" style="--s-bg:${style.palette.bg};--s-fg:${style.palette.fg};--s-accent:${style.palette.accent};--s-muted:${style.palette.muted}">
+            <span class="starter-kicker">${style.sample.kicker}</span>
+            <span class="starter-title">${style.sample.title}</span>
+            <span class="starter-sub">${style.sample.sub}</span>
+          </span>
+          <span class="starter-name">${style.name}</span>
+          <span class="starter-blurb">${style.blurb}</span>
+        </button>`,
+      ).join('')}
     </div>
-    <h2>这个工作区还没有片子</h2>
-    <p>在对话里告诉 agent 你想做什么。它会在工作区的 <code>motion/</code> 里建一条，画面会出现在这里。</p>`;
+    <div class="discover-actions" hidden>
+      <p class="discover-prompt" id="discoverPrompt"></p>
+      <div class="discover-buttons">
+        <button class="btn ghost" id="discoverCopy">复制提示词</button>
+        <button class="btn" id="discoverSend">发到对话</button>
+      </div>
+    </div>`;
   document.body.append(empty);
   document.body.dataset.empty = 'film';
+
+  const actions = empty.querySelector('.discover-actions');
+  const promptEl = empty.querySelector('#discoverPrompt');
+  const send = empty.querySelector('#discoverSend');
+  const copy = empty.querySelector('#discoverCopy');
+  let chosen = null;
+
+  const pick = (style) => {
+    chosen = style;
+    for (const button of empty.querySelectorAll('.starter')) {
+      button.setAttribute('aria-pressed', String(button.dataset.id === style.id));
+    }
+    promptEl.textContent = style.prompt;
+    actions.hidden = false;
+    send.disabled = !sessionId;
+    send.textContent = sessionId ? '发到对话' : '在对话里打开才能发送';
+  };
+
+  for (const button of empty.querySelectorAll('.starter')) {
+    button.addEventListener('click', () => pick(STARTERS.find((s) => s.id === button.dataset.id)));
+  }
+
+  copy?.addEventListener('click', async () => {
+    if (!chosen) return;
+    try {
+      await navigator.clipboard.writeText(chosen.prompt);
+      copy.textContent = '已复制';
+    } catch {
+      promptEl.focus();
+      copy.textContent = '选中后自行复制';
+    }
+    setTimeout(() => (copy.textContent = '复制提示词'), 1600);
+  });
+
+  send?.addEventListener('click', () => {
+    if (!chosen || !sessionId) return;
+    window.parent.postMessage(
+      { type: 'dshm:comment', id: `starter-${Date.now()}`, session: sessionId, text: chosen.prompt },
+      location.origin,
+    );
+    send.textContent = '已发送';
+    send.disabled = true;
+    setTimeout(() => {
+      send.textContent = '发到对话';
+      send.disabled = false;
+    }, 2000);
+  });
 
   // The film can appear while this page is open — the agent is often still
   // working when the column is opened. Watch for it instead of waiting for a
@@ -707,6 +816,15 @@ function renderVersions(data) {
     });
   }
 }
+
+// A dropdown closes when you click anywhere else or press Escape — the same
+// contract every other menu on the page follows.
+window.addEventListener('pointerdown', (e) => {
+  if (versionMenu?.open && !e.target.closest('#versionMenu')) versionMenu.open = false;
+});
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && versionMenu?.open) versionMenu.open = false;
+});
 
 async function loadVersions() {
   try {

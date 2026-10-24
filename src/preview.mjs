@@ -29,12 +29,6 @@ const assetList = $('assetList');
 const assetScope = $('assetScope');
 const assetNote = $('assetNote');
 const staleEl = $('stale');
-const projectScope = $('projectScope');
-const projectPick = $('projectPick');
-const projectTemplate = $('projectTemplate');
-const projectName = $('projectName');
-const projectCreate = $('projectCreate');
-const projectNote = $('projectNote');
 const exportOpen = $('exportOpen');
 const exportModal = $('exportModal');
 const exportClose = $('exportClose');
@@ -574,55 +568,6 @@ pollRevision();
 setInterval(pollRevision, 2000);
 $('staleReload').addEventListener('click', () => location.reload());
 
-// --- projects: switch files, or seed a new one from a template ---
-const currentFile = (target ?? './timeline.json').replace(/^\.\//, '');
-
-async function loadProjects() {
-  try {
-    const data = await (await fetch('./api/projects')).json();
-    projectPick.replaceChildren();
-    for (const project of data.projects) {
-      const option = document.createElement('option');
-      option.value = project.file;
-      option.textContent = `${project.file} · ${project.scenes} 幕 · ${project.duration}s`;
-      option.selected = project.file === currentFile;
-      projectPick.append(option);
-    }
-    projectTemplate.replaceChildren();
-    for (const template of data.templates) {
-      const option = document.createElement('option');
-      option.value = template.id;
-      option.textContent = `${template.title}（${template.note}）`;
-      projectTemplate.append(option);
-    }
-    projectScope.textContent = currentFile;
-  } catch {
-    projectNote.textContent = '读取项目列表失败。';
-  }
-}
-
-projectPick.addEventListener('change', () => {
-  location.href = `?timeline=./${projectPick.value}`;
-});
-
-projectCreate.addEventListener('click', async () => {
-  projectCreate.disabled = true;
-  try {
-    const res = await fetch('./api/projects', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name: projectName.value, template: projectTemplate.value }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error ?? res.statusText);
-    location.href = `?timeline=./${data.file}`;
-  } catch (err) {
-    projectNote.textContent = `新建失败：${err.message}`;
-  } finally {
-    projectCreate.disabled = false;
-  }
-});
-
 // --- export: the panel should be where a film leaves ---
 const segValue = (field) =>
   document.querySelector(`.seg[data-field="${field}"] button[aria-pressed="true"]`)?.dataset.value;
@@ -705,7 +650,6 @@ expRun.addEventListener('click', async () => {
 
 // --- style: the film's palettes are data, so a style is one lookup away ---
 const styleList = $('styleList');
-const styleAuto = $('styleAuto');
 const paletteEditor = $('paletteEditor');
 const paletteTokens = $('paletteTokens');
 const paletteName = $('paletteName');
@@ -752,8 +696,6 @@ function applyStyle(name) {
   for (const button of styleList.querySelectorAll('.palette')) {
     button.setAttribute('aria-pressed', String(button.dataset.style === name));
   }
-  styleAuto.disabled = !name;
-  styleAuto.textContent = name ? '恢复片子的原配色' : '片子自带的配色';
   renderPaletteEditor(name);
   // Scenes bake palette colours into sprites at mount, so rebuilding them is the
   // difference between a new style and a new style that does not paint.
@@ -861,12 +803,8 @@ function buildStyles() {
   for (const button of styleList.querySelectorAll('.palette')) {
     button.addEventListener('click', () => applyStyle(button.dataset.style));
   }
-  styleAuto.disabled = !currentStyle;
-  styleAuto.textContent = currentStyle ? '恢复片子的原配色' : '片子自带的配色';
   renderPaletteEditor(currentStyle);
 }
-
-styleAuto?.addEventListener('click', () => applyStyle(''));
 
 buildStyles();
 applyStyle(currentStyle);
@@ -1463,7 +1401,6 @@ renderFrame();
 
 comments.refreshThreads();
 refreshHistory();
-loadProjects();
 
 window.__PREVIEW__ = {
   ready: true,

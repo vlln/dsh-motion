@@ -816,46 +816,6 @@ code {
   flex: 1;
 }
 
-.menu {
-  position: relative;
-}
-
-.menu > summary {
-  list-style: none;
-  cursor: pointer;
-  padding: 6px 10px;
-  border-radius: 8px;
-  color: var(--muted);
-  font: 500 12px/1.2 var(--font);
-  user-select: none;
-}
-
-.menu > summary::-webkit-details-marker {
-  display: none;
-}
-
-.menu > summary:hover,
-.menu[open] > summary {
-  background: var(--hover);
-  color: var(--fg);
-}
-
-.menu-body {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 8px);
-  width: 260px;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  background: var(--surface);
-  border: 0.5px solid var(--line);
-  border-radius: 10px;
-  box-shadow: 0 12px 30px rgb(0 0 0 / 14%);
-  z-index: 30;
-}
-
 [data-embed='card'] .topbar {
   display: none;
 }
@@ -922,25 +882,6 @@ body:not(.tweaks) .app {
 
 .icon-btn:hover,
 .icon-btn[aria-pressed='true'] {
-  background: var(--hover);
-  color: var(--fg);
-}
-
-.menu > summary {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-}
-
-.menu > summary svg {
-  width: 16px;
-  height: 16px;
-}
-
-.menu > summary:hover,
-.menu[open] > summary {
   background: var(--hover);
   color: var(--fg);
 }
@@ -1715,16 +1656,6 @@ body:not(.tweaks) .app {
   gap: 8px;
 }
 
-.at-chip {
-  flex: none;
-  margin-top: 3px;
-  padding: 2px 6px;
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--accent) 22%, transparent);
-  color: #cfe0ff;
-  font: 500 11px/1.4 var(--font);
-}
-
 .popover textarea {
   flex: 1;
   min-height: 44px;
@@ -1856,27 +1787,6 @@ body.annotating .canvas-box {
 
 .palette[aria-pressed='true'] {
   box-shadow: 0 0 0 0.5px rgb(0 0 0 / 8%), 0 0 0 2px var(--fg);
-}
-
-.link-btn {
-  margin-top: 10px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--muted);
-  font: 12px/1.4 var(--font);
-  text-decoration: underline;
-  cursor: pointer;
-}
-
-.link-btn:hover:not(:disabled) {
-  color: var(--fg);
-}
-
-.link-btn:disabled {
-  opacity: 0.55;
-  text-decoration: none;
-  cursor: default;
 }
 
 

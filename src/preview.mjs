@@ -1000,6 +1000,8 @@ loopBtn.addEventListener('click', () => {
 // module, so that case only raises a banner.
 const timelineSrc = target ?? './timeline.json';
 let revision = null;
+let pendingTree = null;
+let pendingSince = 0;
 
 const dataOnly = (value) => JSON.stringify({ ...value, beats: undefined });
 
@@ -1022,7 +1024,23 @@ async function pollRevision() {
       return;
     }
 
-    if (next.tree !== revision.tree) staleEl.hidden = false;
+    // Scene *code* cannot be hot-swapped (the browser caches the module), so a
+    // banner is not enough: the panel would keep showing the old film while the
+    // agent thinks it shipped a new one. Wait until the tree stops changing,
+    // then reload the whole page.
+    if (next.tree !== revision.tree) {
+      staleEl.hidden = false;
+      const now = Date.now();
+      if (pendingTree !== next.tree) {
+        pendingTree = next.tree;
+        pendingSince = now;
+      } else if (now - pendingSince > 1500) {
+        location.reload();
+        return;
+      }
+    } else {
+      pendingTree = null;
+    }
     if (next.timeline === revision.timeline) return;
 
     // Never overwrite a field someone is typing into: try again next tick.

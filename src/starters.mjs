@@ -616,19 +616,14 @@ export const SAMPLES = [
       const my = h * 0.14;
       const mr = Math.min(w, h) * 0.062;
       // the moon is a pale wash of ink, not a lit disc
-      g.save();
-      g.globalAlpha = 0.16;
-      g.fillStyle = '#5b5244';
+      const moon = g.createRadialGradient(mx - mr * 0.3, my - mr * 0.3, mr * 0.1, mx, my, mr * 1.12);
+      moon.addColorStop(0, 'rgba(94, 84, 68, 0.20)');
+      moon.addColorStop(0.75, 'rgba(94, 84, 68, 0.10)');
+      moon.addColorStop(1, 'rgba(94, 84, 68, 0)');
+      g.fillStyle = moon;
       g.beginPath();
-      g.arc(mx, my, mr * 1.06, 0, TAU);
+      g.arc(mx, my, mr * 1.12, 0, TAU);
       g.fill();
-      g.restore();
-      g.globalAlpha = 0.05;
-      g.fillStyle = '#8a7d66';
-      g.beginPath();
-      g.arc(mx, my, mr, 0, TAU);
-      g.fill();
-      g.globalAlpha = 1;
 
       // wet wash under the trunk: ink pooling where the brush pressed
       const wash = g.createRadialGradient(w * 0.5, h * 0.9, 0, w * 0.5, h * 0.9, w * 0.09);
@@ -647,15 +642,42 @@ export const SAMPLES = [
         if (p <= 0) return;
         const ex = x + Math.cos(angle) * len * p;
         const ey = y + Math.sin(angle) * len * p;
-        g.strokeStyle = '#2b2620';
-        g.globalAlpha = depth > 3 ? 0.85 : 0.6;
-        g.lineWidth = Math.max(0.8, depth * 0.62);
-        g.shadowColor = 'rgba(43,38,32,0.45)';
-        g.shadowBlur = depth > 3 ? 2.2 : 1;
+        // A brush stroke is not a line: it bends, it starts wide and ends thin,
+        // and it is drawn as a filled ribbon so the taper is real.
+        const bend = (noise(depth + x * 0.01) - 0.5) * 0.18;
+        const mx = (x + ex) / 2 - (ey - y) * bend;
+        const my = (y + ey) / 2 + (ex - x) * bend;
+        const w0 = Math.max(0.9, depth * 0.72);
+        const w1 = Math.max(0.5, depth * 0.5);
+        const N = 7;
+        const pts = [];
+        for (let i = 0; i <= N; i++) {
+          const q = i / N;
+          const px = (1 - q) * (1 - q) * x + 2 * (1 - q) * q * mx + q * q * ex;
+          const py = (1 - q) * (1 - q) * y + 2 * (1 - q) * q * my + q * q * ey;
+          pts.push([px, py, w0 + (w1 - w0) * q]);
+        }
+        g.fillStyle = '#2b2620';
+        g.globalAlpha = depth > 3 ? 0.85 : 0.62;
         g.beginPath();
-        g.moveTo(x, y);
-        g.lineTo(ex, ey);
-        g.stroke();
+        for (let i = 0; i < pts.length; i++) {
+          const a = pts[Math.max(0, i - 1)];
+          const b = pts[Math.min(pts.length - 1, i + 1)];
+          const dx = b[0] - a[0];
+          const dy = b[1] - a[1];
+          const d = Math.hypot(dx, dy) || 1;
+          g.lineTo(pts[i][0] - (dy / d) * pts[i][2] * 0.5, pts[i][1] + (dx / d) * pts[i][2] * 0.5);
+        }
+        for (let i = pts.length - 1; i >= 0; i--) {
+          const a = pts[Math.max(0, i - 1)];
+          const b = pts[Math.min(pts.length - 1, i + 1)];
+          const dx = b[0] - a[0];
+          const dy = b[1] - a[1];
+          const d = Math.hypot(dx, dy) || 1;
+          g.lineTo(pts[i][0] + (dy / d) * pts[i][2] * 0.5, pts[i][1] - (dx / d) * pts[i][2] * 0.5);
+        }
+        g.closePath();
+        g.fill();
         if (p < 0.99) return;
         if (depth === 1) {
           tips.push([ex, ey]);

@@ -82,10 +82,18 @@ async function init() {
 
 async function check() {
   if (flag('perf')) {
-    await run('perf.mjs', ['--budget', String(opt('budget', 33))], FILM);
+    await run('perf.mjs', ['--budget', String(opt('budget', 33)), ...(flag('strict') ? ['--strict'] : [])], FILM);
     return;
   }
-  return validate();
+  await validate();
+  if (flag('fast')) return;
+  // Stills look fine while playback stutters, so the default check measures too.
+  // Loud, not fatal: a heavy scene is a fix, not an invalid film.
+  try {
+    await run('perf.mjs', ['--budget', String(opt('budget', 33)), ...(flag('strict') ? ['--strict'] : [])], FILM);
+  } catch {
+    if (flag('strict')) process.exit(1);
+  }
 }
 
 async function validate() {
@@ -466,7 +474,7 @@ if (!cmd || !commands[cmd]) {
   console.error('');
   console.error('  init      [--title "…"] [--length 6] | [--template <id>]  (--template list prints them)');
   console.error('  reference <video> [--template id] [--fps 2] [--cols 4]    frames, cuts, shot list into out/ref');
-  console.error('  check [--perf] [--budget 33]                         the timeline, or the per-frame cost of each scene');
+  console.error('  check [--fast] [--strict] [--budget 33]               the timeline, then each scene\'s frame cost');
   console.error('  render    [--stills 0,3,6] | [--video] [--export] [--out path] [--cols 3]');
   console.error('  version   -m "what changed" | version list | version use v3');
   process.exit(cmd ? 1 : 0);

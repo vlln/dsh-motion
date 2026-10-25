@@ -10,16 +10,16 @@ import { chromium } from 'playwright';
 import { startServer } from './serve.mjs';
 import { findChromium } from './lib/chromium.mjs';
 import { createGate } from './lib/gate.mjs';
+import { fixtureFilm } from './lib/fixture-film.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const BIN = path.join(ROOT, 'bin/dsh-motion.mjs');
 const { check, finish } = createGate();
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-motion-beats-'));
 const { origin, close } = await startServer(0, { project: path.join(tmp, 'motion') });
 
 try {
-  execFileSync(process.execPath, [BIN, 'init', '--template', 'kinetic'], { cwd: tmp });
+  fixtureFilm(tmp, { id: 'shot', length: 6 });
 
   // A storyboard with one beat and its still, as `storyboard --write` leaves it.
   const ref = path.join(tmp, 'motion/out/ref');

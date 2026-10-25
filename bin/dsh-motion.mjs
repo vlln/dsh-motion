@@ -12,9 +12,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateTimeline } from '../src/validate.mjs';
 import { modules } from '../src/project.mjs';
-import { createFilm } from '../src/film.mjs';
 import { createVersion, listVersions, useVersion } from '../src/versions.mjs';
-import { createFilmFromTemplate, listTemplates } from '../src/film.mjs';
+import { scaffoldFilm } from '../src/film.mjs';
 import { sheetFor } from '../src/audio.mjs';
 
 const PKG = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -60,49 +59,19 @@ const ffmpeg = (args) =>
   });
 
 /**
- * Start a film. The default is a stage, not an empty room: an empty room makes
- * the agent invent layout, palette, motion and material before it can think
- * about the film, and the result is always the cheapest of each.
- *
- * `--blank` is the old behaviour for films that should start from nothing.
+ * Start a film: a timeline with no shots, an empty storyboard, and a copy of
+ * the kit. No look — a starter style becomes the film whether or not it fits
+ * the subject, which is why every film used to look like the last one.
  */
 async function init() {
-  const from = opt('template');
-  if (from === 'list' || from === '') {
-    for (const name of listTemplates()) console.log(name);
-    return;
-  }
-  const plan = path.join(PKG, 'templates', 'plan.md');
-  const withPlan = (dir) => {
-    const dest = path.join(dir, 'PLAN.md');
-    if (fs.existsSync(plan) && !fs.existsSync(dest)) fs.copyFileSync(plan, dest);
-  };
-
-  if (from === undefined && !flag('blank')) {
-    const { dir, film } = createFilmFromTemplate(process.cwd(), 'plate');
-    withPlan(dir);
-    console.log(`motion/ ← template "plate" · ${film.scenes.length} scene(s) · ${film.duration}s`);
-    console.log(`  ${film.scenes.map((x) => x.id).join(', ')}  in ${path.relative(process.cwd(), dir)}`);
-    console.log('a real picture is the world and one sprite is the actor — replace both, keep the shape.');
-    console.log('for a type-led or product film instead: dsh-motion init --blank');
-    return;
-  }
-  if (from !== undefined) {
-    const { dir, film } = createFilmFromTemplate(process.cwd(), from);
-    withPlan(dir);
-    console.log(`motion/ ← template "${from}" · ${film.scenes.length} scene(s) · ${film.duration}s`);
-    console.log(`  ${film.scenes.map((x) => x.id).join(', ')}  in ${path.relative(process.cwd(), dir)}`);
-    return;
-  }
-
-  const { dir } = createFilm(process.cwd(), { title: opt('title', 'Untitled'), length: Number(opt('length', 6)) });
-  withPlan(dir);
-  console.log('motion/timeline.json');
-  console.log('motion/PLAN.md');
-  console.log('motion/scenes/blank.mjs');
-  console.log('write PLAN.md first (eight sections), then replace the starter scene');
+  const { dir, film } = scaffoldFilm(process.cwd(), { title: opt("title", "Untitled") });
+  const rel = path.relative(process.cwd(), dir) || ".";
+  console.log(`${rel}/timeline.json  · ${film.scenes.length} scene(s)`);
+  console.log(`${rel}/镜头表.md     ← write this first: the look in three lines, then one row per shot`);
+  console.log(`${rel}/kit/           ← samples you may copy, change or delete`);
+  console.log("");
+  console.log("next: 填镜头表 → 写 scenes/<id>.mjs（导出 mount/render）→ dsh-motion check");
 }
-
 async function check() {
   if (flag('perf')) {
     await run('perf.mjs', ['--budget', String(opt('budget', 33)), ...(flag('strict') ? ['--strict'] : [])], FILM);
@@ -369,17 +338,26 @@ async function storyboard() {
   if (flag('write')) {
     const file = path.join(FILM, 'timeline.json');
     const timeline = JSON.parse(fs.readFileSync(file, 'utf8'));
-    const sourceScene = path.join(FILM, 'scenes', `${sceneId}.mjs`);
-    if (!fs.existsSync(sourceScene)) {
-      fail(
-        `scene "${sceneId}" is built in: copy it into motion/scenes/ first, then run storyboard --write again`,
-      );
+    // The reference gives rhythm, not shots: write the table the agent has to
+    // fill in. Splitting a scene across beats is only possible once one exists.
+    const rows = beats
+      .map((beat) => `| ${beat.start.toFixed(2)}–${(beat.start + beat.length).toFixed(2)}s |  |  | 停 | — |  |`)
+      .join("\n");
+    fs.writeFileSync(
+      path.join(refDir("out/ref"), "镜头表.md"),
+      `# 从参考量出来的镜头表\n\n参考：${index.duration.toFixed(2)}s，${beats.length} 个节拍。\n\n| 时间段 | 画面里的物（名词） | 它在做什么（动词） | 镜头 | 屏上字 | 做法 |\n|---|---|---|---|---|---|\n${rows}\n\n把「物」和「动词」填上——填不出的那一行先别做。\n`,
+    );
+    const sourceScene = sceneId ? path.join(FILM, "scenes", `${sceneId}.mjs`) : null;
+    if (!sourceScene || !fs.existsSync(sourceScene)) {
+      console.log("shots: none in the film yet — wrote out/ref/镜头表.md");
+      console.log("  fill the table, write scenes/<id>.mjs, run dsh-motion reference --shots --write again to split it per beat");
+      return;
     }
     // One scene file per beat, each with its own id: the film can't repeat one id.
     const body = fs.readFileSync(sourceScene, 'utf8');
     const ids = beats.map((beat, i) => {
       const id = `beat${String(i + 1).padStart(2, '0')}`;
-      const copy = body.replace(/export const id = '[^']+';/, `export const id = '${id}';`);
+      const copy = body.replace(/export const id = ['"][^'"]+['"];/, `export const id = '${id}';`);
       fs.writeFileSync(path.join(FILM, 'scenes', `${id}.mjs`), copy);
       return id;
     });
@@ -424,26 +402,21 @@ async function storyboard() {
 }
 
 /**
- * One command for the reference-first loop: start the film from a template, read
+ * One command for the reference-first loop: read
  * the reference into out/ref, and write a brief the agent can work from.
  */
 async function reference() {
   if (flag('shots')) return storyboard();
   const src = argv[1];
-  if (!src) fail('usage: dsh-motion reference <video> [--template kinetic] [--fps 2]');
+  if (!src) fail('usage: dsh-motion reference <video> [--fps 2]');
   const source = path.resolve(src);
   if (!fs.existsSync(source)) fail(`no such file: ${src}`);
-  const templateId = opt('template', 'kinetic');
   const fps = Math.max(0.2, Math.min(10, Number(opt('fps', 2)) || 2));
 
-  let created = null;
-  if (!fs.existsSync(path.join(FILM, 'timeline.json'))) {
-    created = createFilmFromTemplate(process.cwd(), templateId);
-  }
+  if (!fs.existsSync(path.join(FILM, 'timeline.json'))) fail('no film here — run: dsh-motion init (the breakdown belongs to a film)');
   const film = JSON.parse(fs.readFileSync(path.join(FILM, 'timeline.json'), 'utf8'));
   const index = readVideo(source, { fps, cols: 4, outDir: refDir('out/ref') });
   const brief = {
-    template: created ? templateId : null,
     film: {
       width: film.width,
       height: film.height,
@@ -453,14 +426,14 @@ async function reference() {
     reference: index,
     next: [
       'compare the sheet with motion/out/ref/sheet.jpg',
-      'pick one beat from cuts and rebuild it on the template scene',
+      'fill out/ref/镜头表.md: one row per beat, a thing and what it does',
       'dsh-motion validate && dsh-motion render --stills 0,2,4',
       'dsh-motion version -m "what changed"',
     ],
   };
   fs.writeFileSync(path.join(refDir('out/ref'), 'brief.json'), `${JSON.stringify(brief, null, 2)}\n`);
   console.log(
-    `${created ? `film ← template "${templateId}"` : 'film kept'} · ${index.frames} frames · ${index.cuts.length} cuts`,
+    `${index.frames} frames · ${index.cuts.length} cuts · film kept`,
   );
   console.log(`brief: motion/out/ref/brief.json`);
 }
@@ -468,7 +441,7 @@ async function reference() {
 // check --perf is the same verb, a different question.
 
 const commands = {
-  init,       // start a film (blank or from a template)
+  init,       // start a film: an empty timeline, a storyboard and the kit
   reference,  // read a reference video into the film
   check,      // does the film hold together
   render,     // stills, video, export
@@ -481,8 +454,8 @@ if (!cmd || !commands[cmd]) {
   if (cmd) console.error(`unknown command "${cmd}" — there are five: ${Object.keys(commands).join(', ')}`);
   console.error('usage: dsh-motion <init|reference|check|render|version> [options]');
   console.error('');
-  console.error('  init      [--title "…"] [--length 6] | [--template <id>]  (--template list prints them)');
-  console.error('  reference <video> [--template id] [--fps 2] [--cols 4]    frames, cuts, shot list into out/ref');
+  console.error('  init      [--title "…"]                      empty timeline + 镜头表 + kit');
+  console.error('  reference <video> [--fps 2] [--cols 4]           frames, cuts, shot list into out/ref');
   console.error('  check [--fast] [--strict] [--budget 33]               the timeline, then each scene\'s frame cost');
   console.error('  render    [--stills 0,3,6] | [--video] [--export] [--out path] [--cols 3]');
   console.error('  version   -m "what changed" | version list | version use v3');

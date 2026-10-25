@@ -7,8 +7,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const PKG_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const TEMPLATES = path.join(PKG_ROOT, 'templates');
-const TEMPLATE = path.join(PKG_ROOT, 'templates', 'blank.mjs');
+const KIT = path.join(PKG_ROOT, 'kit');
+const STORYBOARD = path.join(PKG_ROOT, 'protocol', '镜头表.md');
 
 const PALETTE = {
   bg: '#0b1426',
@@ -32,25 +32,27 @@ export function hasFilm(root) {
 /** Throw the sentence the agent will actually read. */
 export function requireFilm(root) {
   if (!hasFilm(root)) {
-    throw new Error(
-      'this workspace has no film yet — call motion_project with action=create first (it writes motion/timeline.json and motion/scenes/blank.mjs)',
-    );
+    throw new Error('this workspace has no film yet — run `dsh-motion init` (it writes motion/timeline.json, motion/镜头表.md and copies kit/)');
   }
   return filmDir(root);
 }
 
 /**
- * Create the workspace's film. Refuses to overwrite: a second create would
- * silently replace whatever the human and the agent already made.
+ * Start a film: a timeline with no shots, an empty storyboard, and a copy of
+ * the kit.
+ *
+ * It deliberately does NOT bring a look. A starter scene is a style the agent
+ * inherits whether or not it fits the subject, and the first thing that happens
+ * to an inherited style is that it becomes the film. The shape here is: write
+ * the storyboard, then write the first shot in your own code, using kit/ as
+ * samples you are free to delete.
  */
-export function createFilm(root, { title = 'Untitled', name = '开场', length = 6 } = {}) {
+export function scaffoldFilm(root, { title = 'Untitled' } = {}) {
   const dir = filmDir(root);
   const timeline = path.join(dir, 'timeline.json');
   if (fs.existsSync(timeline)) throw new Error(`a film already exists at ${path.relative(root, timeline)}`);
 
-  const seconds = Math.max(1, Math.min(600, Number(length) || 6));
   fs.mkdirSync(path.join(dir, 'scenes'), { recursive: true });
-  fs.copyFileSync(TEMPLATE, path.join(dir, 'scenes', 'blank.mjs'));
   // Renders and undo copies are not the film; the timeline and the scenes are.
   fs.writeFileSync(path.join(dir, '.gitignore'), 'out/\n.snapshots/\n');
 
@@ -58,14 +60,19 @@ export function createFilm(root, { title = 'Untitled', name = '开场', length =
     width: 1920,
     height: 1080,
     fps: 60,
-    duration: seconds,
+    duration: 0,
     palettes: { main: { ...PALETTE } },
     overrides: {},
-    texts: { blank: { title: String(title || 'Untitled'), subtitle: '' } },
+    texts: {},
     values: {},
-    scenes: [{ id: 'blank', name: String(name || '开场'), start: 0, length: seconds, palette: 'main', speed: 1 }],
+    scenes: [],
   };
   fs.writeFileSync(timeline, `${JSON.stringify(film, null, 2)}\n`);
+
+  // Samples, not API: the film keeps its own copy and may delete every file.
+  if (fs.existsSync(KIT)) fs.cpSync(KIT, path.join(dir, 'kit'), { recursive: true });
+  if (fs.existsSync(STORYBOARD)) fs.copyFileSync(STORYBOARD, path.join(dir, '镜头表.md'));
+
   return { dir, timeline, film };
 }
 
@@ -82,45 +89,4 @@ export function describeFilm(root) {
     scenes: film.scenes?.length ?? 0,
     sceneIds: (film.scenes ?? []).map((s) => s.id),
   };
-}
-
-/**
- * Start a film from one of the package's templates: copy its timeline and its
- * scenes into the workspace. Templates that name a built-in scene ship only a
- * timeline; the rest carry their own .mjs.
- */
-export function listTemplates() {
-  if (!fs.existsSync(TEMPLATES)) return [];
-  return fs
-    .readdirSync(TEMPLATES, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory() && fs.existsSync(path.join(TEMPLATES, entry.name, 'timeline.json')))
-    .map((entry) => entry.name)
-    .sort();
-}
-
-export function createFilmFromTemplate(root, id) {
-  const name = String(id || '').trim();
-  if (!/^[a-z0-9-]+$/.test(name)) throw new Error('template id must be lowercase letters, digits or dashes');
-  const src = path.join(TEMPLATES, name);
-  if (!fs.existsSync(path.join(src, 'timeline.json'))) throw new Error(`no template "${name}"`);
-
-  const dir = filmDir(root);
-  const timeline = path.join(dir, 'timeline.json');
-  if (fs.existsSync(timeline)) throw new Error(`a film already exists at ${path.relative(root, timeline)}`);
-
-  fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(path.join(dir, '.gitignore'), 'out/\n.snapshots/\n');
-  fs.copyFileSync(path.join(src, 'timeline.json'), timeline);
-  // scenes are code, assets are files, fonts are files: all three travel with
-  // the template, or the film it makes is broken on arrival.
-  for (const sub of ['scenes', 'assets', 'fonts']) {
-    const from = path.join(src, sub);
-    if (!fs.existsSync(from)) continue;
-    fs.cpSync(from, path.join(dir, sub), { recursive: true });
-  }
-  for (const file of ['CREDITS.md']) {
-    if (fs.existsSync(path.join(src, file))) fs.copyFileSync(path.join(src, file), path.join(dir, file));
-  }
-  const film = JSON.parse(fs.readFileSync(timeline, 'utf8'));
-  return { dir, timeline, film };
 }

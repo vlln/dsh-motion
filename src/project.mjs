@@ -311,28 +311,6 @@ export async function rebakeAsset(root, name, src, file = 'timeline.json') {
   return { name, src: target, manifest };
 }
 
-/**
- * Render the finished file and return where it landed. The panel calls this with
- * the timeline it is looking at; the file name carries a timestamp so repeated
- * exports do not overwrite each other.
- */
-/** Scene modules that can seed a new project, with what each one needs. */
-export const TEMPLATES = {
-  'first-peoples': { title: '时间轴示例', note: '一条时间轴 + 双泳道卡片', length: 6 },
-  'data-lab': { title: '数据与图表', note: '数字槽 + 条形', length: 4 },
-  'media-lab': { title: '素材与实拍', note: '图片 + 视频帧（需要 out/fixtures）', length: 4 },
-  'text-lab': { title: '文字版式', note: '中文断行 + 多行', length: 4 },
-};
-
-const MAIN_PALETTE = {
-  bg: '#0b1426',
-  fg: '#f2f2f0',
-  accent: '#e0b040',
-  muted: '#8b98ad',
-  grid: '#243450',
-  panel: '#101c33',
-};
-
 const sha = (buf) => crypto.createHash('sha1').update(buf).digest('hex').slice(0, 16);
 
 /**
@@ -375,46 +353,11 @@ export function listProjects(root) {
     });
 }
 
-/** Create a new timeline file from a template and return its name. */
-export async function createProject(root, { name, template }) {
-  const spec = TEMPLATES[template];
-  if (!spec) throw new Error(`unknown template "${template}" (available: ${Object.keys(TEMPLATES).join(', ')})`);
-  const slug = String(name ?? '').trim().toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '');
-  if (!slug || slug.length > 40) throw new Error('name must be 1–40 chars of letters, digits or dashes');
-
-  const file = `timeline-${slug}.json`;
-  const abs = path.join(root, file);
-  if (fs.existsSync(abs)) throw new Error(`${file} already exists`);
-
-  const mods = await modules();
-  if (!mods.some((m) => m.id === template)) throw new Error(`no scene module registered for "${template}"`);
-
-  const length = spec.length;
-  const timeline = {
-    width: 1920,
-    height: 1080,
-    fps: 60,
-    duration: length,
-    palettes: { main: { ...MAIN_PALETTE } },
-    assets:
-      template === 'media-lab'
-        ? {
-            plate: { kind: 'image', src: 'out/fixtures/plate.png' },
-            clipA: { kind: 'clip', src: 'out/fixtures/clip.mp4', fps: 24 },
-          }
-        : undefined,
-    overrides: {},
-    texts: {},
-    values: {},
-    scenes: [{ id: template, name: spec.title, start: 0, length, palette: 'main', speed: 1 }],
-  };
-  if (!timeline.assets) delete timeline.assets;
-
-  assertValid(timeline, mods);
-  fs.writeFileSync(abs, `${JSON.stringify(timeline, null, 2)}\n`);
-  return { file, template, duration: length };
-}
-
+/**
+ * Render the finished file and return where it landed. The panel calls this with
+ * the timeline it is looking at; the file name carries a timestamp so repeated
+ * exports do not overwrite each other.
+ */
 export async function exportProject(root, opts = {}) {
   const file = opts.file ?? 'timeline.json';
   const timeline = readTimeline(root, file);

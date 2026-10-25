@@ -1727,7 +1727,9 @@ window.__PREVIEW__ = {
 
 // A film that was just created from a template opens on its cover frame, not on
 // the black frame an entrance starts from.
-if (new URLSearchParams(location.search).get('from') === 'template') {
+// A film that names a cover opens there: the poster is the frame a stranger
+// sees first, so it should not depend on how the visitor arrived.
+{
   const poster = Math.min(Number(timeline.poster) || 0, Math.max(0, total - 0.05));
   if (poster > 0) seekTo(poster);
 }

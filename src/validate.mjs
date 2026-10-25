@@ -75,7 +75,12 @@ export function validateTimeline(timeline, modules = null) {
 
   // scenes
   if (!Array.isArray(timeline.scenes) || timeline.scenes.length === 0) {
-    err('scenes', 'must be a non-empty array');
+    // A scaffolded film has no shots yet. That is a state, not a typo: say what
+    // to do about it instead of failing the schema.
+    err(
+      'scenes',
+      'this film has no shots yet — write 镜头表.md (the look in three lines, then one row per shot: a thing and what it does), then add scenes/<id>.mjs',
+    );
   } else {
     const ids = new Set();
     const moduleById = new Map((modules ?? []).map((m) => [m.id, m]));

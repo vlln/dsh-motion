@@ -3,7 +3,7 @@
 // implementation, two mount points.
 
 import { createVersion, currentVersion, isDirty, listVersions, useVersion } from './versions.mjs';
-import { setProjectPoster, TEMPLATES, createProject, describeProject, exportProject, history, listProjects, rebakeAsset, restoreProject, revision, setProjectAsset, setProjectParam, setProjectScene, deleteProjectScene, setProjectPalette, setProjectText, setProjectValue } from './project.mjs';
+import { setProjectPoster, describeProject, exportProject, history, listProjects, rebakeAsset, restoreProject, revision, setProjectAsset, setProjectParam, setProjectScene, deleteProjectScene, setProjectPalette, setProjectText, setProjectValue } from './project.mjs';
 
 const json = (res, code, data) => {
   res.writeHead(code, { 'content-type': 'application/json; charset=utf-8' });
@@ -110,17 +110,7 @@ export function paramsHandlers(root) {
       const out = await exportProject(root, { format, fps, supersample, height, quality, file: timeline });
       json(res, 200, { ok: true, ...out });
     }),
-    projects: wrap(async (req, res) =>
-      json(res, 200, {
-        projects: listProjects(root),
-        templates: Object.entries(TEMPLATES).map(([id, spec]) => ({ id, ...spec })),
-      }),
-    ),
-    create: wrap(async (req, res) => {
-      const { name, template } = await readBody(req);
-      const out = await createProject(root, { name, template });
-      json(res, 200, { ok: true, ...out });
-    }),
+    projects: wrap(async (req, res) => json(res, 200, { projects: listProjects(root) })),
     revision: wrap(async (req, res) => {
       const url = new URL(req.url ?? '/', 'http://127.0.0.1');
       const file = url.searchParams.get('timeline') ?? 'timeline.json';

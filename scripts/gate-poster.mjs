@@ -4,19 +4,18 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { startServer } from './serve.mjs';
 import { findChromium } from './lib/chromium.mjs';
 import { createGate } from './lib/gate.mjs';
+import { fixtureFilm } from './lib/fixture-film.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const BIN = path.join(ROOT, 'bin/dsh-motion.mjs');
 const { check, finish } = createGate();
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-motion-poster-'));
-execFileSync(process.execPath, [BIN, 'init', '--template', 'kinetic'], { cwd: tmp });
+fixtureFilm(tmp, { id: 'shot', length: 6 });
 const file = path.join(tmp, 'motion/timeline.json');
 const read = () => JSON.parse(fs.readFileSync(file, 'utf8'));
 
@@ -44,10 +43,10 @@ try {
 
   const browser = await chromium.launch({ executablePath: findChromium(), args: ['--hide-scrollbars'] });
   const page = await browser.newPage({ viewport: { width: 460, height: 1000 } });
-  await page.goto(`${origin}/preview.html?from=template`, { waitUntil: 'load' });
+  await page.goto(`${origin}/preview.html`, { waitUntil: 'load' });
   await page.waitForTimeout(1600);
   const clock = await page.evaluate(() => document.querySelector('#tc')?.textContent);
-  check('a template-made film opens on the cover', clock === '0:02.50', clock);
+  check('a film that names a cover opens on it', clock === '0:02.50', clock);
   await browser.close();
 } finally {
   await new Promise((resolve) => {

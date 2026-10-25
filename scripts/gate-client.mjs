@@ -11,7 +11,7 @@ import { chromium } from 'playwright';
 import { bootWeb, dismissOverlays, install, linkSdk, seedHome } from './lib/dsh.mjs';
 import { findChromium } from './lib/chromium.mjs';
 import { createGate } from './lib/gate.mjs';
-import { createFilm } from '../src/film.mjs';
+import { fixtureFilm } from './lib/fixture-film.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const { check, finish } = createGate();
@@ -20,7 +20,8 @@ const { check, finish } = createGate();
 // never in the human's real Documents/deepseek-harness workspace.
 const docs = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-motion-docs-'));
 const workspace = path.join(docs, 'deepseek-harness', 'default-workspace');
-createFilm(workspace, { title: 'Gate film', length: 6 });
+// The gate brings its own film: the package no longer ships a look.
+fixtureFilm(workspace, { id: 'blank', length: 6, name: 'Gate film' });
 
 const home = seedHome();
 let boot;

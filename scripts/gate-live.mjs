@@ -37,8 +37,14 @@ try {
 
   // The panel reloads itself when scene code changes, so a poll can land between
   // documents. A missing handle is "not yet", not a failure.
-  const titleOf = () =>
-    page.evaluate(() => window.__PREVIEW__?.texts().find((t) => t.slot === 'title')?.text ?? '');
+  const titleOf = async () => {
+    try {
+      return await page.evaluate(() => window.__PREVIEW__?.texts().find((t) => t.slot === 'title')?.text ?? '');
+    } catch {
+      // the document went away between the poll and the evaluate: not yet
+      return '';
+    }
+  };
   check('the panel starts on the file', (await titleOf()) === 'The first peoples', await titleOf());
 
   // --- an outside write to the timeline shows up in place ---

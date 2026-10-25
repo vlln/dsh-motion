@@ -73,28 +73,27 @@ npm run preview      # 本地预览 → http://127.0.0.1:4173/preview.html
 
 ## 目录
 
+从「谁能改」分四层，不是一个平铺的文件清单：
+
 ```
-timeline.json              时间源：scenes[] / palettes{} / texts{}
-index.html                 画布页
-src/kernel.mjs             时间轴、挂载、解析、渲染
-src/palette.mjs            颜色解析（缺 token 抛错）
-src/texts.mjs              槽读写 + 使用计数校验
-src/params.mjs             参数解析 / 范围校验 / 面板描述
-src/snapshots.mjs          写前快照（.motion/snapshots，保留 20 份）
-src/project.mjs            校验 → 快照 → 写入（面板与工具共用这一层）
-src/rng.mjs                确定性随机
-src/scenes/history.mjs     时间轴式场景的共享画法（双泳道卡片 + 节拍脉冲）
-scripts/serve.mjs          开发用静态服务器（file:// 不能加载 ES module）
-scripts/capture.mjs        still / sheet / video（有音轨时自动 mux）
-scripts/gates.mjs          画面门禁（确定性 / 文本槽 / 调色板）
-scripts/gate-params.mjs    参数回路门禁
-scripts/gate-surface.mjs   工具面门禁
-scripts/synth.mjs          确定性音床（纯合成，无版权素材）
-scripts/beats.mjs          节拍分析：BPM / 拍点 / drop
-scripts/wave.mjs           波形 + 拍线 + drop 标记 → 给 agent 看
-scripts/mux.mjs            silent.mp4 + 音频 → 成片（视频流直接 copy）
-scripts/gate-audio.mjs     音频门禁（流 / 时长 / 响度 / 节拍）
+src/           引擎：时间、画布、确定性、缓存、出片、音频、字体、素材。没有一行画画的代码
+  kernel.mjs     时间轴、挂载、解析、渲染
+  project.mjs    校验 → 快照 → 写入
+  scenes/        只一个 index.mjs：按 id 动态 import 片子的场景
+
+kit/           可整删的样例手艺（笔触/媒介/像素/透视/骨架/后期）。引擎永不 import
+cards/         一个风格一张卡：管线、色板、签名特征、坑、短板、状态三档
+howto/         做法的规程：新风格六步、从参考里取、角色、镜头表、六种做坏、打分表、交付
+scenes/        本仓库自己那条示例片的场景（不是引擎的一部分）
+examples/      四部完整示例：三次冷启动 + 埃及卡
+fixtures/      门禁用时间轴夹具
+docs/          决策记录、内核契约、冷启动记录
+skills/        给 agent 的那份说明书
+scripts/       出片、抽帧、门禁
+bin/           dsh-motion 命令行
 ```
+
+判据三条：**`src/` 里没有画法；`kit/` 删掉照样跑；`cards/` 加一张，引擎不加一行。**
 
 ## 门禁抓到的两个真问题
 

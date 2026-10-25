@@ -59,7 +59,14 @@ await page.goto(`${origin}/index.html${query}`);
 await page.waitForFunction(() => window.__MOTION__?.ready === true, null, { timeout: 30000 });
 
 const isVideo = has('video');
-const out = path.resolve(PROJECT, opt('out', isVideo ? 'out/video.mp4' : 'out/out.png'));
+let outArg = opt("out", isVideo ? "out/video.mp4" : "out/out.png");
+// A bare name is a typo waiting to look like a success: ffmpeg writes the frames
+// and then refuses to name the file. Add the extension the mode implies.
+if (!path.extname(outArg)) {
+  outArg += isVideo ? ".mp4" : ".png";
+  console.log(`(no extension given — writing ${outArg})`);
+}
+const out = path.resolve(PROJECT, outArg);
 fs.mkdirSync(path.dirname(out), { recursive: true });
 
 async function renderAt(t) {

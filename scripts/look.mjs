@@ -173,7 +173,8 @@ if (refFile) {
 if (flag('json')) {
   console.log(JSON.stringify(report));
 } else {
-  const line = (label, m) => `${label} solid ${m.flatness.toFixed(2)} · texture ${m.texture.toFixed(1)}`;
+  const line = (label, m) =>
+    `${label} solid ${m.flatness.toFixed(2)} · texture ${m.texture.toFixed(1)} · contrast ${m.contrast}`;
   console.log(`look · ${report.at}s · ${line('mine', stats)}`);
   if (refStats) console.log(`       ${line('ref ', refStats)} · colour distance ${spread}`);
   // The yardstick, measured on the three exemplars and the reference. A number

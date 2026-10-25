@@ -59,45 +59,44 @@ const result = await page.evaluate(async () => {
     });
     playBtn?.click();                       // pause
     deltas.splice(0, 4);                    // the first few after a seek are not the scene
-    deltas.sort((a, b) => a - b);
-    const median = deltas.length ? deltas[Math.floor(deltas.length / 2)] : 999;
-    out.push({ id: scene.id, ms: +median.toFixed(1), frames: deltas.length });
+    const sorted = [...deltas].sort((a, b) => a - b);
+    const median = sorted.length ? sorted[Math.floor(sorted.length / 2)] : 999;
+
+    // rAF is vsync-locked: while the scene fits in a frame the median is always
+    // 16.7ms on a 60Hz display, so it can only ever prove an OVERRUN. The number
+    // that says what the scene costs is a direct render.
+    const t1 = performance.now();
+    const N = 24;
+    for (let i = 0; i < N; i++) p.setTime(scene.start + ((i + 1) / N) * Math.max(0.1, scene.length - 0.1));
+    const cost = (performance.now() - t1) / N;
+    out.push({ id: scene.id, ms: +median.toFixed(1), cost: +cost.toFixed(2), frames: deltas.length });
   }
-  // Cross-check the playback numbers against the cost of rendering the frame
-  // directly. Headless Chrome throttles rAF in bursts (150ms, 300ms); when the
-  // direct cost is tiny the stutter is the measurement, not the scene.
-  const probe = out[0]?.id;
-  let direct = null;
-  if (probe) {
-    const p2 = window.__PREVIEW__;
-    const t0 = performance.now();
-    for (let i = 0; i < 20; i++) p2.setTime(p2.time() + i / 600);
-    direct = (performance.now() - t0) / 20;
-  }
-  return { rows: out, direct };
+  return { rows: out };
 });
 
 await browser.close();
 close();
 
-const { rows, direct } = result;
-const worst = rows.reduce((a, r) => (r.ms > a.ms ? r : a), rows[0] ?? { ms: 0, id: '—' });
+const { rows } = result;
+const worst = rows.reduce((a, r) => (r.cost > a.cost ? r : a), rows[0] ?? { cost: 0, id: '—' });
 for (const r of rows) {
-  console.log(`${String(r.ms).padStart(7)} ms  ${r.id}${r.ms > budget ? '   ← over budget' : ''}`);
+  const over = r.cost > budget;
+  const late = r.ms > budget * 1.2;
+  console.log(
+    `${String(r.cost).padStart(7)} ms  ${r.id}` +
+      `${over ? '   ← over budget' : ''}` +
+      `${late ? '   (playback drops frames)' : ''}`,
+  );
 }
-// A frame that costs 0.3ms to draw cannot cost 150ms to play: that is the
-// browser skipping frames, not the film.
-const throttled = direct !== null && direct < budget / 8 && worst.ms > budget * 3;
-if (throttled) {
-  console.log(`\nnote · playback is throttled in this environment (direct render ${direct.toFixed(2)} ms/frame).`);
-  console.log('       the numbers above are dropped rAF callbacks, not scene cost; nothing to fix here.');
-  process.exit(0);
+if (rows.some((r) => r.ms > budget * 1.2)) {
+  console.log('\nnote · a scene is dropping frames in playback; the cost column says whether it is the scene');
+  console.log('       or the environment. Under ~8ms of draw cost, assume the browser.');
 }
-const over = rows.filter((r) => r.ms > budget);
+const over = rows.filter((r) => r.cost > budget);
 if (!over.length) {
-  console.log(`\nok · every scene under ${budget} ms (worst ${worst.ms} ms, ${worst.id})`);
+  console.log(`\nok · every scene under ${budget} ms of draw cost (worst ${worst.cost} ms, ${worst.id})`);
   process.exit(0);
 }
-console.log(`\nwarn · ${over.length} scene(s) over ${budget} ms — playback will stutter (worst ${worst.ms} ms, ${worst.id})`);
+console.log(`\nwarn · ${over.length} scene(s) over ${budget} ms of draw cost — playback will stutter (worst ${worst.cost} ms, ${worst.id})`);
 console.log('     the preview redraws this every frame; a heavy scene looks fine in stills and feels broken in play');
 process.exit(strict ? 1 : 0);

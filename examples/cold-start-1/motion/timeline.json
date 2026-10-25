@@ -1,20 +1,76 @@
 {
   "width": 1920,
   "height": 1080,
-  "fps": 60,
-  "duration": 0,
+  "fps": 30,
+  "duration": 11.4,
   "palettes": {
     "main": {
-      "bg": "#0b1426",
-      "fg": "#f2f2f0",
-      "accent": "#e0b040",
-      "muted": "#8b98ad",
-      "grid": "#243450",
-      "panel": "#101c33"
+      "bg": "#eee3cd",
+      "fg": "#221d17",
+      "accent": "#9c3a26",
+      "muted": "#8a7d6a",
+      "grid": "#d8c9ad",
+      "panel": "#f4ebda"
     }
   },
   "overrides": {},
-  "texts": {},
+  "texts": {
+    "cold": {
+      "colophon": "茶凉了"
+    }
+  },
   "values": {},
-  "scenes": []
+  "scenes": [
+    {
+      "id": "pour",
+      "name": "放好的一盏茶",
+      "start": 0,
+      "length": 3.2,
+      "palette": "main",
+      "speed": 1
+    },
+    {
+      "id": "steam",
+      "name": "蒸汽",
+      "start": 3.2,
+      "length": 3.2,
+      "palette": "main",
+      "speed": 1
+    },
+    {
+      "id": "surface",
+      "name": "液面",
+      "start": 6.4,
+      "length": 2.4,
+      "palette": "main",
+      "speed": 1
+    },
+    {
+      "id": "cold",
+      "name": "凉",
+      "start": 8.8,
+      "length": 2.6,
+      "palette": "main",
+      "speed": 1
+    }
+  ],
+  "audio": {
+    "src": "assets/audio/bed.wav",
+    "targetLufs": -20
+  },
+  "beats": {
+    "bpm": 52,
+    "beats": [
+      0,
+      1.154,
+      2.308,
+      3.462,
+      4.615,
+      5.769,
+      6.923,
+      8.077,
+      9.231,
+      10.385
+    ]
+  }
 }

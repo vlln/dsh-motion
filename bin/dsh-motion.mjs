@@ -22,7 +22,12 @@ const argv = process.argv.slice(2);
 const cmd = argv[0];
 
 const opt = (name, fallback) => {
-  const i = argv.indexOf(`--${name}`);
+  // Both spellings, because the manual taught `-m` for a year and a half of the
+  // CLI only looked for `--m`: the flag was silently dropped and the version
+  // title came out empty.
+  const long = argv.indexOf(`--${name}`);
+  const short = name.length === 1 ? argv.indexOf(`-${name}`) : -1;
+  const i = long === -1 ? short : long;
   return i === -1 ? fallback : argv[i + 1];
 };
 const flag = (name) => argv.includes(`--${name}`);
@@ -143,11 +148,12 @@ async function deliver() {
   if (r.moved <= 0.5) red.push('the film is a slideshow');
   if (r.frozenRun > 3) console.log(`note nothing moves for ${r.frozenRun.toFixed(1)}s — fine for a painted hold, not for a shot`);
 
+  const purpleReason = opt('allow-blue-purple', '');
   if (r.purpleShare > 0.3 && !flag('allow-blue-purple')) {
     say(false, 'not one blue-violet haze', `${(r.purpleShare * 100).toFixed(0)}% of pixels`);
     red.push('blue-violet covers more than 30% of the film — pass --allow-blue-purple "reason" if the subject needs it');
   } else {
-    say(true, 'not one blue-violet haze', `${(r.purpleShare * 100).toFixed(0)}% of pixels`);
+    say(true, 'not one blue-violet haze', `${(r.purpleShare * 100).toFixed(0)}% of pixels${purpleReason ? ` — allowed: ${purpleReason}` : ''}`);
   }
 
   if (red.length) fail(`not deliverable:\n  - ${red.join('\n  - ')}`);

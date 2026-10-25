@@ -39,8 +39,11 @@ description: 在工作区里做或改一条动画：写 motion/timeline.json 和
 - **一镜一个具体的物和一个动作。** 写不出物的那一行，先别做——它还不是一个镜头。
 - **一片一套画风、一套色板**，管到最后一帧。中途换画风就是拼贴。
 - **样板只学做法，不搬画面。** 参考的构图、角色、配色不进成片。
-- **新风格必须先量参考**：至少 3 幅不同作品，写 5 条签名特征（必须／加分／禁忌）。
-  没有这一步，做出来的一定是「同一个现代插画师换了套色板」。
+- **有参考、或者用户点名了风格** → 走 [`protocol/新风格.md`](../protocol/新风格.md) 六步：
+  至少 3 幅不同作品，写 5 条签名特征（必须／加分／禁忌）。没有这一步，做出来的一定是
+  「同一个现代插画师换了套色板」。
+- **只给了一个题目、没给参考** → 不走六步。在镜头表里定画风三行，自己挑一个方向做下去；
+  但只要你打算把这个画法**登记成 `cards/` 里的一张卡**，就得补六步：量参考、写签名、并排、盲评。
 - **禁止在扁平矢量上叠一层噪点就算风格。** 媒介改变的是形，不是表面。
 - **确定性**：所有随机用 `ctx.rng(key)`，同一时刻渲两次逐像素一致。
 - **一次对话，不是一次校验**：写完镜头表给用户看一眼再动手。
@@ -63,7 +66,7 @@ motion/
 ## 开工顺序
 
 1. **填 `镜头表.md`**：画风三行、每镜的物和动作。填不满别往下走。
-2. **一帧先行**：先把一镜的静帧画对，`dsh-motion render --stills 3 --out out/try`。
+2. **一帧先行**：先把一镜的静帧画对，`dsh-motion render --stills 3 --out out/try.png`（`--out` 不带扩展名会自动补，但带上更清楚）。
    这一帧不对，动画只会放大这个不对。
 3. **让它动**：一个主动作 + 两个母题循环。不要所有片子都用同一套淡入淡出。
 4. **`check`**：时间线、每幕的单帧耗时、画面构成。
@@ -76,7 +79,7 @@ motion/
 **第一件事不是写代码，是把画面说清楚。** `init` 放好的就是那张表：上面三行画风，下面每镜一行。
 这张表是给人看的，程序不读它——程序读的是 `timeline.json`。但**没有它，你会一路改一路偏**。
 
-表写不满，多半是下面某一件事没想清楚。用户没给的（画风、素材、节奏）由你定，但必须写明理由：
+表里只有两段：三行画风 + 每镜一行。写不满，多半是下面某一件事没想清楚——**这八条是想清楚的清单，不是文档的小节**。用户没给的（画风、素材、节奏）由你定，但必须写明理由：
 
 | 节 | 写什么 | 写不满的表现 |
 |---|---|---|
@@ -170,7 +173,7 @@ dsh-motion check --perf        # 每个场景的单帧耗时，超 33ms 退出�
 2. 抽帧排一排对着镜头表看，再并排看参考：**去掉名字还认得出吗**；
 3. 派一个没参与制作的 agent 只看成片审片，结论写进 `motion/审片/*.md`。
 
-`check` 里 look 那三个数（`solid` / `texture` / `contrast`）**只是线索，不是门槛**：
+`check` 里 look 那三个数（`solid` 大块同色占比 / `texture` 局部细节 / `contrast` 明度跨度）**只是线索，不是门槛**：
 暗帧天然低，平涂天然高。有参考就比参考，没参考就挑一张同类的帧比，别拿它当分数。
 详见 [`protocol/交付.md`](../protocol/交付.md)。
 
@@ -235,8 +238,9 @@ dsh-motion version use v3                        # 切回某个版本（会先�
 - 有 `pad` 或 `score` 就有节拍：`timeline.beats` 会被写上，场景里 `ctx.beats` 直接对得上。
 
 ```bash
-node <skill>/scripts/make-audio.mjs           # 渲染，打印要贴进 timeline 的那行
-node <skill>/scripts/make-audio.mjs --write   # 渲染并写回 timeline.json
+# 脚本在包的 skills/dsh-motion/scripts/ 下。从片子根目录跑时给相对路径，或先 cd 到包目录：
+node ../../skills/dsh-motion/scripts/make-audio.mjs      # 渲染，打印要贴进 timeline 的那行
+node skills/dsh-motion/scripts/make-audio.mjs --write   # 渲染并写回 timeline.json
 ```
 
 它产出三样：`motion/assets/audio/bed.wav`、`motion/out/audio/wave.png`（波形 + 每条 cue
@@ -247,7 +251,7 @@ node <skill>/scripts/make-audio.mjs --write   # 渲染并写回 timeline.json
 
 | kind | 是什么 | 参数 |
 |---|---|---|
-| `rain` `roomtone` `wind` `pad` | 铺底 | `gain`；`pad` 还有 `bpm` `root` `chord` |
+| `rain` `roomtone` `wind` `pad` | 铺底 | `gain`；`pad` 还有 `bpm`（每分钟拍数）、`root`（**频率，Hz**，不是音名）、`chord`（**频率倍数数组**，不是和弦名） |
 | `score` | **配乐**：段落、和声、动机 | `bpm`、`key`、`chords`、`motif`、`sections` |
 | `clock` | 铺底，秒针 | `every`（默认 1 秒一响） |
 | `page` `bell` `wheel` `click` | 事件 | `at`、`gain`；`bell` 还有 `freq` `decay` |
@@ -284,8 +288,8 @@ node <skill>/scripts/make-audio.mjs --write   # 渲染并写回 timeline.json
 ### 自带：把一条轨变成片子的配乐
 
 ```bash
-node <skill>/scripts/make-audio.mjs --use assets/audio/theme.wav --write
-node <skill>/scripts/make-audio.mjs --use ~/Downloads/music.mp3 --loop --write
+node skills/dsh-motion/scripts/make-audio.mjs --use assets/audio/theme.wav --write
+node skills/dsh-motion/scripts/make-audio.mjs --use ~/Downloads/music.mp3 --loop --write
 ```
 
 - 文件不在片子里就先复制进 `motion/assets/audio/`——片子要能整个搬走；

@@ -1,0 +1,44 @@
+{
+  "layers": [
+    {
+      "kind": "roomtone",
+      "gain": 0.5
+    },
+    {
+      "kind": "pad",
+      "gain": 0.16,
+      "bpm": 52,
+      "root": 73.42,
+      "chord": [
+        1,
+        1.5,
+        2,
+        3
+      ]
+    },
+    {
+      "kind": "click",
+      "at": 0.55,
+      "gain": 0.2
+    },
+    {
+      "kind": "bell",
+      "at": 3.6,
+      "gain": 0.22,
+      "freq": 318,
+      "decay": 2.4
+    },
+    {
+      "kind": "click",
+      "at": 6.7,
+      "gain": 0.15
+    },
+    {
+      "kind": "bell",
+      "at": 9.15,
+      "gain": 0.22,
+      "freq": 236,
+      "decay": 1.5
+    }
+  ]
+}

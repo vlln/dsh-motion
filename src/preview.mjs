@@ -87,22 +87,25 @@ function showEmptyFilm() {
   document.querySelector('.app')?.remove();
   document.querySelector('.timeline')?.remove();
 
+  // Uses the .empty-film styles that already exist — the previous version
+  // invented .start* classes and no CSS was ever written for them, so the
+  // panel rendered a column of bare text.
   const empty = document.createElement('div');
-  empty.className = 'start';
+  empty.className = 'empty-film';
   empty.innerHTML = `
-    <div class="start-card">
-      <h1>这个片子还没有镜头</h1>
-      <p class="start-lead">先写一张镜头表，再写第一镜。画风是从参考里量出来的，不是从引擎里选的。</p>
-      <ol class="start-steps">
-        <li><b>锁画风</b>：一句话的画风、3–6 个色值、角色有没有。</li>
-        <li><b>写镜头表</b>：每镜一个具体的物和它的动作；写不出物的那一行先别做。</li>
-        <li><b>写一镜</b>：<code>scenes/&lt;id&gt;.mjs</code> 导出 <code>mount()</code> 和 <code>render(t)</code>，画法自己写，<code>kit/</code> 里是可抄的样例。</li>
-      </ol>
-      <p class="start-foot">新风格照 <code>howto/新风格.md</code> 走六步，做完写一张 <code>cards/</code> 卡。</p>
-    </div>`;
+    <div class="empty-icon" aria-hidden="true">✎</div>
+    <h2>这个片子还没有镜头</h2>
+    <p>先写一张镜头表，再写第一镜。画风是从参考里量出来的，不是从引擎里选的。</p>
+    <ol>
+      <li><b>锁画风</b>：一句话的画风、3–6 个色值、角色有没有。</li>
+      <li><b>写镜头表</b>：每镜一个具体的物和它的动作；写不出物的那一行先别做。</li>
+      <li><b>写一镜</b>：<code>scenes/&lt;id&gt;.mjs</code> 导出 <code>mount()</code> 和 <code>render(t)</code>。</li>
+    </ol>
+    <p class="empty-foot">画法自己写。<code>kit/</code> 是可整删的样例，<code>howto/</code> 是规程，<code>cards/</code> 是风格知识。</p>`;
   document.body.append(empty);
   document.body.dataset.empty = 'film';
 }
+
 
 // Render at the size the stage actually occupies, capped by the film's own
 // resolution: a 1920-wide film in a 900px panel costs a quarter of the pixels.

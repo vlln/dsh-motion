@@ -4,10 +4,15 @@
 // 下栏是人的世界（池塘、水鸟、供桌、走路的少女），最底一条水带。
 // 没有透视、没有渐变、没有笔触——只有平涂和等宽线。
 //
+// 下栏里有两套人体，别混：墙上的埃及程式人物（egyptian()，侧脸、正面眼、
+// 正面双肩、腰以下收窄）和前面那个现代小孩（figure()，白帽、圆眼镜、会走路）。
+// 前者属于壁画，后者是"穿越"进来的那一个——两者的比例和画法本来就不一样。
+//
 // 密度是这个风格的一半：空白处要填满小母题，但每个母题都要能被一眼认出来。
 
 import {
-  C, rng, ink, poly, beadBand, toothBand, column, drawGlyph, water, fish, fowl, papyrus, figure, flatten, PALETTE,
+  C, rng, ink, poly, beadBand, toothBand, column, drawGlyph, water, fish, fowl, papyrus,
+  figure, egyptian, capsule, cast, jar, flatten, PALETTE,
 } from './_egypt.mjs';
 
 export const id = 'egypt';
@@ -148,123 +153,142 @@ function drawBase(g) {
   g.lineTo(W, BANK);
   g.stroke();
 
-  // 左：一排陶罐（填空，也是密度）
-  for (let i = 0; i < 4; i++) {
-    const x = 150 + i * 82;
-    const h = 96 - (i % 2) * 14;
-    ink(g, (g2) => {
-      g2.beginPath();
-      g2.moveTo(x - 14, BANK - h);
-      g2.lineTo(x + 14, BANK - h);
-      g2.quadraticCurveTo(x + 34, BANK - h * 0.45, x + 22, BANK);
-      g2.lineTo(x - 22, BANK);
-      g2.quadraticCurveTo(x - 34, BANK - h * 0.45, x - 14, BANK - h);
-      g2.closePath();
-    }, i % 2 ? C.red : C.gold, { lw: 2.2 });
-    g.strokeStyle = C.line;
-    g.lineWidth = 2;
-    g.beginPath();
-    g.moveTo(x - 22, BANK - h * 0.42);
-    g.lineTo(x + 22, BANK - h * 0.42);
-    g.stroke();
-  }
+  // ---- 人间：陈设要有大小、有前后、有影子，不是一排等距标签 ----
+  // 左边一组罐：五个，高低错开、前后叠一点
+  const pots = [
+    { x: 108, h: 146, w: 62, fill: C.gold, band: C.turq, kind: 'amphora' },
+    { x: 176, h: 96, w: 66, fill: C.red, band: C.gold, kind: 'pot' },
+    { x: 232, h: 126, w: 54, fill: C.gold, band: C.redBr, kind: 'amphora' },
+    { x: 292, h: 68, w: 62, fill: C.turq, band: C.gold, kind: 'pot' },
+    { x: 352, h: 112, w: 50, fill: C.red, band: C.turq, kind: 'amphora' },
+  ];
+  for (const p of pots) jar(g, { x: p.x, y: BANK, h: p.h, w: p.w, fill: p.fill, band: p.band, kind: p.kind });
 
-  // 中左：矮供桌 + 面包（填空白，也是密度）
-  g.save();
-  g.translate(560, BANK);
-  ink(g, (g2) => poly(g2, [[-64, 0], [64, 0], [70, -10], [-70, -10]]), C.gold, { lw: 2.8 });
-  ink(g, (g2) => poly(g2, [[-52, -10], [52, -10], [40, -34], [-40, -34]]), C.cream, { lw: 2.8 });
-  for (let i = -1; i <= 1; i++) {
-    ink(g, (g2) => {
-      g2.beginPath();
-      g2.ellipse(i * 26, -40, 13, 8, 0, Math.PI, Math.PI * 2);
-    }, C.gold, { lw: 2.4 });
-  }
-  g.restore();
+  // 人间的第一个人：墙上的埃及程式侍女（侧脸、正面眼、正面双肩），站着提莲花
+  egyptian(g, { x: 452, y: BANK, h: 272, face: 1, kind: 'woman' });
 
-  // 右：供桌（静态）
-  g.save();
-  g.translate(1560, BANK);
-  ink(g, (g2) => poly(g2, [[-80, 0], [80, 0], [88, -10], [-88, -10]]), C.gold, { lw: 2.4 });
-  ink(g, (g2) => poly(g2, [[-64, -10], [64, -10], [48, -36], [-48, -36]]), C.red, { lw: 2.4 });
-  for (let i = -2; i <= 2; i++) {
-    ink(g, (g2) => {
-      g2.beginPath();
-      g2.arc(i * 26, -42, 9, 0, Math.PI * 2);
-    }, i % 2 ? C.gold : C.green, { lw: 2 });
-  }
-  g.restore();
+  // 供桌：四条腿、桌板、面包、酒壶、一支莲花——每样都落在桌上
+  offeringTable(g, 648, BANK, 1);
 
-  // 右中：纸莎草与两只小鸟，把人物右边的空墙填掉
-  papyrus(g, 1180, BANK, 5, 120, 131);
-  fowl(g, 1280, BANK - 26, 0.5, 0);
+  // 右中：纸莎草 + 两只小罐，把人物右边的空墙填掉
+  papyrus(g, 1168, BANK, 5, 118, 131);
+  jar(g, { x: 1218, y: BANK, h: 76, w: 44, fill: C.turq, band: C.gold, kind: 'pot' });
+  jar(g, { x: 1262, y: BANK, h: 54, w: 40, fill: C.gold, band: C.red, kind: 'pot' });
+  fowl(g, 1352, BANK - 22, 0.44, 0);
 
-  // 右下：再来一排小罐，密度要一直铺到边上
-  for (let i = 0; i < 3; i++) {
-    const x = 1120 + i * 58;
-    ink(g, (g2) => {
-      g2.beginPath();
-      g2.moveTo(x - 10, BANK - 58);
-      g2.lineTo(x + 10, BANK - 58);
-      g2.quadraticCurveTo(x + 24, BANK - 28, x + 16, BANK);
-      g2.lineTo(x - 16, BANK);
-      g2.quadraticCurveTo(x - 24, BANK - 28, x - 10, BANK - 58);
-      g2.closePath();
-    }, i % 2 ? C.turq : C.gold, { lw: 2.4 });
-  }
-
-  // 底部水带与脚带
+  // 右下：圣甲虫推日轮（Khepri）——一个真能读出来的东西
+  // 底部水带与脚带  // 底部水带与脚带
   g.strokeStyle = C.line;
   g.lineWidth = 3.5;
   g.strokeRect(0, BOTTOM.y, W, BOTTOM.h);
   beadBand(g, 0, FOOT.y, W, FOOT.h, 40);
 }
 
-/** 圣甲虫推日球：横向匀速，轮子按走过的弧长转。 */
+/**
+ * 圣甲虫推日轮（Khepri）：一个真能读出来的东西，不是「红圆盘 + 蓝团块」。
+ * 日轮在前滚，甲虫在后推；六条腿抓地，头、胸、鞘翅分开画，底下有影子。
+ */
 function scarab(g, lt) {
-  const span = W - 520;
-  const x = 300 + ((lt * 210) % span);
-  const y = BANK - 26;
-  const r = 24;
-  ink(g, (g2) => {
-    g2.beginPath();
-    g2.arc(x - 40, y - 10, r, 0, Math.PI * 2);
+  const y = BANK - 4;
+  const x = 1520 + ((lt * 26) % 230);
+  // 影子：整组东西压在一条地上
+  cast(g, x + 6, y + 1, 78, 8);
+  const r = 27;
+  // 日轮
+  ink(g, (q) => {
+    q.beginPath();
+    q.arc(x + 34, y - r - 2, r, 0, Math.PI * 2);
   }, C.redBr, { lw: 3 });
-  g.save();
-  g.translate(x - 40, y - 10);
-  g.rotate(x / r);
   g.strokeStyle = C.gold;
-  g.lineWidth = 2.6;
+  g.lineWidth = 3;
   g.beginPath();
-  g.arc(0, 0, r * 0.5, 0.4, 2.2);
+  g.arc(x + 34, y - r - 2, r * 0.62, Math.PI * 0.15 + x * 0.02, Math.PI * 1.25 + x * 0.02);
   g.stroke();
   g.beginPath();
-  g.arc(0, 0, r * 0.5, 3.6, 5.4);
+  g.arc(x + 34, y - r - 2, r * 0.30, Math.PI * 1.15 + x * 0.02, Math.PI * 2.25 + x * 0.02);
   g.stroke();
-  g.restore();
 
-  g.save();
-  g.translate(x, y);
-  ink(g, (g2) => {
-    g2.beginPath();
-    g2.ellipse(0, 10, 16, 21, 0, 0, Math.PI * 2);
-  }, C.blue, { lw: 2.8 });
-  ink(g, (g2) => {
-    g2.beginPath();
-    g2.arc(0, -13, 10, 0, Math.PI * 2);
-  }, C.blueDk, { lw: 2.6 });
-  const step = Math.floor(lt * 15) % 2;
+  // 甲虫：头朝日轮
+  const bx = x - 4;
+  const by = y - 26;
+  // 腿：三对，折一下，抓住地
   g.strokeStyle = C.line;
-  g.lineWidth = 2.6;
-  for (const s of [-1, 1]) {
+  g.lineWidth = 3;
+  g.lineCap = 'round';
+  for (const sgn of [-1, 1]) {
     for (let k = 0; k < 3; k++) {
-      const lift = (k + step) % 2 ? 6 : -2;
+      const ay = by - 6 + k * 9;
       g.beginPath();
-      g.moveTo(s * 13, 2 + k * 9);
-      g.lineTo(s * 26, 8 + k * 9 + lift);
+      g.moveTo(bx + sgn * 9, ay);
+      g.lineTo(bx + sgn * 20, ay + 2 + k * 2);
+      g.lineTo(bx + sgn * 25, y + (k === 2 ? 0 : -3));
       g.stroke();
     }
   }
+  // 鞘翅：一大一小两片
+  ink(g, (q) => {
+    q.beginPath();
+    q.ellipse(bx, by + 4, 14, 19, 0, 0, Math.PI * 2);
+  }, C.blue, { lw: 2.8 });
+  g.strokeStyle = C.line;
+  g.lineWidth = 2;
+  g.beginPath();
+  g.moveTo(bx, by - 14);
+  g.lineTo(bx, by + 22);
+  g.stroke();
+  // 胸 + 头
+  ink(g, (q) => {
+    q.beginPath();
+    q.ellipse(bx + 3, by - 16, 9, 8, 0.2, 0, Math.PI * 2);
+  }, C.blueDk, { lw: 2.4 });
+  ink(g, (q) => {
+    q.beginPath();
+    q.ellipse(bx + 10, by - 24, 7, 5, 0.5, 0, Math.PI * 2);
+  }, C.blueDk, { lw: 2.2 });
+  // 前肢：顶住日轮
+  g.strokeStyle = C.line;
+  g.lineWidth = 3;
+  g.beginPath();
+  g.moveTo(bx + 12, by - 24);
+  g.lineTo(bx + 22, by - 30);
+  g.lineTo(bx + 30, by - 28);
+  g.stroke();
+}
+
+/** 供桌：四条腿撑一块板，板上坐面包、酒壶、莲花。桌腿有影子。 */
+function offeringTable(g, x, y, s = 1) {
+  g.save();
+  g.translate(x, y);
+  g.scale(s, s);
+  cast(g, 4, -2, 104, 9);
+  for (const lx of [-74, -46, 46, 74]) {
+    ink(g, (q) => poly(q, [[lx - 6, 0], [lx + 6, 0], [lx + 5, -46], [lx - 5, -46]]), C.gold, { lw: 2.2 });
+  }
+  ink(g, (q) => poly(q, [[-92, -46], [92, -46], [84, -62], [-84, -62]]), C.goldLt, { lw: 2.6 });
+  for (const [bx, by, r] of [[-56, -78, 14], [-30, -84, 17], [-4, -80, 15], [20, -85, 12]]) {
+    ink(g, (q) => {
+      q.beginPath();
+      q.ellipse(bx, by, r, r * 0.72, 0, Math.PI, Math.PI * 2);
+      q.lineTo(bx + r, by);
+      q.closePath();
+    }, C.redBr, { lw: 2.2 });
+  }
+  jar(g, { x: 58, y: -62, h: 46, w: 30, fill: C.cream, band: C.blue, kind: 'pot', lw: 2.2 });
+  g.strokeStyle = C.green;
+  g.lineWidth = 2.6;
+  g.beginPath();
+  g.moveTo(40, -62);
+  g.quadraticCurveTo(66, -120, 44, -164);
+  g.stroke();
+  ink(g, (q) => {
+    q.beginPath();
+    q.moveTo(44, -160);
+    q.quadraticCurveTo(24, -168, 30, -188);
+    q.quadraticCurveTo(40, -176, 44, -192);
+    q.quadraticCurveTo(52, -176, 60, -188);
+    q.quadraticCurveTo(66, -168, 44, -160);
+    q.closePath();
+  }, C.blue, { lw: 2.2 });
   g.restore();
 }
 
@@ -330,25 +354,8 @@ export function render(t) {
   scarab(g, lt);
 
   // 走路的少女：白帽子是"穿越"的那一个
-  const stride = Math.sin(lt * 3.4) * 0.5;
   const walkX = 900 + lt * 26;
-  const hands = figure(g, { x: walkX, y: BANK, h: 300, face: 1, hat: C.white, stride });
-  g.save();
-  g.translate(hands.hand[0] + 10, hands.hand[1] + 22);
-  ink(g, (g2) => {
-    g2.beginPath();
-    g2.moveTo(-30, -6);
-    g2.lineTo(30, -6);
-    g2.quadraticCurveTo(25, 22, 0, 22);
-    g2.quadraticCurveTo(-25, 22, -30, -6);
-  }, C.gold, { lw: 2.2 });
-  for (const [dx, col] of [[-16, C.red], [0, C.green], [16, C.gold]]) {
-    ink(g, (g2) => {
-      g2.beginPath();
-      g2.arc(dx, -13, 8, 0, Math.PI * 2);
-    }, col, { lw: 1.8 });
-  }
-  g.restore();
+  figure(g, { x: walkX, y: BANK, h: 272, face: 1, hat: C.white, phase: lt * 3.2 });
 
   // 底部水带
   waterLine(g, { x: 0, y: BOTTOM.y + 2, w: W, h: BOTTOM.h - 4 }, lt, 1);

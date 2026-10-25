@@ -406,122 +406,910 @@ export function papyrus(g, x, y, n, h, seed = 3) {
 }
 
 /**
- * 人：滚圆的一个小孩（白帽、圆眼镜、白 T 恤、短裤、球鞋）。
+ * 陶罐：不是"剪影 + 一条横线"，是一个有口、有颈、有肩、有脚的东西。
  *
- * 关键判断：参考片里的埃及段**主角不是埃及程式的人**，是一个现代小孩站在壁画里——
- * 这正是"穿越"的意思。我前几版照壁画的侧脸正面肩去画，方向就错了：
- * 壁画的人（如果有）应该用埃及程式；**主角**应该用卡通比例。
- *
- * 量自参考：总高 10 格（含帽），帽檐 8.7、头顶 8.4、下巴 6.4、肩 6.2、腰 4.6、
- * 短裤下摆 3.2、膝 2.4、踝 0.8。头 + 帽占 44%，这就是 Q 版的分界。
+ * 剖面用一条半径曲线采样成多边形：肩宽、腰收、底收，光看轮廓就分得出
+ * 高瓶和矮罐。再补：罐口椭圆、颈、肩上的彩色带、脚圈、地上一片影。
  */
-export function figure(g, { x, y, h = 272, face = 1, skin = C.skin, cloth = C.white, hat = null, stride = 0 }) {
-  const u = h / 10;
-  const L = C.line;
-  const lw = 0.14 * u;
-  const sw = stride;                        // -1..1，前后摆
+export function jar(g, { x, y, h = 110, w = 48, fill = C.gold, band = C.turq, kind = 'amphora', lw = 2.6 }) {
+  const R = w;   // 剖面半径以 w 为单位（最大 0.5 → 半宽 w/2）
+  // 半径剖面（从底到口）：amphora 是尖底高瓶，pot 是矮胖罐
+  const prof = kind === 'amphora'
+    ? [[0.00, 0.10], [0.06, 0.30], [0.16, 0.44], [0.34, 0.50], [0.56, 0.48], [0.74, 0.34], [0.86, 0.24], [0.93, 0.21], [1.00, 0.26]]
+    : [[0.00, 0.34], [0.05, 0.46], [0.20, 0.50], [0.45, 0.49], [0.70, 0.42], [0.85, 0.30], [0.93, 0.26], [1.00, 0.30]];
+  const rad = (t) => {
+    for (let i = 1; i < prof.length; i++) {
+      if (t <= prof[i][0]) {
+        const a = prof[i - 1];
+        const b = prof[i];
+        const k = (t - a[0]) / (b[0] - a[0] || 1);
+        return a[1] + (b[1] - a[1]) * k;
+      }
+    }
+    return prof[prof.length - 1][1];
+  };
+
+  // 影子：往光的那边偏一点，压在地上
+  cast(g, x + R * 0.2, y - 1.5, R * 0.72, Math.max(4, h * 0.045), C.wallDk);
+
+  const N = 22;
+  g.beginPath();
+  for (let i = 0; i <= N; i++) {
+    const t = i / N;
+    const px = x + rad(t) * R * (kind === 'amphora' ? 1 : 1);
+    const py = y - t * h;
+    i ? g.lineTo(px, py) : g.moveTo(px, py);
+  }
+  for (let i = N; i >= 0; i--) {
+    const t = i / N;
+    g.lineTo(x - rad(t) * R, y - t * h);
+  }
+  g.closePath();
+  g.fillStyle = fill;
+  g.fill();
+  g.strokeStyle = C.line;
+  g.lineWidth = lw;
+  g.lineJoin = 'round';
+  g.stroke();
+
+  // 罐口：一圈椭圆，像个真的口，不是一条线
+  g.beginPath();
+  g.ellipse(x, y - h, R * 0.26, Math.max(2.2, R * 0.10), 0, 0, Math.PI * 2);
+  g.fillStyle = C.line;
+  g.fill();
+
+  // 肩上的彩带：跟着罐子的弧度弯，不是一条直杠
+  const bandAt = (t0, col, width) => {
+    g.strokeStyle = col;
+    g.lineWidth = width;
+    g.beginPath();
+    for (let i = 0; i <= 12; i++) {
+      const a = Math.PI + (i / 12) * Math.PI;
+      const px = x + Math.cos(a) * rad(t0) * R;
+      const py = y - t0 * h + Math.sin(a) * rad(t0) * R * 0.12;
+      i ? g.lineTo(px, py) : g.moveTo(px, py);
+    }
+    g.stroke();
+  };
+  bandAt(kind === 'amphora' ? 0.78 : 0.80, band, Math.max(4, h * 0.055));
+  bandAt(kind === 'amphora' ? 0.70 : 0.72, C.cream, Math.max(1.6, h * 0.018));
+  // 锯齿：这条带是手画的，不是印的
+  g.strokeStyle = C.line;
+  g.lineWidth = 1.5;
+  g.beginPath();
+  for (let i = 0; i <= 9; i++) {
+    const a = Math.PI + (i / 9) * Math.PI;
+    const t = kind === 'amphora' ? 0.78 : 0.80;
+    const px = x + Math.cos(a) * rad(t) * R * 0.98;
+    const py = y - t * h + Math.sin(a) * rad(t) * R * 0.12;
+    i ? g.lineTo(px, py + (i % 2 ? -3 : 3)) : g.moveTo(px, py);
+  }
+  g.stroke();
+  // 脚：矮罐一圈圈足；高瓶坐在一副交叉的木架上（参考里就是这么立的）
+  g.strokeStyle = C.line;
+  g.lineWidth = 1.9;
+  if (kind === 'amphora') {
+    g.beginPath();
+    g.moveTo(x - R * 0.30, y - h * 0.06);
+    g.lineTo(x - R * 0.34, y);
+    g.moveTo(x + R * 0.30, y - h * 0.06);
+    g.lineTo(x + R * 0.34, y);
+    g.moveTo(x - R * 0.34, y);
+    g.lineTo(x + R * 0.10, y - h * 0.10);
+    g.moveTo(x + R * 0.34, y);
+    g.lineTo(x - R * 0.10, y - h * 0.10);
+    g.stroke();
+  } else {
+    g.beginPath();
+    g.moveTo(x - R * 0.40, y - h * 0.04);
+    g.lineTo(x + R * 0.40, y - h * 0.04);
+    g.stroke();
+  }
+}
+
+// ---------------- 人体 ----------------
+//
+// 两套人体，两套画法，别混：
+//
+//   egyptian()  → 墙上的埃及程式人物：侧脸、正面眼、正面双肩、腰以下收窄、
+//                 平涂 + 等宽线。它属于壁画，站在壁画的空气里。
+//   kidFigure() → 前面的现代卡通小孩：白帽、圆眼镜、白 T 恤、短裤、球鞋。
+//                 关节、重量、影子、手真的握住东西。
+//
+// 共同的地基是 capsule()：给一条骨架上铺等宽圆头笔画，先描一圈深棕，
+// 再铺肉色——两支骨的接头就自然圆过去了，不会出现"矩形管"的直角。
+
+const seg = (g, a, b, w, col) => {
+  g.strokeStyle = col;
+  g.lineWidth = w;
+  g.beginPath();
+  g.moveTo(a[0], a[1]);
+  g.lineTo(b[0], b[1]);
+  g.stroke();
+};
+
+/** 骨架 → 一段有锥度、关节圆过去的肢体。pts 为像素坐标。 */
+export function capsule(g, pts, widths, fill, lw = 3, line = C.line) {
+  g.lineCap = 'round';
+  g.lineJoin = 'round';
+  for (let i = 0; i < pts.length - 1; i++) seg(g, pts[i], pts[i + 1], widths[i] + lw * 2, line);
+  for (let i = 0; i < pts.length - 1; i++) seg(g, pts[i], pts[i + 1], widths[i], fill);
+}
+
+/** 脚下一小片赭色影子：不画影子，东西就飘在墙上。 */
+export function cast(g, x, y, rx, ry = rx * 0.16, color = C.wallDk) {
+  g.fillStyle = color;
+  g.beginPath();
+  g.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+  g.fill();
+}
+
+/**
+ * 埃及程式人物（壁画里那个人），不是主角。
+ *
+ * 三条不能破的规矩：
+ *   头 = 侧脸 + 正面眼；肩 = 正面双肩；腰以下收窄。
+ * 量的是 18 格法：全高 1、肩线 0.745、腰 0.545、裙摆 0.42、膝 0.26。
+ * 脸只有 0.06 宽的一条侧面，眼睛却有 0.036 宽——这个"不对"正是签名，
+ * 所以眼睛必须整个落在脸上，不能被假发压掉。
+ *
+ * kind: 'woman' 提莲花的侍女 / 'man' 抱罐的仆从
+ */
+export function egyptian(g, { x, y, h = 252, face = 1, kind = 'woman' }) {
+  const u = h;
+  const lw = Math.max(2.2, h * 0.0102);
   const P = (px, py) => [px * u, -py * u];
-  const polyP = (pts) => pts.map(([px, py]) => [px * u, -py * u]);
+  const skin = C.skin;
+  const skinFar = C.skinDk;
+  const cloth = C.white;
+  const wig = C.line;
+  const woman = kind === 'woman';
+
+  // 脚的形状（侧面一只扁脚）：脚跟着地，脚背拱起，脚趾朝前
+  const foot = (ax, col, shade) => {
+    ink(g, (q) => {
+      q.beginPath();
+      q.moveTo((ax - 0.035) * u, -0.055 * u);
+      q.quadraticCurveTo((ax - 0.05) * u, -0.012 * u, (ax - 0.025) * u, -0.004 * u);
+      q.lineTo((ax + 0.10) * u, -0.004 * u);
+      q.quadraticCurveTo((ax + 0.128) * u, -0.006 * u, (ax + 0.13) * u, -0.026 * u);
+      q.lineTo((ax + 0.055) * u, -0.042 * u);
+      q.quadraticCurveTo((ax + 0.015) * u, -0.072 * u, (ax - 0.035) * u, -0.055 * u);
+      q.closePath();
+    }, col, { lw });
+    if (shade) {
+      g.strokeStyle = C.line;
+      g.lineWidth = lw * 0.6;
+      g.beginPath();
+      g.moveTo((ax + 0.085) * u, -0.008 * u);
+      g.lineTo((ax + 0.035) * u, -0.036 * u);
+      g.stroke();
+    }
+  };
 
   g.save();
   g.translate(x, y);
   g.scale(face, 1);
-  g.lineJoin = "round";
+  g.lineJoin = 'round';
+  g.lineCap = 'round';
 
-  const shoe = (qx, qy, flip) => {
-    qx = qx * u;
-    qy = -qy * u;
+  // 地上的影子：压扁的椭圆，往背光那侧偏
+  cast(g, 0.03 * u, -0.007 * u, 0.2 * u, 0.019 * u);
+
+  // ---- 腿（先画腿，裙子盖上去）----
+  // 远侧腿：暗一档，站得靠后
+  capsule(g, [P(-0.05, 0.50), P(-0.085, 0.255), P(-0.092, 0.055)], [0.042 * u, 0.030 * u], skinFar, lw);
+  foot(-0.092, skinFar, false);
+  // 近侧腿：承重腿，脚平踩实
+  capsule(g, [P(0.045, 0.50), P(0.062, 0.25), P(0.068, 0.055)], [0.045 * u, 0.032 * u], skin, lw);
+  foot(0.068, skin, true);
+  // 膝盖：一小段弧，让腿有折
+  g.strokeStyle = C.line;
+  g.lineWidth = lw * 0.65;
+  g.beginPath();
+  g.arc(0.062 * u, -0.25 * u, 0.032 * u, Math.PI * 1.2, Math.PI * 1.8);
+  g.stroke();
+
+  // ---- 躯干：正面双肩，腰以下收窄 ----
+  ink(g, (q) => {
+    q.beginPath();
+    q.moveTo(-0.132 * u, -0.748 * u);
+    q.quadraticCurveTo(-0.152 * u, -0.70 * u, -0.126 * u, -0.63 * u);
+    q.quadraticCurveTo(-0.106 * u, -0.59 * u, -0.112 * u, -0.545 * u);
+    q.lineTo(0.114 * u, -0.545 * u);
+    q.quadraticCurveTo(0.108 * u, -0.60 * u, 0.126 * u, -0.64 * u);
+    q.quadraticCurveTo(0.150 * u, -0.71 * u, 0.132 * u, -0.748 * u);
+    q.closePath();
+  }, skin, { lw });
+  // 肚脐：一笔。胸口不横线——上一版那道线读成了挂着的绳子。
+  g.fillStyle = C.line;
+  g.beginPath();
+  g.ellipse(0.006 * u, -0.583 * u, 0.005 * u, 0.007 * u, 0, 0, Math.PI * 2);
+  g.fill();
+
+  // ---- 衣服 ----
+  if (woman) {
+    // 贴身长裙：从胸下到小腿中段，剪影一笔到底
     ink(g, (q) => {
       q.beginPath();
-      q.moveTo(qx - 0.32 * u, qy);
-      q.quadraticCurveTo(qx - 0.4 * u, qy + 0.42 * u, qx + 0.2 * u, qy + 0.44 * u);
-      q.quadraticCurveTo(qx + 0.62 * u * flip, qy + 0.5 * u, qx + 0.6 * u * flip, qy + 0.16 * u);
-      q.quadraticCurveTo(qx + 0.45 * u * flip, qy - 0.02 * u, qx - 0.32 * u, qy);
+      q.moveTo(-0.125 * u, -0.706 * u);
+      q.quadraticCurveTo(-0.145 * u, -0.62 * u, -0.118 * u, -0.545 * u);
+      q.quadraticCurveTo(-0.105 * u, -0.35 * u, -0.098 * u, -0.16 * u);
+      q.quadraticCurveTo(-0.096 * u, -0.11 * u, -0.088 * u, -0.085 * u);
+      q.lineTo(0.098 * u, -0.085 * u);
+      q.quadraticCurveTo(0.098 * u, -0.20 * u, 0.105 * u, -0.36 * u);
+      q.quadraticCurveTo(0.118 * u, -0.50 * u, 0.120 * u, -0.60 * u);
+      q.quadraticCurveTo(0.122 * u, -0.672 * u, 0.128 * u, -0.706 * u);
       q.closePath();
     }, cloth, { lw });
-  };
-
-  // —— 后腿（暗一档）：从短裤下摆到鞋 ——
-  const backX = -0.72 - sw * 0.5;
-  ink(g, (q) => poly(q, polyP([[backX - 0.42, 3.1], [backX + 0.42, 3.1], [backX + 0.4 - sw * 0.2, 0.85], [backX - 0.4 - sw * 0.2, 0.85]])), C.skinDk, { lw });
-  shoe(backX - sw * 0.2, 0.85, -1);
-
-  // —— 短裤 ——
-  ink(g, (q) => poly(q, polyP([[-1.55, 4.55], [1.6, 4.55], [1.62, 3.05], [-1.58, 3.05]])), "#c2ab7d", { lw });
-  g.strokeStyle = L;
-  g.lineWidth = 0.12 * u;
-  g.beginPath();
-  g.moveTo(0, -4.6 * u);
-  g.lineTo(0, -3.2 * u);
-  g.stroke();
-
-  // —— 前腿 ——
-  const frontX = 0.62 + sw * 0.6;
-  ink(g, (q) => poly(q, polyP([[frontX - 0.44, 3.1], [frontX + 0.44, 3.1], [frontX + 0.42 + sw * 0.2, 0.85], [frontX - 0.42 + sw * 0.2, 0.85]])), skin, { lw });
-  shoe(frontX + sw * 0.2, 0.85, 1);
-
-  // —— 白 T 恤：略呈梯形，下摆盖住短裤腰 ——
-  ink(g, (q) => poly(q, polyP([[-1.75, 6.25], [1.8, 6.25], [1.85, 4.2], [-1.8, 4.2]])), cloth, { lw });
-
-  // —— 后臂：只露一小截 ——
-  ink(g, (q) => poly(q, polyP([[-1.8 - sw * 0.2, 6.05], [-1.2 - sw * 0.2, 5.95], [-1.1 - sw * 0.7, 4.2], [-1.7 - sw * 0.7, 4.25]])), C.skinDk, { lw });
-
-  // —— 头 ——
-  const hx = 0.1 * u;
-  const hy = -7.35 * u;
-  ink(g, (q) => {
-    q.beginPath();
-    q.ellipse(hx, hy, 1.35 * u, 1.3 * u, 0, 0, Math.PI * 2);
-  }, skin, { lw });
-
-  // 圆眼镜：两个圈 + 中间的横梁 + 镜腿
-  g.strokeStyle = L;
-  g.lineWidth = 0.13 * u;
-  for (const dx of [-0.45, 0.55]) {
+    // 裙褶：两三道竖线，跟着身子走
+    g.strokeStyle = C.line;
+    g.lineWidth = lw * 0.62;
+    for (const dx of [-0.052, 0.008]) {
+      g.beginPath();
+      g.moveTo(dx * u, -0.66 * u);
+      g.quadraticCurveTo((dx + 0.008) * u, -0.35 * u, (dx + 0.012) * u, -0.10 * u);
+      g.stroke();
+    }
+    // 腰带
+    g.strokeStyle = C.gold;
+    g.lineWidth = 0.014 * u;
     g.beginPath();
-    g.ellipse(hx + dx * u, hy - 0.02 * u, 0.4 * u, 0.36 * u, 0, 0, Math.PI * 2);
-    g.fillStyle = "#2a2118";
-    g.fill();
+    g.moveTo(-0.117 * u, -0.548 * u);
+    g.lineTo(0.12 * u, -0.548 * u);
+    g.stroke();
+    // 腰带上那个结
+    ink(g, (q) => {
+      q.beginPath();
+      q.ellipse(0.005 * u, -0.545 * u, 0.018 * u, 0.013 * u, 0, 0, Math.PI * 2);
+    }, C.red, { lw: lw * 0.7 });
+  } else {
+    // 男仆：短裙 + 前面一片褶
+    ink(g, (q) => {
+      q.beginPath();
+      q.moveTo(-0.122 * u, -0.555 * u);
+      q.lineTo(0.125 * u, -0.555 * u);
+      q.lineTo(0.108 * u, -0.395 * u);
+      q.lineTo(0.062 * u, -0.415 * u);
+      q.lineTo(-0.015 * u, -0.395 * u);
+      q.lineTo(-0.108 * u, -0.415 * u);
+      q.closePath();
+    }, cloth, { lw });
+    g.strokeStyle = C.line;
+    g.lineWidth = lw * 0.7;
+    for (const dx of [-0.07, -0.015, 0.04]) {
+      g.beginPath();
+      g.moveTo(dx * u, -0.545 * u);
+      g.lineTo((dx - 0.01) * u, -0.41 * u);
+      g.stroke();
+    }
+    g.strokeStyle = C.gold;
+    g.lineWidth = 0.016 * u;
+    g.beginPath();
+    g.moveTo(-0.124 * u, -0.558 * u);
+    g.lineTo(0.127 * u, -0.558 * u);
     g.stroke();
   }
+
+  // ---- 项圈：贴着锁骨往下弯，不是贴上去的一张椭圆 ----
+  const nb = -0.752 * u;
+  for (const [rx, ry, col] of [[0.062, 0.030, C.blue], [0.082, 0.041, C.gold], [0.101, 0.052, C.turq]]) {
+    g.strokeStyle = col;
+    g.lineWidth = 0.014 * u;
+    g.beginPath();
+    g.ellipse(0, nb, rx * u, ry * u, 0, Math.PI * 0.06, Math.PI * 0.94);
+    g.stroke();
+  }
+  g.strokeStyle = C.line;
+  g.lineWidth = lw * 0.5;
   g.beginPath();
-  g.moveTo(hx + 0.06 * u, hy - 0.02 * u);
-  g.lineTo(hx + 0.09 * u, hy - 0.02 * u);
-  g.stroke();
-  g.beginPath();
-  g.moveTo(hx - 0.68 * u, hy - 0.04 * u);
-  g.lineTo(hx - 0.95 * u, hy - 0.02 * u);
-  g.stroke();
-  // 嘴和一个鼻子尖
-  g.lineWidth = 0.1 * u;
-  g.beginPath();
-  g.moveTo(hx + 0.02 * u, hy + 0.5 * u);
-  g.quadraticCurveTo(hx + 0.22 * u, hy + 0.56 * u, hx + 0.34 * u, hy + 0.44 * u);
+  g.ellipse(0, nb, 0.108 * u, 0.057 * u, 0, Math.PI * 0.04, Math.PI * 0.96);
   g.stroke();
 
-  // —— 前臂：垂在身侧，随步子前后 ——
-  const armX = 1.35 + sw * 0.75;
-  ink(g, (q) => poly(q, polyP([[armX, 6.05], [armX + 0.72, 5.95], [armX + 0.66, 3.95], [armX - 0.06, 4.05]])), skin, { lw });
+  // ---- 脖子 ----
+  capsule(g, [P(-0.004, 0.822), P(0.002, 0.752)], [0.031 * u], skin, lw * 0.9);
+
+  // ---- 假发：后面那一团，落到肩上；前缘留在眼睛后面 ----
   ink(g, (q) => {
     q.beginPath();
-    q.ellipse((armX + 0.22) * u, -3.9 * u, 0.24 * u, 0.22 * u, 0, 0, Math.PI * 2);
+    q.moveTo(0.031 * u, -0.962 * u);
+    q.quadraticCurveTo(0.01 * u, -1.0 * u, -0.055 * u, -0.99 * u);
+    q.quadraticCurveTo(-0.125 * u, -0.975 * u, -0.152 * u, -0.90 * u);
+    q.quadraticCurveTo(-0.17 * u, -0.85 * u, -0.175 * u, -0.775 * u);
+    q.quadraticCurveTo(-0.10 * u, -0.755 * u, -0.03 * u, -0.762 * u);
+    q.lineTo(0.012 * u, -0.79 * u);
+    q.quadraticCurveTo(0.022 * u, -0.87 * u, 0.031 * u, -0.962 * u);
+    q.closePath();
+  }, wig, { lw });
+  // 假发的几缕竖纹：不是一块死板的深色
+  g.strokeStyle = C.line;
+  g.lineWidth = lw * 0.55;
+  for (const dx of [-0.15, -0.12, -0.09]) {
+    g.beginPath();
+    g.moveTo(dx * u, -0.90 * u);
+    g.quadraticCurveTo((dx - 0.012) * u, -0.83 * u, (dx + 0.006) * u, -0.775 * u);
+    g.stroke();
+  }
+  // 额头前的金头带
+  g.strokeStyle = C.gold;
+  g.lineWidth = 0.011 * u;
+  g.beginPath();
+  g.moveTo(0.030 * u, -0.952 * u);
+  g.quadraticCurveTo(-0.05 * u, -0.936 * u, -0.135 * u, -0.905 * u);
+  g.stroke();
+
+  // ---- 脸：额头 → 眉弓 → 鼻 → 人中 → 嘴 → 下巴 → 颌 ----
+  ink(g, (q) => {
+    q.beginPath();
+    q.moveTo(0.030 * u, -0.958 * u);
+    q.quadraticCurveTo(0.060 * u, -0.950 * u, 0.068 * u, -0.920 * u);
+    q.quadraticCurveTo(0.074 * u, -0.902 * u, 0.073 * u, -0.892 * u);
+    q.lineTo(0.116 * u, -0.874 * u);
+    q.quadraticCurveTo(0.126 * u, -0.870 * u, 0.118 * u, -0.866 * u);
+    q.lineTo(0.080 * u, -0.860 * u);
+    q.quadraticCurveTo(0.092 * u, -0.853 * u, 0.086 * u, -0.849 * u);
+    q.quadraticCurveTo(0.093 * u, -0.844 * u, 0.087 * u, -0.840 * u);
+    q.quadraticCurveTo(0.080 * u, -0.833 * u, 0.070 * u, -0.829 * u);
+    q.quadraticCurveTo(0.045 * u, -0.818 * u, 0.014 * u, -0.812 * u);
+    q.quadraticCurveTo(-0.004 * u, -0.840 * u, -0.002 * u, -0.876 * u);
+    q.quadraticCurveTo(0.002 * u, -0.916 * u, 0.030 * u, -0.958 * u);
+    q.closePath();
   }, skin, { lw });
 
-  // —— 白帽：宽檐 + 圆顶 ——
-  if (hat) {
+  // 正面眼：杏仁 + 眼线往后拖 + 眉。这一笔是这个风格的身份证。
+  const ex = 0.040 * u;
+  const ey = -0.879 * u;
+  // 眼白：杏仁。线压在轮廓上，瞳孔只占中间一点——不然 10px 的眼睛会糊成一团
+  g.fillStyle = C.white;
+  g.strokeStyle = C.line;
+  g.lineWidth = lw * 0.52;
+  g.beginPath();
+  g.moveTo(ex - 0.031 * u, ey + 0.003 * u);
+  g.quadraticCurveTo(ex - 0.007 * u, ey - 0.018 * u, ex + 0.023 * u, ey - 0.002 * u);
+  g.quadraticCurveTo(ex - 0.005 * u, ey + 0.015 * u, ex - 0.031 * u, ey + 0.003 * u);
+  g.closePath();
+  g.fill();
+  g.stroke();
+  // 眼线：往后（朝假发）拖一条细尾——正面眼的标准写法
+  g.strokeStyle = C.line;
+  g.lineWidth = lw * 0.85;
+  g.beginPath();
+  g.moveTo(ex - 0.031 * u, ey + 0.003 * u);
+  g.lineTo(ex - 0.050 * u, ey - 0.002 * u);
+  g.stroke();
+  // 瞳孔
+  g.fillStyle = C.line;
+  g.beginPath();
+  g.arc(ex + 0.004 * u, ey - 0.001 * u, 0.0056 * u, 0, Math.PI * 2);
+  g.fill();
+  // 眉：离眼远一点，别和眼线粘在一起
+  g.strokeStyle = C.line;
+  g.lineWidth = lw * 0.62;
+  g.beginPath();
+  g.moveTo(ex - 0.032 * u, ey - 0.027 * u);
+  g.quadraticCurveTo(ex - 0.004 * u, ey - 0.039 * u, ex + 0.030 * u, ey - 0.022 * u);
+  g.stroke();
+  // 耳：压在假发前缘上，就在眼后面
+  g.strokeStyle = C.line;
+  g.lineWidth = lw * 0.7;
+  g.beginPath();
+  g.moveTo(-0.006 * u, -0.886 * u);
+  g.quadraticCurveTo(-0.030 * u, -0.872 * u, -0.004 * u, -0.852 * u);
+  g.stroke();
+
+  // ---- 手臂 ----
+  // 远侧手臂：弯过来，手搭在腰上
+  const farS = P(-0.122, 0.738);
+  const farE = P(-0.168, 0.60);
+  const farW = P(-0.045, 0.565);
+  capsule(g, [farS, farE, farW], [0.025 * u, 0.019 * u], skinFar, lw);
+
+  // 近侧手臂：垂在身侧，稍微往前，手里那支莲花
+  const nearS = P(0.126, 0.735);
+  const nearE = P(0.152, 0.595);
+  const nearW = P(0.152, 0.47);
+  capsule(g, [nearS, nearE, nearW], [0.026 * u, 0.020 * u], skin, lw);
+
+  // 手：掌心 + 三根指头
+  const hand = (hx, hy, rot = 0, col = skin) => {
+    g.save();
+    g.translate(hx, hy);
+    g.rotate(rot);
     ink(g, (q) => {
       q.beginPath();
-      q.ellipse(hx, hy - 1.2 * u, 2.95 * u, 0.46 * u, 0, 0, Math.PI * 2);
-    }, hat, { lw });
-    ink(g, (q) => {
-      q.beginPath();
-      q.ellipse(hx, hy - 1.2 * u, 1.35 * u, 0.95 * u, 0, Math.PI, Math.PI * 2);
-    }, hat, { lw });
+      q.ellipse(0, 0.010 * u, 0.019 * u, 0.028 * u, 0, 0, Math.PI * 2);
+    }, col, { lw: lw * 0.85 });
+    g.strokeStyle = C.line;
+    g.lineWidth = lw * 0.5;
+    for (let i = -1; i <= 1; i++) {
+      g.beginPath();
+      g.moveTo(i * 0.009 * u, 0.022 * u);
+      g.lineTo(i * 0.011 * u, 0.040 * u);
+      g.stroke();
+    }
+    g.restore();
+  };
+
+  hand(-0.045 * u, -0.565 * u, 0.3, skinFar);
+
+  if (woman) {
+    // 莲花：茎从手里长上去，花在肩头；手先画，指头再压到茎上
+    penLot(g, 0.152 * u, -0.47 * u, 0.206 * u, -0.795 * u, 0.056 * u);
+    hand(0.152 * u, -0.47 * u, -0.25);
+    g.strokeStyle = C.line;
+    g.lineWidth = lw * 0.55;
+    for (let i = 0; i < 2; i++) {
+      g.beginPath();
+      g.moveTo((0.140 + i * 0.008) * u, -0.464 * u);
+      g.lineTo((0.160 + i * 0.008) * u, -0.472 * u);
+      g.stroke();
+    }
+  } else {
+    hand(0.152 * u, -0.47 * u, -0.15);
   }
+  g.restore();
+}
+
+/** 一支莲花：细茎从手里往上长到 (tx,ty)，花头开在那里。 */
+function penLot(g, x, y, tx, ty, size) {
+  g.strokeStyle = C.green;
+  g.lineWidth = size * 0.5;
+  g.beginPath();
+  g.moveTo(x, y);
+  g.quadraticCurveTo(x + (tx - x) * 0.15 + size * 0.25, y + (ty - y) * 0.55, tx, ty + size * 0.5);
+  g.stroke();
+  // 花萼：短折，花头就坐在茎尖上
+  g.strokeStyle = C.line;
+  g.lineWidth = size * 0.28;
+  g.beginPath();
+  g.moveTo(tx, ty + size * 0.6);
+  g.lineTo(tx, ty + size * 0.25);
+  g.stroke();
+  ink(g, (q) => {
+    q.beginPath();
+    q.moveTo(tx, ty + size * 0.3);
+    q.quadraticCurveTo(tx - size * 1.15, ty + size * 0.15, tx - size * 0.72, ty - size * 0.75);
+    q.quadraticCurveTo(tx - size * 0.18, ty - size * 0.35, tx, ty - size * 1.05);
+    q.quadraticCurveTo(tx + size * 0.18, ty - size * 0.35, tx + size * 0.72, ty - size * 0.75);
+    q.quadraticCurveTo(tx + size * 1.15, ty + size * 0.15, tx, ty + size * 0.3);
+    q.closePath();
+  }, C.blue, { lw: size * 0.16 });
+}
+
+
+/**
+ * 主角：一个会走路的卡通小孩（白帽、圆眼镜、白 T 恤、短裤、球鞋）。
+ *
+ * 参考片里这个人不是埃及程式的人，是个现代小孩站在壁画里——"穿越"就靠他。
+ * 但他必须站得住：
+ *
+ *   1. 比例是从参考那一格量出来的（全高 282px）：头 3.55u 宽、T 恤 3.16u 宽、
+ *      帽檐 4.54u 宽；腿只有 2.16u，头+帽却占 4.5u。矮、胖、大头——不是四头身。
+ *   2. 骨架先定，再铺肉：髋 → 膝 → 踝三段有锥度、关节圆过去，不做矩形管。
+ *   3. 一条承重腿踩实（整只脚贴地、底下有影子），一条迈步腿在后
+ *      （脚跟已经离地、只有脚趾点地）——重心落在前脚上。
+ *   4. 篮子挂在手上：柄先进掌心，再画指头压住柄，果子坐在筐里，不浮。
+ *
+ * phase: 走一步 2π。脚在地上只平移 ±0.12u，不滑步。
+ */
+export function figure(g, { x, y, h = 272, face = 1, phase = 0, hat = C.white }) {
+  const u = h / 10;
+  const L = C.line;
+  const lw = 0.14 * u;
+  const s = Math.sin(phase);
+  const skin = C.skin;
+  const skinFar = C.skinDk;
+  const shirt = C.white;
+  const shorts = C.goldLt;
+  const U = (px, py) => [px * u, -py * u];
+
+  g.save();
+  g.translate(x, y);
+  g.scale(face, 1);
+  g.lineJoin = 'round';
+  g.lineCap = 'round';
+
+  // ---- 地面：一片淡赭影子，承重脚底下最实 ----
+  g.fillStyle = C.wallDk;
+  g.beginPath();
+  g.ellipse(0.55 * u, -0.02 * u, 1.55 * u, 0.14 * u, 0, 0, Math.PI * 2);
+  g.fill();
+  g.beginPath();
+  g.ellipse(0.80 * u, -0.02 * u, 0.70 * u, 0.11 * u, 0, 0, Math.PI * 2);
+  g.fill();
+
+  // ---- 鞋：局部原点在踝，x 向前，y 向下（0 = 踝，0.50 = 鞋底） ----
+  const shoe = (ax, ay, rot, fill) => {
+    g.save();
+    g.translate(ax * u, -ay * u);
+    g.rotate(rot);
+    // 鞋底：厚，一圈边
+    ink(g, (q) => {
+      q.beginPath();
+      q.moveTo(-0.52 * u, 0.22 * u);
+      q.quadraticCurveTo(-0.62 * u, 0.36 * u, -0.52 * u, 0.50 * u);
+      q.quadraticCurveTo(-0.40 * u, 0.57 * u, -0.12 * u, 0.57 * u);
+      q.lineTo(0.84 * u, 0.57 * u);
+      q.quadraticCurveTo(1.20 * u, 0.56 * u, 1.22 * u, 0.36 * u);
+      q.quadraticCurveTo(1.22 * u, 0.22 * u, 1.00 * u, 0.22 * u);
+      q.closePath();
+    }, C.cream, { lw });
+    // 鞋面：脚背拱起，踝处收口
+    ink(g, (q) => {
+      q.beginPath();
+      q.moveTo(-0.48 * u, 0.26 * u);
+      q.quadraticCurveTo(-0.52 * u, 0.04 * u, -0.28 * u, -0.04 * u);
+      q.quadraticCurveTo(-0.08 * u, -0.10 * u, 0.06 * u, 0.02 * u);
+      q.quadraticCurveTo(0.32 * u, 0.18 * u, 0.60 * u, 0.17 * u);
+      q.quadraticCurveTo(0.94 * u, 0.14 * u, 1.00 * u, 0.26 * u);
+      q.closePath();
+    }, fill, { lw });
+    // 鞋头、鞋带、鞋口
+    g.strokeStyle = L;
+    g.lineWidth = lw * 0.6;
+    g.beginPath();
+    g.moveTo(0.64 * u, 0.18 * u);
+    g.quadraticCurveTo(0.76 * u, 0.34 * u, 0.70 * u, 0.46 * u);
+    g.stroke();
+    g.fillStyle = L;
+    for (let i = 0; i < 3; i++) {
+      g.beginPath();
+      g.arc((0.26 + i * 0.13) * u, 0.24 * u, 0.021 * u, 0, Math.PI * 2);
+      g.fill();
+    }
+    g.strokeStyle = L;
+    g.lineWidth = lw * 0.7;
+    g.beginPath();
+    g.moveTo(0.04 * u, 0.02 * u);
+    g.quadraticCurveTo(0.20 * u, 0.20 * u, 0.46 * u, 0.17 * u);
+    g.stroke();
+    g.restore();
+  };
+
+  // ---- 步态：一条腿踩在地上（相对身体往后滑 = 身体往前走），另一条抬起来迈 ----
+  // 静帧落点要踩实，所以幅度压在 0.30u；抬脚 0.22u 只给摆动相。
+  const stepX = 0.22;
+  const stepLift = 0.26;
+  const gait = (p) => {
+    const T = Math.PI * 2;
+    const t = ((p % T) + T) % T;
+    if (t < Math.PI) {
+      const k = t / Math.PI;
+      return { x: stepX * (1 - 2 * k), y: 0, rot: 0, air: 0 };
+    }
+    const k = (t - Math.PI) / Math.PI;
+    const e = k < 0.5 ? 2 * k * k : 1 - 2 * (1 - k) * (1 - k);
+    return { x: -stepX + 2 * stepX * e, y: Math.sin(Math.PI * k) * stepLift, rot: -0.26 * Math.sin(Math.PI * k), air: 1 };
+  };
+  const gNear = gait(phase);
+  const gFar = gait(phase + Math.PI);
+
+  // ---- 迈步腿（远侧，在后）：膝弯，脚跟已经离地 ----
+  const farHip = U(-0.48, 2.88);
+  const farKnee = U(-0.74 + gFar.x * 0.7, 1.45 + gFar.y * 0.8);
+  const farAnkle = U(-0.94 + gFar.x, 0.72 + gFar.y);
+  capsule(g, [farHip, farKnee, farAnkle], [0.84 * u, 0.70 * u], skinFar, lw);
+  shoe(-0.94 + gFar.x, 0.72 + gFar.y, 0.38 + gFar.rot, C.cream);
+
+  // ---- 远侧手臂：垂在身后，暗一档 ----
+  const farShoulder = U(-1.28, 5.38);
+  const farElbow = U(-1.66 - s * 0.09, 4.32);
+  const farWrist = U(-1.56 - s * 0.13, 3.22);
+  capsule(g, [farShoulder, farElbow, farWrist], [0.50 * u, 0.40 * u], skinFar, lw);
+  // 黑腕带
+  g.strokeStyle = L;
+  g.lineWidth = 0.22 * u;
+  g.beginPath();
+  g.moveTo((-1.56 - s * 0.13 - 0.14) * u, -3.38 * u);
+  g.lineTo((-1.56 - s * 0.13 + 0.15) * u, -3.44 * u);
+  g.stroke();
+  // 手
+  ink(g, (q) => {
+    q.beginPath();
+    q.ellipse((-1.58 - s * 0.13) * u, -3.04 * u, 0.24 * u, 0.29 * u, -0.12, 0, Math.PI * 2);
+  }, skinFar, { lw: lw * 0.9 });
+
+  // ---- 承重腿（近侧，在前）：几乎伸直，整只脚踩实 ----
+  const nearHip = U(0.48, 2.88);
+  const nearKnee = U(0.68 + gNear.x * 0.7, 1.42 + gNear.y * 0.8);
+  const nearAnkle = U(0.76 + gNear.x, 0.50 + gNear.y);
+  capsule(g, [nearHip, nearKnee, nearAnkle], [0.86 * u, 0.72 * u], skin, lw);
+  shoe(0.76 + gNear.x, 0.50 + gNear.y, gNear.rot, shirt);
+  // 膝盖骨
+  g.strokeStyle = L;
+  g.lineWidth = lw * 0.5;
+  g.beginPath();
+  g.arc((0.68 + gNear.x * 0.7) * u, -(1.42 + gNear.y * 0.8) * u, 0.28 * u, Math.PI * 1.15, Math.PI * 1.85);
+  g.stroke();
+
+  // ---- 短裤：腰紧、裤口略外张 ----
+  ink(g, (q) => {
+    q.beginPath();
+    q.moveTo(-1.32 * u, -3.68 * u);
+    q.lineTo(1.32 * u, -3.68 * u);
+    q.quadraticCurveTo(1.40 * u, -3.10 * u, 1.38 * u, -2.66 * u);
+    q.quadraticCurveTo(1.36 * u, -2.44 * u, 1.22 * u, -2.42 * u);
+    q.lineTo(0.26 * u, -2.42 * u);
+    q.quadraticCurveTo(0.20 * u, -2.72 * u, 0.00 * u, -2.74 * u);
+    q.quadraticCurveTo(-0.20 * u, -2.72 * u, -0.26 * u, -2.42 * u);
+    q.lineTo(-1.24 * u, -2.42 * u);
+    q.quadraticCurveTo(-1.30 * u, -3.10 * u, -1.32 * u, -3.68 * u);
+    q.closePath();
+  }, shorts, { lw });
+  // 裤缝、裤口、口袋
+  g.strokeStyle = L;
+  g.lineWidth = lw * 0.5;
+  g.beginPath();
+  g.moveTo(0.00 * u, -2.74 * u);
+  g.lineTo(0.00 * u, -2.44 * u);
+  g.moveTo(-1.30 * u, -2.56 * u);
+  g.quadraticCurveTo(-0.70 * u, -2.50 * u, -0.30 * u, -2.54 * u);
+  g.moveTo(0.32 * u, -2.54 * u);
+  g.quadraticCurveTo(0.94 * u, -2.50 * u, 1.36 * u, -2.56 * u);
+  g.moveTo(0.62 * u, -3.50 * u);
+  g.quadraticCurveTo(0.74 * u, -3.28 * u, 1.22 * u, -3.26 * u);
+  g.stroke();
+
+  // ---- 白 T 恤：一件衣服一个剪影（肩、袖、摆连成一条线），
+  //      袖子和身子分成两块画就会像贴上去的补丁 ----
+  ink(g, (q) => {
+    q.beginPath();
+    q.moveTo(-0.52 * u, -5.52 * u);                                  // 领口左
+    q.quadraticCurveTo(-1.18 * u, -5.52 * u, -1.52 * u, -5.16 * u);   // 远肩
+    q.quadraticCurveTo(-1.64 * u, -4.96 * u, -1.58 * u, -4.74 * u);   // 远袖外沿
+    q.lineTo(-1.20 * u, -4.74 * u);                                  // 远袖口
+    q.quadraticCurveTo(-1.24 * u, -4.20 * u, -1.26 * u, -3.62 * u);   // 远侧缝
+    q.lineTo(1.34 * u, -3.62 * u);                                   // 下摆
+    q.quadraticCurveTo(1.40 * u, -4.20 * u, 1.46 * u, -4.74 * u);     // 近侧缝
+    q.lineTo(1.60 * u, -4.74 * u);                                   // 近袖口
+    q.quadraticCurveTo(1.68 * u, -4.96 * u, 1.60 * u, -5.14 * u);
+    q.quadraticCurveTo(1.24 * u, -5.48 * u, 0.58 * u, -5.54 * u);     // 近肩
+    q.quadraticCurveTo(0.02 * u, -5.34 * u, -0.52 * u, -5.52 * u);    // 领口弧
+    q.closePath();
+  }, shirt, { lw });
+  // 内部：领口、袖口、摆线、侧缝
+  g.strokeStyle = L;
+  g.lineWidth = lw * 0.45;
+  g.beginPath();
+  g.moveTo(-0.52 * u, -5.50 * u);
+  g.quadraticCurveTo(0.02 * u, -5.32 * u, 0.56 * u, -5.52 * u);
+  g.stroke();
+  g.beginPath();
+  g.moveTo(-1.54 * u, -4.92 * u);
+  g.quadraticCurveTo(-1.38 * u, -4.96 * u, -1.22 * u, -4.76 * u);
+  g.moveTo(1.58 * u, -4.88 * u);
+  g.quadraticCurveTo(1.42 * u, -4.94 * u, 1.44 * u, -4.76 * u);
+  g.stroke();
+  g.beginPath();
+  g.moveTo(-1.24 * u, -3.72 * u);
+  g.quadraticCurveTo(0.12 * u, -3.66 * u, 1.32 * u, -3.72 * u);
+  g.stroke();
+  g.beginPath();
+  g.moveTo(1.22 * u, -4.24 * u);
+  g.quadraticCurveTo(1.30 * u, -4.78 * u, 1.26 * u, -5.14 * u);
+  g.stroke();
+  g.beginPath();
+  g.moveTo(-1.06 * u, -4.30 * u);
+  g.quadraticCurveTo(-1.14 * u, -4.76 * u, -1.12 * u, -5.12 * u);
+  g.stroke();
+
+  // ---- 脖子：短，但要有——不然脑袋是浮在肩上的 ----
+  capsule(g, [U(0.12, 5.30), U(0.24, 6.10)], [0.46 * u], skin, lw);
+
+  // 头整体下移 0.42u：让下巴坐到肩上，眼睛落到帽檐下面
+  g.save();
+  g.translate(0, 0.42 * u);
+
+  // ---- 头：大圆脑袋，侧脸（额、鼻、唇、下巴要有折）----
+  ink(g, (q) => {
+    q.beginPath();
+    q.moveTo(-1.44 * u, -7.62 * u);
+    q.quadraticCurveTo(-1.64 * u, -8.70 * u, -0.72 * u, -9.38 * u);
+    q.quadraticCurveTo(0.30 * u, -9.94 * u, 1.24 * u, -9.26 * u);
+    q.quadraticCurveTo(1.66 * u, -8.96 * u, 1.76 * u, -8.52 * u);
+    q.quadraticCurveTo(1.79 * u, -8.32 * u, 1.74 * u, -8.22 * u);
+    q.quadraticCurveTo(1.80 * u, -8.06 * u, 1.86 * u, -7.84 * u);
+    q.lineTo(2.28 * u, -7.58 * u);                                    // 鼻尖
+    q.quadraticCurveTo(2.38 * u, -7.50 * u, 2.26 * u, -7.44 * u);     // 鼻底
+    q.quadraticCurveTo(2.04 * u, -7.40 * u, 2.00 * u, -7.36 * u);     // 人中
+    q.quadraticCurveTo(2.12 * u, -7.26 * u, 2.00 * u, -7.18 * u);     // 上唇
+    q.quadraticCurveTo(2.10 * u, -7.08 * u, 1.96 * u, -6.96 * u);     // 下唇
+    q.quadraticCurveTo(2.06 * u, -6.74 * u, 1.88 * u, -6.62 * u);     // 下巴（最低点）
+    q.quadraticCurveTo(1.58 * u, -6.50 * u, 1.10 * u, -6.42 * u);     // 下颌往上收
+    q.quadraticCurveTo(0.40 * u, -6.40 * u, -0.26 * u, -6.46 * u);
+    q.quadraticCurveTo(-1.06 * u, -6.56 * u, -1.32 * u, -6.98 * u);
+    q.quadraticCurveTo(-1.48 * u, -7.30 * u, -1.44 * u, -7.62 * u);
+    q.closePath();
+  }, skin, { lw });
+
+  // 头发：帽檐下漏出来的一圈（只画帽檐下面看得见的那一段）+ 鬓角
+  g.fillStyle = L;
+  g.beginPath();
+  g.moveTo(-1.46 * u, -7.66 * u);
+  g.quadraticCurveTo(-1.40 * u, -8.02 * u, -0.80 * u, -8.16 * u);
+  g.quadraticCurveTo(0.20 * u, -8.26 * u, 1.10 * u, -8.16 * u);
+  g.quadraticCurveTo(0.60 * u, -8.02 * u, 0.10 * u, -7.94 * u);
+  g.quadraticCurveTo(-0.70 * u, -7.86 * u, -1.10 * u, -7.58 * u);
+  g.closePath();
+  g.fill();
+  g.beginPath();
+  g.moveTo(-1.32 * u, -7.80 * u);
+  g.quadraticCurveTo(-1.56 * u, -7.20 * u, -1.22 * u, -6.80 * u);
+  g.quadraticCurveTo(-1.06 * u, -7.10 * u, -1.04 * u, -7.50 * u);
+  g.closePath();
+  g.fill();
+
+  // 耳
+  g.strokeStyle = L;
+  g.lineWidth = lw * 0.6;
+  g.beginPath();
+  g.moveTo(-0.62 * u, -7.30 * u);
+  g.quadraticCurveTo(-0.90 * u, -7.10 * u, -0.60 * u, -6.88 * u);
+  g.stroke();
+
+  // ---- 眼 + 圆眼镜：一片镜片 + 一条镜腿，眼白、瞳孔、上眼睑都分开 ----
+  const ex = 1.24 * u;
+  const ey = -7.34 * u;
+  ink(g, (q) => {
+    q.beginPath();
+    q.ellipse(ex, ey, 0.35 * u, 0.31 * u, 0, 0, Math.PI * 2);
+  }, C.white, { lw: lw * 0.45 });
+  g.fillStyle = L;
+  g.beginPath();
+  g.arc(ex + 0.10 * u, ey, 0.215 * u, 0, Math.PI * 2);
+  g.fill();
+  // 上眼睑：压得比下眼睑重
+  g.strokeStyle = L;
+  g.lineWidth = lw * 0.7;
+  g.beginPath();
+  g.arc(ex, ey, 0.35 * u, Math.PI * 1.1, Math.PI * 1.9);
+  g.stroke();
+  // 镜框
+  g.lineWidth = 0.105 * u;
+  g.beginPath();
+  g.arc(ex + 0.03 * u, ey - 0.01 * u, 0.49 * u, 0, Math.PI * 2);
+  g.stroke();
+  // 镜腿：往后挂到耳上
+  g.lineWidth = 0.10 * u;
+  g.beginPath();
+  g.moveTo(ex - 0.46 * u, ey - 0.22 * u);
+  g.lineTo(-0.66 * u, ey - 0.12 * u);
+  g.stroke();
+  // 鼻梁：从镜框往鼻尖那边伸一小截，读成"架在鼻子上"
+  g.lineWidth = 0.10 * u;
+  g.beginPath();
+  g.moveTo(ex + 0.50 * u, ey - 0.18 * u);
+  g.lineTo(ex + 0.68 * u, ey - 0.16 * u);
+  g.stroke();
+  // 眉
+  g.lineWidth = lw * 0.65;
+  g.beginPath();
+  g.moveTo(ex - 0.44 * u, ey - 0.62 * u);
+  g.quadraticCurveTo(ex - 0.02 * u, ey - 0.78 * u, ex + 0.40 * u, ey - 0.56 * u);
+  g.stroke();
+  // 嘴：在镜片下面，不在镜片里面
+  g.lineWidth = lw * 0.5;
+  g.beginPath();
+  g.moveTo(1.80 * u, -6.74 * u);
+  g.quadraticCurveTo(1.94 * u, -6.66 * u, 2.02 * u, -6.76 * u);
+  g.stroke();
 
   g.restore();
-  return { hand: [x + face * (armX + 0.22) * u, y - 3.9 * u] };
+
+  // ---- 帽：宽檐桶帽，帽檐压低、往前塌 ----
+  if (hat) {
+    // 帽檐：一片压扁的椭圆，用帽顶压住上半
+    ink(g, (q) => {
+      q.beginPath();
+      q.moveTo(-2.52 * u, -7.72 * u);                                  // 左端（布边垂下来）
+      q.quadraticCurveTo(-1.30 * u, -8.24 * u, 0.14 * u, -8.32 * u);    // 上缘
+      q.quadraticCurveTo(1.56 * u, -8.34 * u, 2.46 * u, -7.62 * u);     // 右端
+      q.quadraticCurveTo(1.42 * u, -7.70 * u, 0.14 * u, -7.76 * u);     // 下缘
+      q.quadraticCurveTo(-1.26 * u, -7.78 * u, -2.52 * u, -7.72 * u);
+      q.closePath();
+    }, hat, { lw });
+    // 帽顶：低、软
+    ink(g, (q) => {
+      q.beginPath();
+      q.moveTo(-1.84 * u, -8.06 * u);
+      q.quadraticCurveTo(-1.94 * u, -9.04 * u, -1.30 * u, -9.70 * u);
+      q.quadraticCurveTo(-0.32 * u, -10.02 * u, 0.76 * u, -9.80 * u);
+      q.quadraticCurveTo(1.44 * u, -9.70 * u, 1.66 * u, -9.16 * u);
+      q.quadraticCurveTo(1.76 * u, -8.76 * u, 1.72 * u, -8.04 * u);
+      q.quadraticCurveTo(0.10 * u, -7.84 * u, -1.84 * u, -8.06 * u);
+      q.closePath();
+    }, hat, { lw });
+    g.strokeStyle = L;
+    g.lineWidth = lw * 0.45;
+    g.beginPath();
+    g.moveTo(-1.78 * u, -9.10 * u);
+    g.quadraticCurveTo(0.06 * u, -9.50 * u, 1.64 * u, -9.00 * u);
+    g.stroke();
+    g.beginPath();
+    g.moveTo(-1.90 * u, -8.06 * u);
+    g.quadraticCurveTo(0.16 * u, -8.28 * u, 1.90 * u, -8.04 * u);
+    g.stroke();
+  }
+
+  // ---- 篮子：柄 → 掌心 → 指头压在柄上 ----
+  const bx = 1.62 * u;
+  const rimY = -2.52 * u;
+  const wristY = -3.34 * u;
+  ink(g, (q) => {
+    q.beginPath();
+    q.moveTo(bx - 0.74 * u, rimY);
+    q.quadraticCurveTo(bx - 0.70 * u, rimY + 0.62 * u, bx - 0.36 * u, rimY + 0.72 * u);
+    q.lineTo(bx + 0.36 * u, rimY + 0.72 * u);
+    q.quadraticCurveTo(bx + 0.70 * u, rimY + 0.62 * u, bx + 0.74 * u, rimY);
+    q.closePath();
+  }, C.gold, { lw });
+  for (const [dx, dy, r, col] of [[-0.36, 0.06, 0.23, C.red], [0.02, 0.00, 0.25, C.green], [0.38, 0.08, 0.22, C.redBr]]) {
+    ink(g, (q) => {
+      q.beginPath();
+      q.arc(bx + dx * u, rimY - dy * u, r * u, 0, Math.PI * 2);
+    }, col, { lw: lw * 0.6 });
+  }
+  ink(g, (q) => {
+    q.beginPath();
+    q.ellipse(bx, rimY, 0.76 * u, 0.20 * u, 0, 0, Math.PI * 2);
+  }, C.gold, { lw });
+  g.strokeStyle = L;
+  g.lineWidth = lw * 0.45;
+  g.beginPath();
+  g.moveTo(bx - 0.68 * u, rimY + 0.28 * u);
+  g.quadraticCurveTo(bx, rimY + 0.44 * u, bx + 0.68 * u, rimY + 0.28 * u);
+  g.stroke();
+  g.beginPath();
+  g.moveTo(bx - 0.58 * u, rimY + 0.52 * u);
+  g.quadraticCurveTo(bx, rimY + 0.66 * u, bx + 0.58 * u, rimY + 0.52 * u);
+  g.stroke();
+  // 柄
+  g.strokeStyle = C.gold;
+  g.lineWidth = 0.11 * u;
+  g.beginPath();
+  g.moveTo(bx - 0.66 * u, rimY - 0.04 * u);
+  g.quadraticCurveTo(bx - 0.36 * u, wristY + 0.12 * u, bx, wristY);
+  g.quadraticCurveTo(bx + 0.36 * u, wristY + 0.12 * u, bx + 0.66 * u, rimY - 0.04 * u);
+  g.stroke();
+  g.strokeStyle = L;
+  g.lineWidth = 0.04 * u;
+  g.stroke();
+
+  // ---- 近侧手臂：前臂伸到篮柄，掌心包住柄 ----
+  const nearShoulder = U(1.22, 5.40);
+  const nearElbow = U(1.56, 4.30);
+  const nearWrist = [bx, wristY];
+  capsule(g, [nearShoulder, nearElbow, nearWrist], [0.50 * u, 0.40 * u], skin, lw);
+  // 掌心：盖在柄顶
+  ink(g, (q) => {
+    q.beginPath();
+    q.moveTo(bx - 0.25 * u, wristY - 0.18 * u);
+    q.quadraticCurveTo(bx, wristY - 0.30 * u, bx + 0.25 * u, wristY - 0.16 * u);
+    q.lineTo(bx + 0.23 * u, wristY + 0.22 * u);
+    q.quadraticCurveTo(bx, wristY + 0.28 * u, bx - 0.23 * u, wristY + 0.20 * u);
+    q.closePath();
+  }, skin, { lw: lw * 0.75 });
+  // 指头压在柄上
+  g.strokeStyle = L;
+  g.lineWidth = lw * 0.4;
+  for (let i = 0; i < 3; i++) {
+    const fx = bx + (i - 1) * 0.14 * u;
+    g.beginPath();
+    g.moveTo(fx, wristY + 0.04 * u);
+    g.quadraticCurveTo(fx + 0.02 * u, wristY + 0.16 * u, fx, wristY + 0.25 * u);
+    g.stroke();
+  }
+  // 拇指绕到柄的另一侧
+  ink(g, (q) => {
+    q.beginPath();
+    q.ellipse(bx - 0.25 * u, wristY + 0.12 * u, 0.10 * u, 0.15 * u, -0.4, 0, Math.PI * 2);
+  }, skin, { lw: lw * 0.5 });
+
+  g.restore();
 }
+
+
+
 
 const LUT = {};
 

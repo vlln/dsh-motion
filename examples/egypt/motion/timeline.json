@@ -1,0 +1,48 @@
+{
+  "width": 1920,
+  "height": 1080,
+  "fps": 30,
+  "duration": 8,
+  "palettes": {
+    "main": {
+      "bg": "#e9dcbe",
+      "fg": "#24180f",
+      "accent": "#b03a2e",
+      "muted": "#8a7451",
+      "grid": "#d8c69c",
+      "panel": "#f4ecd8"
+    }
+  },
+  "overrides": {},
+  "texts": {},
+  "values": {},
+  "scenes": [
+    {
+      "id": "egypt",
+      "name": "花园里的池塘",
+      "start": 0,
+      "length": 8,
+      "palette": "main",
+      "speed": 1
+    }
+  ],
+  "audio": {
+    "src": "assets/audio/bed.wav",
+    "targetLufs": -20
+  },
+  "beats": {
+    "bpm": 72,
+    "beats": [
+      0,
+      0.833,
+      1.667,
+      2.5,
+      3.333,
+      4.167,
+      5,
+      5.833,
+      6.667,
+      7.5
+    ]
+  }
+}

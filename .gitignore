@@ -4,3 +4,8 @@ out/
 *.log
 .motion/
 .snapshots/
+
+# 卡片的证据要进仓库：并排图和参考帧不能丢
+!examples/*/out/
+!examples/*/out/ref/
+!examples/*/out/look/

@@ -44,5 +44,11 @@
       6.667,
       7.5
     ]
+  },
+  "assets": {
+    "kid": {
+      "kind": "image",
+      "src": "assets/char/kid.png"
+    }
   }
 }

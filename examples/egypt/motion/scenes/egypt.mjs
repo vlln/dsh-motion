@@ -18,6 +18,8 @@ import {
 export const id = 'egypt';
 export const kind = 'canvas2d';
 export const slots = {};
+// 主角由生图给（见 protocol/角色.md），墙和器物仍由代码画。
+export const assets = ['kid'];
 
 const W = 1920;
 const H = 1080;
@@ -355,7 +357,10 @@ export function render(t) {
 
   // 走路的少女：白帽子是"穿越"的那一个
   const walkX = 900 + lt * 26;
-  figure(g, { x: walkX, y: BANK, h: 272, face: 1, hat: C.white, phase: lt * 3.2 });
+  // 生图给的主角：底边踩在地面线上，按 3:4 的框放进去
+  const kidH = 300;
+  const kidW = kidH * 0.833;
+  ctx.image('kid', { x: walkX - kidW * 0.32, y: BANK - kidH * 0.94, w: kidW, h: kidH, fit: 'contain' });
 
   // 底部水带
   waterLine(g, { x: 0, y: BOTTOM.y + 2, w: W, h: BOTTOM.h - 4 }, lt, 1);

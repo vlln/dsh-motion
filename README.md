@@ -1,7 +1,7 @@
 # dsh-motion
 
 Motion 渲染内核的最小实现：**timeline + 文本槽 + 调色板 + 参数 → 逐帧捕获 → MP4**。
-契约见 [docs/kernel-contract.md](docs/kernel-contract.md)，原语清单见 [docs/primitives.md](docs/primitives.md)，
+契约见 [docs/kernel-contract.md](docs/kernel-contract.md)，重做计划见 [PLAN.md](PLAN.md)，
 技术栈的取舍与「什么会让我们改主意」见 [docs/decisions.md](docs/decisions.md)。
 
 ## 跑起来
@@ -23,9 +23,10 @@ npm run gate:tweaks   # 面板改字门禁，11 项断言（按帧列槽 / 点�
 npm run gate:scale    # 缩放门禁，5 项断言（默认 60fps / 2× 超采样 / 钳制）
 npm run gate:values   # 数据槽门禁，14 项断言（格式化 / 面板改数 / 图表变化 / 写盘）
 npm run gate:assets   # 素材门禁，18 项断言（换图即时生效 / 片段重烘 / 路径守卫）
-npm run gate:scene    # 场景门禁，7 项断言（改段长后重新排布 / 总时长 / 负控）
+npm run gate:scene    # 场景门禁，18 项断言（改段长后重新排布 / 总时长 / 负控）
+npm run gate:kit      # 样例门禁，8 项（引擎与 kit 双向不引用，六个样例真跑一次）
+npm run gate:deliver  # 交付门禁，11 项（合成片：动 / 静 / 无声 / 无片四种世界）
 npm run gate:export   # 导出门禁，7 项断言（成片尺寸帧数 / 面板端点 / 负控）
-npm run gate:project  # 项目门禁，10 项断言（模板建项目 / 校验 / 重名 / 文件服务）
 npm run gate:live     # 实时门禁，6 项断言（外部改数据自动生效 / 改代码出提示条）
 npm run assets        # 把 timeline.assets 里的片段烘成雪碧图 → out/media/
 npm run preview      # 本地预览 → http://127.0.0.1:4173/preview.html
@@ -37,7 +38,7 @@ npm run preview      # 本地预览 → http://127.0.0.1:4173/preview.html
 |---|---|
 | 画面门禁 | **14/14 通过**（含 WebGL） |
 | 音频门禁 | **8/8 通过** |
-| 视频 | 1920×1080 / **60fps** / 19.0s / H.264 + AAC 48k / 4.1 MB |
+| 视频 | 1920×1080 / **60fps** / 15.0s
 | 响度 | **−14.1 LUFS**（目标 −14） |
 | 节拍 | 检出 **119 BPM**（真值 120）、29 拍、drop **7.98s**（真值 8.0） |
 | 捕获速度 | 1140 帧 **约 23 秒**（60fps，含 WebGL、音频与封装）≈ 20ms/帧 |
@@ -53,9 +54,8 @@ npm run preview      # 本地预览 → http://127.0.0.1:4173/preview.html
 | 缩放门禁 | **5/5**（默认 60fps / 2× 超采样保住细节 / 钳制到 2） |
 | 数据槽门禁 | **14/14**（格式化 / 面板改数 / 条形随之变化 / 落盘与越界拒绝） |
 | 素材门禁 | **18/18**（换图即时重绘 / 片段重烘出 24 帧新表 / 包外路径与错类型拒绝） |
-| 场景门禁 | **7/7**（改段长后后续场景顺延、总时长 19→17、快照、非法速度拒绝） |
+| 场景门禁 | **18/18**（改段长后后续场景顺延、时长跟着场景走、快照、非法速度拒绝） |
 | 导出门禁 | **7/7**（240 帧 1080p 成片 / 面板端点 / 未知格式与包外路径拒绝） |
-| 项目门禁 | **10/10**（模板建出可校验的时间轴 / 重名与未知模板拒绝 / 文件按名服务） |
 | 实时门禁 | **6/6**（外部改时间轴无需刷新即生效、播放位置不动、改场景代码出刷新提示） |
 
 ## 接口
@@ -66,10 +66,10 @@ npm run preview      # 本地预览 → http://127.0.0.1:4173/preview.html
 
 4. **参数**：场景可以声明 `params`（数值旋钮）；代码只读 `ctx.param('axisY')`，值存 `timeline.params`，缺省回落声明里的 `default`。范围校验不通过直接拒绝写入，**不静默 clamp**。
 
-另外两条为 3D 增加的约定：
+另外两条为可选 `overlay` 准备的约定：
 
 - **场景各有自己的 canvas**：canvas 只能持一种 context，所以 2D 与 WebGL 场景各画各的，内核再 `drawImage` 合成到显示画布。
-- **可选 `overlay(g, ctx, t)`**：合成之后在显示画布上画 2D 图层，3D 场景因此能复用同一套文本槽与排版。
+- **可选 `overlay(g, ctx, t)`**：合成之后在显示画布上画 2D 图层，WebGL 场景因此能复用同一套文本槽与排版。
 
 ## 目录
 
@@ -100,14 +100,6 @@ scripts/gate-audio.mjs     音频门禁（流 / 时长 / 响度 / 节拍）
 
 1. **macOS 的颜色管理**：canvas 默认按 display-P3 读回，`#0b1426` 取出来是 `15,26,45`。修法是建 context 时钉 `colorSpace: 'srgb'`，且必须在任何场景取 context 之前。
 2. **采样点落在网格线上**：门禁第 2 项一度"背景变了"，实际是采样点 `(12,12)` 正好压在一根竖网格线上。换成网格外坐标后恢复。
-
-## 3D 段
-
-`src/scenes/cards3d.mjs`：three.js 的倒角卡片 + 硬币塔 + 转盘 + 字，PBR 材质（clearcoat）、
-用发光条烘出的环境光（品红在左、青在右）、投影地面与泛光合成；四拍一台戏，镜头每拍换一次运动。
-样板与成片共用一套材质和灯，所以画廊里看到的和建出来的片子是同一个东西。
-
-G4 证明 **WebGL 在逐帧捕获下也满足「同一个 t 两次渲染字节级相同」**——这是 3D 能走同一条管线的前提。
 
 ## 预览界面
 
@@ -157,7 +149,7 @@ node scripts/comments.mjs resolve --id th_x     # 改完之后把钉子标成已
 ## 作为 dsh 插件
 
 ```bash
-npm run build:client                      # 打包面板（three 内联，约 1.1 MiB）
+npm run build:client                      # 打包面板（约 106 KiB）
 dsh plugin --profile web add <repo 路径>   # 本地目录安装（先 npm run link 供 SDK）
 ```
 
@@ -353,7 +345,7 @@ motion    0+8 段 0.001 | 8+7 段 0.001 | 15+4 段 0.038
 - 音频 fit 只实现 `trim`（loop / pad 未实现）
 - 改**场景代码**后面板不能热应用（浏览器已缓存模块），只会出现「场景代码已更新」提示条，需要点刷新
 - 同一个场景模块在一条时间轴里只能出现一次（场景 id 唯一）；要重复同一套版式，需要 agent 写变体模块
-- 模板只决定第一幕；更多场景由 agent 写，面板不提供"再加一幕"
+- 一个工作区一条片子；幕由 agent 写，面板只读和改，不提供「再加一幕」
 - 参数只支持数值：颜色走 palette、文案走 slots，没有枚举 / 布尔 / 颜色参数
 - 片段先烘成一张雪碧图整段装进内存：长片段会吃内存，没有分块加载；片段自带音轨不入片，音频仍是一条 `audio.src`
 - 数据槽只有单个数值：没有数组 / 时间序列，复杂图表要自己在场景里组织数据

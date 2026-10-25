@@ -35,7 +35,7 @@
       ⑦ 用 `fixtures/` 的片跑门禁，根 `timeline.json` 只剩一个「引擎自检片」。
       已完成 ①–⑤、⑦：两套模板机制全删；`init` 只给空 timeline + 镜头表 + `kit/`；
       需要画面的三个门禁改用共享 fixture（`scripts/lib/fixture-film.mjs`）。
-      剩余 ⑥：`src/scenes/` 里还有五个 demo 场景和 `history.mjs`，它们仍是引擎里的画法代码。
+      ⑥ 也已完成：六个 demo 场景搬到项目自己的 `scenes/`，`src/scenes/` 只剩 `index.mjs`（一个动态 import 循环）。
 - [x] **P3 建 `kit/`**：六个样例模块（brush / medium / pixel / perspective / figure / grade），
       引擎双向不 import，门禁 `gate:kit` 看着这条线。
 - [ ] **P4 建 `protocol/`**：六步、打分表（80 门槛 / 两轮 / 两否决）、六种做坏方式、镜头表模板。

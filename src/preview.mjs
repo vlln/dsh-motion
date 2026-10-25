@@ -2,6 +2,9 @@
 // Same kernel the capture script uses — if it looks right here, it exports right.
 
 import { mountMotion } from './mount.mjs';
+// 用户向的样板库：只给空工作区的画廊用，引擎不引用、agent 也没有这个工具。
+import { SAMPLES, CATEGORIES, LOOP_SECONDS } from '../showcase/samples.mjs';
+import { finish } from '../showcase/look.mjs';   // 样板库自己的收尾，引擎不用它
 import { createComments } from './ui/comments.mjs';
 
 const $ = (id) => document.getElementById(id);
@@ -83,28 +86,454 @@ if (stageStack && 'ResizeObserver' in window) {
  * cards/, and the first frame is the agent's job — the engine holds no style
  * it could hand over, so this screen explains the two documents instead.
  */
+/**
+ * No film yet: show the ones this system has actually made.
+ *
+ * The panel is a window onto pictures, so the empty state is pictures. The
+ * previous version put a column of instructions here — the instructions belong
+ * in howto/, and the panel should show what the system can do, not tell you how
+ * to use it.
+ *
+ * The list is data (examples/gallery.json), not code: a gallery whose content
+ * lives in the bundle is how twelve baked-in styles got into the engine. If the
+ * manifest is missing — an installed package ships no examples — there is
+ * nothing to show, and nothing is shown.
+ */
 function showEmptyFilm() {
   document.querySelector('.app')?.remove();
   document.querySelector('.timeline')?.remove();
 
-  // Uses the .empty-film styles that already exist — the previous version
-  // invented .start* classes and no CSS was ever written for them, so the
-  // panel rendered a column of bare text.
   const empty = document.createElement('div');
-  empty.className = 'empty-film';
+  empty.className = 'explore';
+  const featured = SAMPLES.find((s) => s.featured) ?? SAMPLES[0];
+  const rest = SAMPLES.filter((s) => s !== featured);
+  const tile = (sample, extra = '') => `
+    <button class="tile${extra}" data-id="${sample.id}" data-tag="${sample.tag}"
+            aria-label="${sample.title}" style="--tile-bg:${sample.backdrop ?? sample.look.bg};--tile-ink:${sample.look.ink}">
+      <span class="tile-shot" style="aspect-ratio:${sample.ratio.toFixed(4)}">
+        <canvas aria-hidden="true"></canvas>
+        <span class="tile-dur">0:0${LOOP_SECONDS}</span>
+      </span>
+      ${extra ? '' : `<span class="tile-title">${sample.title}</span>`}
+    </button>`;
+
   empty.innerHTML = `
-    <div class="empty-icon" aria-hidden="true">✎</div>
-    <h2>这个片子还没有镜头</h2>
-    <p>先写一张镜头表，再写第一镜。画风是从参考里量出来的，不是从引擎里选的。</p>
-    <ol>
-      <li><b>锁画风</b>：一句话的画风、3–6 个色值、角色有没有。</li>
-      <li><b>写镜头表</b>：每镜一个具体的物和它的动作；写不出物的那一行先别做。</li>
-      <li><b>写一镜</b>：<code>scenes/&lt;id&gt;.mjs</code> 导出 <code>mount()</code> 和 <code>render(t)</code>。</li>
-    </ol>
-    <p class="empty-foot">画法自己写。<code>kit/</code> 是可整删的样例，<code>howto/</code> 是规程，<code>cards/</code> 是风格知识。</p>`;
+    <header class="explore-head">
+      <h1>探索动效</h1>
+      <span class="explore-count">${SAMPLES.length} 段</span>
+    </header>
+    ${tile(featured, ' tile-feature')}
+    <nav class="explore-tabs" aria-label="动效分类">
+      ${CATEGORIES.map(
+        (tag, i) => `<button class="tab" data-tag="${tag}" aria-pressed="${i === 0}">${tag}</button>`,
+      ).join('')}
+    </nav>
+    <div class="masonry">
+      ${rest.map((s) => tile(s)).join('')}
+    </div>
+    <div class="sheet" hidden>
+      <div class="sheet-dismiss" data-close></div>
+      <div class="sheet-card" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+        <button class="sheet-x" data-close aria-label="关闭">✕</button>
+        <div class="sheet-stage">
+          <canvas aria-hidden="true"></canvas>
+          <span class="tile-dur sheet-dur">0:0${LOOP_SECONDS}</span>
+        </div>
+        <div class="sheet-body">
+          <h2 id="sheetTitle"></h2>
+          <div class="sheet-meta">
+            <span class="sheet-tag" id="sheetTag"></span>
+            <span class="sheet-len">${LOOP_SECONDS}s · 循环</span>
+          </div>
+          <p class="sheet-prompt" id="sheetPrompt"></p>
+          <div class="sheet-actions">
+            <button class="btn ghost" id="sheetCopy">复制提示词</button>
+            <button class="btn" id="sheetSend">让 Agent 复刻</button>
+            <button class="btn" id="sheetUse" hidden>用这个样板开始</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
   document.body.append(empty);
   document.body.dataset.empty = 'film';
+
+  const tiles = [...empty.querySelectorAll('.tile')];
+  const players = playTiles(empty, tiles);
+
+  // Categories are a filter, not a new page: keep the scroll position.
+  for (const tab of empty.querySelectorAll('.tab')) {
+    tab.addEventListener('click', () => {
+      for (const other of empty.querySelectorAll('.tab')) {
+        other.setAttribute('aria-pressed', String(other === tab));
+      }
+      const tag = tab.dataset.tag;
+      for (const tile of tiles) tile.hidden = tag !== '全部' && tile.dataset.tag !== tag;
+      players.refresh();
+    });
+  }
+
+  const sheet = empty.querySelector('.sheet');
+  let sheetCanvas = sheet.querySelector('canvas');
+  const sheetTitle = sheet.querySelector('#sheetTitle');
+  const sheetTag = sheet.querySelector('#sheetTag');
+  const sheetPrompt = sheet.querySelector('#sheetPrompt');
+  const sheetCopy = sheet.querySelector('#sheetCopy');
+  const sheetSend = sheet.querySelector('#sheetSend');
+  const sheetUse = sheet.querySelector('#sheetUse');
+  let open = null;
+  let player = null;
+
+  const stage = sheet.querySelector('.sheet-stage');
+
+  const sizeStage = (sample) => {
+    const cardW = sheet.querySelector('.sheet-card').clientWidth;
+    const maxH = Math.min(window.innerHeight * 0.52, 520);
+    const w = Math.max(120, Math.min(cardW, maxH * sample.ratio));
+    const h = w / sample.ratio;
+    stage.style.height = `${h}px`;
+    sheetCanvas.style.width = `${w}px`;
+    sheetCanvas.style.height = `${h}px`;
+  };
+
+  const close = () => {
+    sheet.hidden = true;
+    document.body.classList.remove('sheet-open');
+    open = null;
+    player?.stop();
+    player = null;
+  };
+
+  for (const tile of tiles) {
+    tile.addEventListener('click', () => {
+      const sample = SAMPLES.find((s) => s.id === tile.dataset.id);
+      if (!sample) return;
+      open = sample;
+      sheetTitle.textContent = sample.title;
+      sheetTag.textContent = sample.tag;
+      sheetPrompt.textContent = sample.prompt;
+      sheetSend.disabled = !sessionId;
+      sheetSend.textContent = sessionId ? '让 Agent 复刻' : '在对话里打开才能发送';
+      sheetUse.hidden = !sample.template;
+      sheetUse.disabled = false;
+      sheetUse.textContent = '用这个样板开始';
+      sheet.hidden = false;
+      document.body.classList.add('sheet-open');
+      // A canvas keeps the first context type it was given: once the 3D sample
+      // has asked for webgl, getContext('2d') on the same element returns null
+      // and every later 2D sample draws nothing. Each open gets a clean canvas.
+      player?.stop();
+      const fresh = document.createElement('canvas');
+      sheetCanvas.replaceWith(fresh);
+      sheetCanvas = fresh;
+      sizeStage(sample);
+      player = playOne(sheetCanvas, sample);
+      sheet.querySelector('.sheet-card').focus?.();
+    });
+  }
+
+  for (const closer of sheet.querySelectorAll('[data-close]')) closer.addEventListener('click', close);
+  window.addEventListener('resize', () => {
+    if (!open) return;
+    sizeStage(open);
+    player?.resize();
+  });
+  window.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !sheet.hidden) close();
+  });
+
+  sheetCopy.addEventListener('click', async () => {
+    if (!open) return;
+    try {
+      await navigator.clipboard.writeText(open.prompt);
+      sheetCopy.textContent = '已复制';
+    } catch {
+      sheetPrompt.focus();
+      sheetCopy.textContent = '选中后自行复制';
+    }
+    setTimeout(() => (sheetCopy.textContent = '复制提示词'), 1600);
+  });
+
+  sheetUse.addEventListener('click', async () => {
+    if (!open?.template) return;
+    sheetUse.disabled = true;
+    sheetUse.textContent = '正在建片…';
+    try {
+      const res = await fetch('./api/template', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id: open.template }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'template failed');
+      sheetUse.textContent = '已创建，正在打开…';
+      const next = new URL(location.href);
+      next.searchParams.set('from', 'template');
+      location.replace(next);
+    } catch (error) {
+      sheetUse.disabled = false;
+      sheetUse.textContent = '没建成，再试一次';
+      console.error(error);
+    }
+  });
+
+  sheetSend.addEventListener('click', () => {
+    if (!open || !sessionId) return;
+    window.parent.postMessage(
+      { type: 'dshm:comment', id: `replicate-${Date.now()}`, session: sessionId, text: open.prompt },
+      location.origin,
+    );
+    sheetSend.textContent = '已发送';
+    sheetSend.disabled = true;
+    setTimeout(() => {
+      sheetSend.textContent = '让 Agent 复刻';
+      sheetSend.disabled = false;
+    }, 2000);
+  });
+
+  // The film can appear while this page is open — the agent is often still
+  // working when the column is opened. Watch for it instead of waiting for a
+  // manual refresh.
+  const timer = setInterval(async () => {
+    try {
+      const res = await fetch('./timeline.json', { cache: 'no-store' });
+      if (res.ok) {
+        clearInterval(timer);
+        location.reload();
+      }
+    } catch {
+      /* the host may be restarting; try again next tick */
+    }
+  }, 2000);
 }
+
+/** Size a canvas to its CSS box, once. */
+function fitCanvas(canvas) {
+  const rect = canvas.getBoundingClientRect();
+  if (!rect.width || !rect.height) return null;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  canvas.width = Math.round(rect.width * dpr);
+  canvas.height = Math.round(rect.height * dpr);
+  const g = canvas.getContext('2d');
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { g, w: rect.width, h: rect.height };
+}
+
+let threeModule;
+const loadThree = () => (threeModule ??= import('three'));
+
+/**
+ * A WebGL tile: the sample brings its own scene builder, the gallery brings the
+ * renderer and the clock. Same three chunk the 3D film scenes load.
+ */
+async function makeGL(canvas, sample) {
+  const THREE = await loadThree();
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+  // Tiles size the canvas with CSS; the sheet has no frame height of its own,
+  // so there the drawing buffer defines the box. Either way: measure first.
+  const measure = () => {
+    const r = canvas.getBoundingClientRect();
+    return { w: Math.max(1, r.width), h: Math.max(1, r.height) };
+  };
+  let { w, h } = measure();
+  const player = sample.build({ THREE, renderer, width: w, height: h });
+  player.resize(w, h);
+  return {
+    render(t) {
+      const now = measure();
+      if (now.w > 1 && now.h > 1 && (Math.abs(now.w - w) > 0.5 || Math.abs(now.h - h) > 0.5)) {
+        w = now.w;
+        h = now.h;
+        player.resize(w, h);
+      }
+      player.render(t);
+    },
+  };
+}
+
+/** One sample, one canvas, one clock — used by the detail sheet. */
+function playOne(canvas, sample) {
+  if (sample.engine === 'webgl') {
+    let raf = 0;
+    let start = performance.now();
+    let gl = null;
+    makeGL(canvas, sample).then((player) => {
+      gl = player;
+      const tick = (now) => {
+        gl.render(((now - start) / 1000) % LOOP_SECONDS);
+        raf = requestAnimationFrame(tick);
+      };
+      raf = requestAnimationFrame(tick);
+    });
+    return {
+      stop() {
+        cancelAnimationFrame(raf);
+      },
+      seek() {},
+      resize() {},
+    };
+  }
+
+  let raf = 0;
+  let start = performance.now();
+  let paused = false;
+  let shown = 0;
+  let size = fitCanvas(canvas);
+
+  const draw = (t) => {
+    if (!size) size = fitCanvas(canvas);
+    if (!size) return;
+    size.g.clearRect(0, 0, size.w, size.h);
+    sample.draw(size.g, size.w, size.h, t);
+    finish(size.g, size.w, size.h, t, sample.look);
+  };
+
+  const tick = (now) => {
+    const rect = canvas.getBoundingClientRect();
+    if (Math.abs(rect.width - (size?.w ?? 0)) > 1 || Math.abs(rect.height - (size?.h ?? 0)) > 1) {
+      size = fitCanvas(canvas);
+    }
+    shown = ((now - start) / 1000) % LOOP_SECONDS;
+    draw(shown);
+    raf = requestAnimationFrame(tick);
+  };
+  draw(0);
+  if (!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) raf = requestAnimationFrame(tick);
+
+  return {
+    stop() {
+      cancelAnimationFrame(raf);
+      raf = 0;
+    },
+    seek(t) {
+      shown = t;
+      draw(t);
+    },
+    resize() {
+      size = fitCanvas(canvas);
+      draw(shown);
+    },
+    get paused() {
+      return paused;
+    },
+  };
+}
+
+/**
+ * One clock drives every tile: the samples run in sync, off-screen ones sleep,
+ * a hidden tab sleeps, and reduced motion gets the settled frame.
+ */
+function playTiles(root, tiles) {
+  const items = tiles.map((tile) => ({
+    tile,
+    sample: SAMPLES.find((s) => s.id === tile.dataset.id),
+    canvas: tile.querySelector('canvas'),
+    g: null,
+    gl: null,
+    w: 0,
+    h: 0,
+    on: true,
+  }));
+
+  // The 3D study loads three (~1.6 MB) — only when its tile is actually seen.
+  const wake = (item) => {
+    if (item.sample.engine !== 'webgl' || item.gl || item.waking) return;
+    item.waking = true;
+    makeGL(item.canvas, item.sample).then((player) => {
+      item.gl = player;
+    });
+  };
+
+  const measure = () => {
+    for (const item of items) {
+      if (item.sample.engine === 'webgl') continue;
+      const rect = item.canvas.getBoundingClientRect();
+      if (!rect.width || !rect.height) continue;
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      item.canvas.width = Math.round(rect.width * dpr);
+      item.canvas.height = Math.round(rect.height * dpr);
+      item.g = item.canvas.getContext('2d');
+      item.g.setTransform(dpr, 0, 0, dpr, 0, 0);
+      item.w = rect.width;
+      item.h = rect.height;
+    }
+  };
+
+  const frame = (t) => {
+    for (const item of items) {
+      if (!item.on || item.tile.hidden) continue;
+      if (item.gl) {
+        item.gl.render(t);
+        continue;
+      }
+      if (!item.w) continue;
+      item.g.clearRect(0, 0, item.w, item.h);
+      item.sample.draw(item.g, item.w, item.h, t);
+      finish(item.g, item.w, item.h, t, item.sample.look);
+    }
+  };
+
+  measure();
+  if (!('IntersectionObserver' in window)) for (const item of items) wake(item);
+  const start = performance.now();
+
+  if ('ResizeObserver' in window) {
+    const ro = new ResizeObserver(() => {
+      measure();
+      frame(0);
+    });
+    for (const item of items) ro.observe(item.canvas);
+  }
+
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+    frame(2.4);
+    return { refresh: () => frame(2.4) };
+  }
+
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const item = items.find((c) => c.canvas === entry.target);
+          if (item) {
+            item.on = entry.isIntersecting;
+            if (entry.isIntersecting) wake(item);
+          }
+        }
+      },
+      { root: root, threshold: 0.05 },
+    );
+    for (const item of items) io.observe(item.canvas);
+  }
+
+  // Ten canvases on one clock: 30fps is plenty for samples and halves the work.
+  let raf = 0;
+  let drewAt = 0;
+  const tick = (now) => {
+    if (now - drewAt > 30) {
+      drewAt = now;
+      frame(((now - start) / 1000) % LOOP_SECONDS);
+    }
+    raf = requestAnimationFrame(tick);
+  };
+  raf = requestAnimationFrame(tick);
+
+  document.addEventListener('visibilitychange', () => {
+    cancelAnimationFrame(raf);
+    if (!document.hidden) raf = requestAnimationFrame(tick);
+  });
+
+  return {
+    refresh() {
+      measure();
+      frame(((performance.now() - start) / 1000) % LOOP_SECONDS);
+    },
+  };
+}
+
+// Render at the size the stage actually occupies, capped by the film's own
+// resolution: a 1920-wide film in a 900px panel costs a quarter of the pixels.
+
 
 
 // Render at the size the stage actually occupies, capped by the film's own

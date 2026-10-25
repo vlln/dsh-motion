@@ -1,0 +1,21 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { chromium } from 'playwright';
+import { startServer } from './scripts/serve.mjs';
+import { findChromium } from './scripts/lib/chromium.mjs';
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'empty-'));
+const project = path.join(tmp, 'motion'); fs.mkdirSync(project, { recursive: true });
+const { origin, close } = await startServer(0, { project });
+const b = await chromium.launch({ executablePath: findChromium() });
+const p = await b.newPage({ viewport: { width: 460, height: 900 } });
+p.on('console', (m) => console.log('[console]', m.text()));
+p.on('pageerror', (e) => console.log('[page error]', e.message));
+await p.goto(`${origin}/preview.html`, { waitUntil: 'load' });
+await p.waitForTimeout(2500);
+console.log(await p.evaluate(async () => {
+  const r = await fetch('./examples/gallery.json', { cache: 'no-store' });
+  const j = r.ok ? await r.json() : null;
+  return { status: r.status, items: j?.items?.length ?? 0, body: document.body.innerHTML.slice(0, 160) };
+}));
+await b.close(); close();

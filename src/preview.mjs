@@ -952,10 +952,11 @@ function tick(now) {
   // against it within seconds. Without one, the accumulator is the clock.
   let next = sound && !sound.paused ? sound.currentTime - audioOffset : t + dt;
   if (next < 0) next = 0;
+  let wrapped = false;
   if (next >= total) {
     if (looping) {
       next = 0;
-      soundSeek(0);
+      wrapped = true;
     }
     else {
       next = total - 0.001;
@@ -967,6 +968,10 @@ function tick(now) {
   t = next;
   kernel.renderAt(t);
   setTime(t);
+  // A wrapped loop needs play(), not a seek: an <audio> that reached its end is
+  // paused, and moving currentTime alone leaves it paused — silence on every
+  // repeat after the first, which is exactly what was reported.
+  if (wrapped) soundPlay();
   if (playing) raf = requestAnimationFrame(tick);
 }
 
@@ -976,7 +981,13 @@ const audioOffset = Number(timeline.audio?.start ?? 0);
 const sound = timeline.audio?.src
   ? new Audio(new URL(timeline.audio.src, location.href).href)
   : null;
-if (sound) sound.preload = 'auto';
+if (sound) {
+  sound.preload = 'auto';
+  // In the DOM (no controls, so it stays invisible): a detached Audio cannot be
+  // found by anything that inspects the page, including the loop test.
+  sound.id = 'score';
+  document.body.append(sound);
+}
 
 const muteBtn = $('mute');
 const volume = $('volume');

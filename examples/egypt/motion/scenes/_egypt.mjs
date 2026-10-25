@@ -406,166 +406,123 @@ export function papyrus(g, x, y, n, h, seed = 3) {
 }
 
 /**
- * 埃及程式的人：侧脸、正面眼、正面肩、平涂、等宽线。
+ * 人：滚圆的一个小孩（白帽、圆眼镜、白 T 恤、短裤、球鞋）。
  *
- * 尺寸以 210 为单位，按 h 缩放。返回近侧手的位置，拿东西的往那儿挂。
+ * 关键判断：参考片里的埃及段**主角不是埃及程式的人**，是一个现代小孩站在壁画里——
+ * 这正是"穿越"的意思。我前几版照壁画的侧脸正面肩去画，方向就错了：
+ * 壁画的人（如果有）应该用埃及程式；**主角**应该用卡通比例。
  *
- * 三处容易画错、这一版是照参考改过的：
- *   · 宽领项圈是**贴着脖子的一圈同心半椭圆**，外圈盖过肩宽，不是横过胸口的一条带子；
- *   · 近侧手臂画在躯干**之上**、轮廓**之外**，否则会被胸挡住；
- *   · 侧面用两段贝塞尔，不用折线——折线远看是鸟喙。
+ * 量自参考：总高 10 格（含帽），帽檐 8.7、头顶 8.4、下巴 6.4、肩 6.2、腰 4.6、
+ * 短裤下摆 3.2、膝 2.4、踝 0.8。头 + 帽占 44%，这就是 Q 版的分界。
  */
-export function figure(g, { x, y, h = 210, face = 1, skin = C.skin, cloth = C.white, hat = null, stride = 0 }) {
-  const s = h / 210;
+export function figure(g, { x, y, h = 272, face = 1, skin = C.skin, cloth = C.white, hat = null, stride = 0 }) {
+  const u = h / 10;
   const L = C.line;
+  const lw = 0.14 * u;
+  const sw = stride;                        // -1..1，前后摆
+  const P = (px, py) => [px * u, -py * u];
+  const polyP = (pts) => pts.map(([px, py]) => [px * u, -py * u]);
+
   g.save();
   g.translate(x, y);
-  g.scale(s * face, s);
+  g.scale(face, 1);
+  g.lineJoin = "round";
 
-  // 远侧腿（暗一档，错后半步）
-  ink(g, (q) => poly(q, [[-22, -76], [-6, -76], [-4 - stride * 12, -9], [-20 - stride * 12, -9]]), C.skinDk, { lw: 2.6 });
-
-  // 远侧的脚：之前漏了，一条腿悬空收口，视觉上就是"少一只脚"
-  ink(g, (q) => {
-    q.beginPath();
-    q.moveTo(-21 - stride * 10, -8);
-    q.bezierCurveTo(-21 - stride * 10, -3, -16 - stride * 10, -1, -6 - stride * 10, -1);
-    q.lineTo(2 - stride * 10, -2);
-    q.bezierCurveTo(-2 - stride * 10, -6, -8 - stride * 10, -9, -14 - stride * 10, -9);
-    q.closePath();
-  }, C.skinDk, { lw: 2.4 });
-
-  // 近侧腿 + 脚：脚跟、脚背、脚趾，长度够撑住重量
-  ink(g, (q) => poly(q, [[2, -76], [18, -76], [21 + stride * 12, -10], [6 + stride * 12, -10]]), skin, { lw: 2.6 });
-  ink(g, (q) => {
-    q.beginPath();
-    q.moveTo(3 + stride * 12, -8);
-    q.bezierCurveTo(3 + stride * 12, -2, 10 + stride * 12, 0, 22 + stride * 12, 0);
-    q.lineTo(34 + stride * 12, -1);
-    q.bezierCurveTo(30 + stride * 12, -6, 24 + stride * 12, -9, 18 + stride * 12, -9);
-    q.closePath();
-  }, skin, { lw: 2.4 });
-  g.strokeStyle = L;
-  g.lineWidth = 1.3;
-  g.beginPath();
-  g.moveTo(30 + stride * 12, -1);
-  g.lineTo(31 + stride * 12, -5);
-  g.stroke();
-
-  // 裙：上窄下宽 + 一条褶
-  ink(g, (q) => poly(q, [[-17, -108], [19, -108], [26, -72], [-24, -72]]), cloth, { lw: 2.8 });
-  g.strokeStyle = L;
-  g.lineWidth = 1.7;
-  g.beginPath();
-  g.moveTo(-5, -102);
-  g.lineTo(-7, -74);
-  g.stroke();
-
-  // 躯干：肩比腰宽；腰上一条红带
-  ink(g, (q) => poly(q, [[-27, -158], [29, -158], [19, -106], [-16, -106]]), cloth, { lw: 2.9 });
-  g.strokeStyle = C.red;
-  g.lineWidth = 5.5;
-  g.beginPath();
-  g.moveTo(-15, -116);
-  g.lineTo(19, -116);
-  g.stroke();
-
-  // 宽领项圈：外圈盖过肩，内圈贴脖子
-  const cc = [2, -166];
-  const bands = [[C.blue, 20, 8], [C.red, 27, 12], [C.gold, 33, 16], [C.blue, 39, 20]];
-  for (let i = bands.length - 1; i >= 0; i--) {
-    const [col, rx, ry] = bands[i];
-    g.beginPath();
-    g.ellipse(cc[0], cc[1], rx, ry, 0, 0, Math.PI);
-    g.fillStyle = col;
-    g.fill();
-  }
-  g.strokeStyle = L;
-  g.lineWidth = 2;
-  g.beginPath();
-  g.ellipse(cc[0], cc[1], 39, 20, 0, 0, Math.PI);
-  g.stroke();
-
-  // 颈
-  ink(g, (q) => poly(q, [[-6, -180], [9, -180], [8, -164], [-5, -164]]), skin, { lw: 2.2 });
-
-  // 头：颅骨大一号；侧脸两段贝塞尔（鼻梁 → 鼻尖 → 人中 → 下巴）
-  ink(g, (q) => {
-    q.beginPath();
-    q.ellipse(3, -198, 17, 19, 0, 0, Math.PI * 2);
-  }, skin, { lw: 2.6 });
-  ink(g, (q) => {
-    q.beginPath();
-    q.moveTo(15, -213);
-    q.bezierCurveTo(26, -210, 31, -204, 30, -198);
-    q.lineTo(26, -194);
-    q.bezierCurveTo(26, -188, 18, -183, 7, -181);
-    q.lineTo(-2, -183);
-  }, skin, { lw: 2.2 });
-
-  // 正面眼 + 拖到太阳穴的眼线 + 眉
-  g.fillStyle = C.white;
-  g.beginPath();
-  g.ellipse(11, -201, 5.6, 3.2, -0.08, 0, Math.PI * 2);
-  g.fill();
-  g.fillStyle = L;
-  g.beginPath();
-  g.arc(11, -201, 2.4, 0, 7);
-  g.fill();
-  g.strokeStyle = L;
-  g.lineWidth = 2.7;
-  g.beginPath();
-  g.moveTo(4, -202);
-  g.bezierCurveTo(11, -206, 17, -203, 19, -201);
-  g.lineTo(30, -202);
-  g.stroke();
-  g.lineWidth = 2.2;
-  g.beginPath();
-  g.moveTo(0, -208);
-  g.bezierCurveTo(9, -213, 18, -210, 22, -206);
-  g.stroke();
-
-  // 远侧手臂：只露肩下一小条
-  ink(g, (q) => poly(q, [[-27, -157], [-20, -156], [-19, -122], [-26, -123]]), C.skinDk, { lw: 2.2 });
-
-  // 近侧手臂：在躯干之上、轮廓之外；肩 → 肘 → 手
-  ink(g, (q) => poly(q, [[21, -156], [33, -153], [31 - stride * 3, -130], [20 - stride * 3, -132]]), skin, { lw: 2.6 });
-  ink(g, (q) => poly(q, [[21 - stride * 3, -132], [32 - stride * 3, -130], [28 - stride * 4, -106], [18 - stride * 4, -108]]), skin, { lw: 2.6 });
-  ink(g, (q) => {
-    q.beginPath();
-    q.ellipse(23 - stride * 4, -102, 9, 8, 0.2, 0, Math.PI * 2);
-  }, skin, { lw: 2.4 });
-  g.strokeStyle = L;
-  g.lineWidth = 1.3;
-  for (const d of [-4, 0, 4]) {
-    g.beginPath();
-    g.moveTo(19 - stride * 4 + d, -106);
-    g.lineTo(20 - stride * 4 + d, -99);
-    g.stroke();
-  }
-
-  // 帽子：白色宽檐压在颅骨上
-  if (hat) {
-    ink(g, (q) => poly(q, [[-25, -214], [32, -214], [36, -209], [-29, -209]]), hat, { lw: 2.3 });
+  const shoe = (qx, qy, flip) => {
+    qx = qx * u;
+    qy = -qy * u;
     ink(g, (q) => {
       q.beginPath();
-      q.ellipse(4, -215, 18, 12, 0, Math.PI, Math.PI * 2);
-    }, hat, { lw: 2.3 });
+      q.moveTo(qx - 0.32 * u, qy);
+      q.quadraticCurveTo(qx - 0.4 * u, qy + 0.42 * u, qx + 0.2 * u, qy + 0.44 * u);
+      q.quadraticCurveTo(qx + 0.62 * u * flip, qy + 0.5 * u, qx + 0.6 * u * flip, qy + 0.16 * u);
+      q.quadraticCurveTo(qx + 0.45 * u * flip, qy - 0.02 * u, qx - 0.32 * u, qy);
+      q.closePath();
+    }, cloth, { lw });
+  };
+
+  // —— 后腿（暗一档）：从短裤下摆到鞋 ——
+  const backX = -0.72 - sw * 0.5;
+  ink(g, (q) => poly(q, polyP([[backX - 0.42, 3.1], [backX + 0.42, 3.1], [backX + 0.4 - sw * 0.2, 0.85], [backX - 0.4 - sw * 0.2, 0.85]])), C.skinDk, { lw });
+  shoe(backX - sw * 0.2, 0.85, -1);
+
+  // —— 短裤 ——
+  ink(g, (q) => poly(q, polyP([[-1.55, 4.55], [1.6, 4.55], [1.62, 3.05], [-1.58, 3.05]])), "#c2ab7d", { lw });
+  g.strokeStyle = L;
+  g.lineWidth = 0.12 * u;
+  g.beginPath();
+  g.moveTo(0, -4.6 * u);
+  g.lineTo(0, -3.2 * u);
+  g.stroke();
+
+  // —— 前腿 ——
+  const frontX = 0.62 + sw * 0.6;
+  ink(g, (q) => poly(q, polyP([[frontX - 0.44, 3.1], [frontX + 0.44, 3.1], [frontX + 0.42 + sw * 0.2, 0.85], [frontX - 0.42 + sw * 0.2, 0.85]])), skin, { lw });
+  shoe(frontX + sw * 0.2, 0.85, 1);
+
+  // —— 白 T 恤：略呈梯形，下摆盖住短裤腰 ——
+  ink(g, (q) => poly(q, polyP([[-1.75, 6.25], [1.8, 6.25], [1.85, 4.2], [-1.8, 4.2]])), cloth, { lw });
+
+  // —— 后臂：只露一小截 ——
+  ink(g, (q) => poly(q, polyP([[-1.8 - sw * 0.2, 6.05], [-1.2 - sw * 0.2, 5.95], [-1.1 - sw * 0.7, 4.2], [-1.7 - sw * 0.7, 4.25]])), C.skinDk, { lw });
+
+  // —— 头 ——
+  const hx = 0.1 * u;
+  const hy = -7.35 * u;
+  ink(g, (q) => {
+    q.beginPath();
+    q.ellipse(hx, hy, 1.35 * u, 1.3 * u, 0, 0, Math.PI * 2);
+  }, skin, { lw });
+
+  // 圆眼镜：两个圈 + 中间的横梁 + 镜腿
+  g.strokeStyle = L;
+  g.lineWidth = 0.13 * u;
+  for (const dx of [-0.45, 0.55]) {
+    g.beginPath();
+    g.ellipse(hx + dx * u, hy - 0.02 * u, 0.4 * u, 0.36 * u, 0, 0, Math.PI * 2);
+    g.fillStyle = "#2a2118";
+    g.fill();
+    g.stroke();
+  }
+  g.beginPath();
+  g.moveTo(hx + 0.06 * u, hy - 0.02 * u);
+  g.lineTo(hx + 0.09 * u, hy - 0.02 * u);
+  g.stroke();
+  g.beginPath();
+  g.moveTo(hx - 0.68 * u, hy - 0.04 * u);
+  g.lineTo(hx - 0.95 * u, hy - 0.02 * u);
+  g.stroke();
+  // 嘴和一个鼻子尖
+  g.lineWidth = 0.1 * u;
+  g.beginPath();
+  g.moveTo(hx + 0.02 * u, hy + 0.5 * u);
+  g.quadraticCurveTo(hx + 0.22 * u, hy + 0.56 * u, hx + 0.34 * u, hy + 0.44 * u);
+  g.stroke();
+
+  // —— 前臂：垂在身侧，随步子前后 ——
+  const armX = 1.35 + sw * 0.75;
+  ink(g, (q) => poly(q, polyP([[armX, 6.05], [armX + 0.72, 5.95], [armX + 0.66, 3.95], [armX - 0.06, 4.05]])), skin, { lw });
+  ink(g, (q) => {
+    q.beginPath();
+    q.ellipse((armX + 0.22) * u, -3.9 * u, 0.24 * u, 0.22 * u, 0, 0, Math.PI * 2);
+  }, skin, { lw });
+
+  // —— 白帽：宽檐 + 圆顶 ——
+  if (hat) {
+    ink(g, (q) => {
+      q.beginPath();
+      q.ellipse(hx, hy - 1.2 * u, 2.95 * u, 0.46 * u, 0, 0, Math.PI * 2);
+    }, hat, { lw });
+    ink(g, (q) => {
+      q.beginPath();
+      q.ellipse(hx, hy - 1.2 * u, 1.35 * u, 0.95 * u, 0, Math.PI, Math.PI * 2);
+    }, hat, { lw });
   }
 
   g.restore();
-  return { hand: [x + face * s * 23, y - s * 102] };
+  return { hand: [x + face * (armX + 0.22) * u, y - 3.9 * u] };
 }
 
-/**
- * 把整幅画压到一副闭合调色板。
- *
- * 埃及壁画没有抗锯齿：颜料是一块一块平涂的，边缘是硬的。画布默认会把每条曲线
- * 变成一层灰雾，那是"数字感"的来源。压一次色板，边缘就回到"画上去的"。
- *
- * 深色和浅色分开找最近色：不分开的话，2.5px 的描边有一半像素会被判成墙色，
- * 线就断了——这是压色板最容易犯的错。
- */
 const LUT = {};
 
 export function flatten(g, w, h, palette) {

@@ -99,7 +99,7 @@ const edgeDensity = (file) => {
  * the left and passed through the medium on the right. Everything after this is
  * a comparison, never an absolute.
  */
-function buildFilm(dir, channel) {
+function buildFilm(dir, channel, { strokes = false } = {}) {
   const film = path.join(dir, 'motion');
   fs.mkdirSync(path.join(film, 'scenes'), { recursive: true });
   fs.writeFileSync(
@@ -143,7 +143,10 @@ export function mount(context) {
     g.fillStyle = i % 3 === 0 ? '#e8d9b0' : i % 3 === 1 ? '#7b3a2a' : '#22303a';
     g.fillRect(x, y, 6 + (i % 5) * 3, 4 + (i % 4) * 2);
   }
-  painted = ctx.medium.${channel}(base, { density: 1, seed: 4 });
+  const paintedMode = ${strokes ? 'true' : 'false'};
+  painted = paintedMode
+    ? ctx.paint.strokes(base, { cell: 10, len: 18, width: 5, seed: 3, t: 0, boil: 0 })
+    : ctx.medium.${channel}(base, { density: 1, seed: 4 });
   plain = base;
 }
 export function render(t) {
@@ -191,6 +194,17 @@ try {
     'a hard channel puts edges into the picture',
     h.right > h.left * 1.5 && h.right > 1,
     `plain ${h.left.toFixed(2)} → broken ${h.right.toFixed(2)}`,
+  );
+
+  // The stroke layer: the same picture, repainted per frame as brush marks.
+  const brush = buildFilm(path.join(tmp, 'brush'), 'broken', {
+    strokes: true,
+  });
+  const br = halves(brush.a);
+  check(
+    'the stroke layer puts marks on the whole frame',
+    br.right > br.left * 1.5 && br.right > 1,
+    `plain ${br.left.toFixed(2)} → strokes ${br.right.toFixed(2)}`,
   );
 
   // A soft channel: fog has no edge, so it must take edges *out*.

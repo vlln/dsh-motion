@@ -195,28 +195,65 @@ export function drawDetail(ctx, g, w, h, shot, t) {
 }
 
 let shared = null;
+let layer = null;
+let layerStep = -1;
 
-/** One painting for the whole film: three shots look through it, not at copies. */
-export function getPlate(ctx) {
+const BOIL = 6; // the surface re-seeds 6 times a second, not 24: 24 reads as flicker
+
+/**
+ * The base: the flat world, graded once. Everything that does not move.
+ * Half resolution on purpose — the stroke layer above it is what the eye reads.
+ */
+export function getBase(ctx) {
   if (!shared) {
-    // Painted at 1.6x the frame: shot three pushes in on it, and a 1:1 plate
-    // would turn its strokes into blobs at that magnification.
     const base = ctx.still((g, w, h) => drawMass(ctx, g, w, h), { scale: 1.6 });
-    shared = paintOnce(ctx, base, [0.24, 0.66]);
+    shared = ctx.medium.film(base, { grain: 0.05, halation: 0.16, vignette: 0.5, seed: 3 });
   }
   return shared;
 }
 
 /**
- * A window onto the painting. `view` is in plate fractions: {x, y, w, h}.
- * Drawing the plate and then drawing detail in plate coordinates keeps the two
- * registered whatever the window is.
+ * The stroke layer, over the base, re-seeded `BOIL` times a second.
+ *
+ * This is the difference between "a picture with a texture on it" and "a surface
+ * made of marks": every cell of the frame gets a short stroke sampled from the
+ * base, angled by the region (water runs sideways, buildings do not), and the
+ * whole grid jumps to a new jitter on each boil step. Cached between steps —
+ * recomputing it every frame is both slower and worse (it boils to mush).
  */
-export function drawView(ctx, g, w, h, plate, view, shot, t) {
+export function getLayer(ctx, t) {
+  const base = getBase(ctx);
+  const step = Math.floor(t * BOIL);
+  if (step === layerStep && layer) return layer;
+  layerStep = step;
+  const angle = (x, y) => {
+    // water: horizontal; sky: nearly still; buildings: vertical grain
+    return Math.sin(y * 0.05 + x * 0.004) > 0.2 ? 0.06 : -0.02;
+  };
+  const palette = (x, y, col, rand) => {
+    // warm the lit ground, cool the shadows: the same base, two materials
+    const lum = (col[0] + col[1] + col[2]) / 3;
+    if (lum > 90) return [Math.min(255, col[0] * 1.12 + 18), Math.min(255, col[1] * 1.05 + 6), col[2] * 0.92];
+    if (lum < 28) return [col[0] * 0.9, col[1] * 0.95, Math.min(255, col[2] * 1.15 + 6)];
+    void rand;
+    return null;
+  };
+  layer = ctx.paint.strokes(base, {
+    cell: 9, len: 26, width: 7, seed: 21, t, boil: BOIL, angle, palette, jitter: 22,
+    outline: 0.32, outlineColor: '#0a1018', outlineMix: 0.5,
+  });
+  return layer;
+}
+
+/**
+ * A window onto the painted surface. `view` is in fractions: {x, y, w, h}.
+ * Detail is drawn in the painting's coordinates, so it scales with the window.
+ */
+export function drawView(ctx, g, w, h, view, shot, t) {
+  const plate = getLayer(ctx, t);
   const pw = plate.width;
   const ph = plate.height;
-  // A window that runs off the painting reads as a black bar, so clamp it: the
-  // three shots may look anywhere, but only at the picture.
+  // A window that runs off the painting reads as a black bar, so clamp it.
   const v = {
     w: Math.min(1, view.w),
     h: Math.min(1, view.h),
@@ -229,35 +266,6 @@ export function drawView(ctx, g, w, h, plate, view, shot, t) {
   const sx = w / (v.w * pw);
   const sy = h / (v.h * ph);
   g.setTransform(sx, 0, 0, sy, -v.x * pw * sx, -v.y * ph * sy);
-  // detail is drawn in CSS pixels of the *painting*, so it scales with the window
   drawDetail(ctx, g, pw, ph, shot, t);
   g.restore();
-}
-
-/** Paint once: strokes, then a masked band of haze, then film. */
-export function paintOnce(ctx, base, hazeBand) {
-  const painted = ctx.medium.broken(base, { density: 1.1, size: 0.5, seed: 11 });
-
-  const haze = document.createElement('canvas');
-  haze.width = base.width;
-  haze.height = base.height;
-  const hz = haze.getContext('2d');
-  hz.drawImage(ctx.medium.mist(painted, { density: 1, seed: 5 }), 0, 0);
-  hz.globalCompositeOperation = 'destination-in';
-  const mask = hz.createLinearGradient(0, base.height * hazeBand[0], 0, base.height * hazeBand[1]);
-  mask.addColorStop(0, 'rgba(0,0,0,0)');
-  mask.addColorStop(0.45, 'rgba(0,0,0,0.5)');
-  mask.addColorStop(0.75, 'rgba(0,0,0,0.22)');
-  mask.addColorStop(1, 'rgba(0,0,0,0)');
-  hz.fillStyle = mask;
-  hz.fillRect(0, 0, base.width, base.height);
-
-  const composed = document.createElement('canvas');
-  composed.width = base.width;
-  composed.height = base.height;
-  const cg = composed.getContext('2d');
-  cg.drawImage(painted, 0, 0);
-  cg.drawImage(haze, 0, 0);
-
-  return ctx.medium.film(composed, { grain: 0.05, halation: 0.16, vignette: 0.5, seed: 3 });
 }

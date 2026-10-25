@@ -158,6 +158,125 @@ export function space({ w = 1920, h = 1080, eye = [0, 1.6, 0], look = [0, 1.6, -
 }
 
 /**
+ * The stroke layer: repaint a finished base as short brush marks, on a jittered
+ * grid, from the base's own colours. This is the mechanism behind "the whole
+ * frame is paint" — and the reason a picture stops looking like vector shapes
+ * with a texture on top.
+ *
+ * It runs *every frame* (unlike ctx.medium, which paints once): the grid re-seeds
+ * every `1 / boil` seconds, so the surface trembles. Give `boil = 0` to freeze it
+ * and cache the layer — a full-frame boil reads as flicker, and a still region
+ * (floor, props, a character sitting still) should not boil.
+ *
+ *   // in mount(): the flat base, drawn once
+ *   base = ctx.still((g, w, h) => { …shapes… });
+ *
+ *   // in render(t): the paint over it, re-seeded 8 times a second
+ *   const n = Math.floor(t * 8);
+ *   if (n !== last) { last = n; layer = ctx.paint.strokes(base, { angle, palette, t, boil: 8 }); }
+ *   g.drawImage(layer, 0, 0);
+ *
+ * `angle(x, y, t)` is the direction field (water is horizontal, foliage is not).
+ * `palette(x, y, rgb, rand)` returns a colour to use for that mark, or null to
+ * keep the sampled one — that is how one base becomes five materials.
+ * `mask(x, y)` and `alphaMask` limit which cells get painted.
+ */
+export function strokes(base, options = {}) {
+  const {
+    cell = 12,
+    len = 22,
+    width = 7,
+    angle = null,
+    seed = 1,
+    t = 0,
+    boil = 8,
+    outline = 0.35,
+    outlineColor = '#14193c',
+    outlineMix = 0.55,
+    jitter = 18,
+    mask = null,
+    alphaMask = false,
+    palette = null,
+    cap = 'round',
+  } = options;
+
+  const W = base.width;
+  const H = base.height;
+  const bctx = base.getContext('2d', { willReadFrequently: true });
+  const data = bctx.getImageData(0, 0, W, H).data;
+
+  const out = document.createElement('canvas');
+  out.width = W;
+  out.height = H;
+  const g = out.getContext('2d');
+  g.lineCap = cap;
+
+  // One seed per boil step: the whole layer jumps, it does not drift.
+  const step = boil > 0 ? Math.floor(t * boil) : 0;
+  let a = (seed * 1000 + step) >>> 0 || 1;
+  const rand = () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let x = a;
+    x = Math.imul(x ^ (x >>> 15), x | 1);
+    x ^= x + Math.imul(x ^ (x >>> 7), x | 61);
+    return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+  };
+  const mix = (c, d, k) => [c[0] + (d[0] - c[0]) * k, c[1] + (d[1] - c[1]) * k, c[2] + (d[2] - c[2]) * k];
+  const rgb = (c) => `rgb(${Math.round(c[0])},${Math.round(c[1])},${Math.round(c[2])})`;
+  const hex = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+
+  for (let y = 0; y < H + cell; y += cell) {
+    for (let x = 0; x < W + cell; x += cell) {
+      const px = x + (rand() - 0.5) * cell;
+      const py = y + (rand() - 0.5) * cell;
+      const ix = Math.max(0, Math.min(W - 1, px | 0));
+      const iy = Math.max(0, Math.min(H - 1, py | 0));
+      const i = (iy * W + ix) * 4;
+      if (mask && !mask(px, py)) continue;
+      if (alphaMask && data[i + 3] < 200) continue;
+
+      let col = [data[i], data[i + 1], data[i + 2]];
+      const swapped = palette ? palette(px, py, col, rand) : null;
+      if (swapped) col = swapped;
+
+      const ang = angle ? angle(px, py, t) : 0;
+      const l = len * (0.7 + rand() * 0.6);
+      const dx = (Math.cos(ang) * l) / 2;
+      const dy = (Math.sin(ang) * l) / 2;
+
+      if (outline > 0) {
+        g.globalAlpha = outline;
+        g.strokeStyle = rgb(mix(col, hex(outlineColor), outlineMix));
+        g.lineWidth = width + 2.5;
+        g.beginPath();
+        g.moveTo(px - dx, py - dy);
+        g.lineTo(px + dx, py + dy);
+        g.stroke();
+      }
+
+      const j = swapped ? col : mix(col, [128, 128, 128], (rand() - 0.5) * (jitter / 255) * 2);
+      g.globalAlpha = 1;
+      g.strokeStyle = rgb(j);
+      g.lineWidth = width;
+      g.beginPath();
+      g.moveTo(px - dx, py - dy);
+      g.lineTo(px + dx, py + dy);
+      g.stroke();
+    }
+  }
+  return out;
+}
+
+/** A colour group, so one base can become several materials. */
+export function swatch(hexes, mixBase = 0.35) {
+  const pool = hexes.map((h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]);
+  return (col, rand) => {
+    const k = pool[(rand() * pool.length) | 0];
+    return [k[0] + (col[0] - k[0]) * mixBase, k[1] + (col[1] - k[1]) * mixBase, k[2] + (col[2] - k[2]) * mixBase];
+  };
+}
+
+/**
  * A pixel sprite, from rows of characters. This is the other half of a
  * hand-painted plate: the painting carries the material, the sprite carries the
  * acting — and the sprite has to stay on its own grid, or the two read as one
@@ -240,4 +359,4 @@ export function grain(g, w, h, { angle = 0, density = 0.0016, alpha = 0.05, seed
   g.restore();
 }
 
-export const paint = { smoothPath, capsule, wash, strokeOutline, grain, space, sprite, TAU };
+export const paint = { smoothPath, capsule, wash, strokeOutline, grain, space, sprite, strokes, swatch, TAU };

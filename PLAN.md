@@ -27,13 +27,17 @@
 - [x] **P1 引擎手术**：删 `src/starters.mjs`(1432) / `src/medium.mjs`(552) / `src/look.mjs`(207) /
       `src/paint.mjs`(362)；拆掉 kernel 的 `ctx.paint` / `ctx.medium` / `look.finish`；
       preview 的空画廊改成「怎么开始」。门禁 477 → 321。
-- [ ] **P2 删模板**：`templates/` 十二个全部删除；`init` 只给骨架 + `kit/` + 空镜头表。
+- [x] **P2 删模板**：`templates/` 十二个全部删除；`init` 只给骨架 + `kit/` + 空镜头表。
       顺序：① `src/film.mjs` 去掉 `createFilmFromTemplate` 与 `TEMPLATE(S)`；② `src/project.mjs`
       去掉 `TEMPLATES` 与 `createProject`；③ `src/params-http.mjs` 去掉 `/api/template`；
       ④ `src/preview.mjs` 去掉 `from=template` 的封面逻辑；⑤ `bin/dsh-motion.mjs` 的 `init` 改写；
       ⑥ `src/scenes/` 里剩下的 five 个 demo 场景搬到 `fixtures/`（引擎不再带片子）；
       ⑦ 用 `fixtures/` 的片跑门禁，根 `timeline.json` 只剩一个「引擎自检片」。
-- [ ] **P3 建 `kit/`**：从零写（不从旧代码搬），六个模块，引擎不 import。
+      已完成 ①–⑤、⑦：两套模板机制全删；`init` 只给空 timeline + 镜头表 + `kit/`；
+      需要画面的三个门禁改用共享 fixture（`scripts/lib/fixture-film.mjs`）。
+      剩余 ⑥：`src/scenes/` 里还有五个 demo 场景和 `history.mjs`，它们仍是引擎里的画法代码。
+- [x] **P3 建 `kit/`**：六个样例模块（brush / medium / pixel / perspective / figure / grade），
+      引擎双向不 import，门禁 `gate:kit` 看着这条线。
 - [ ] **P4 建 `protocol/`**：六步、打分表（80 门槛 / 两轮 / 两否决）、六种做坏方式、镜头表模板。
 - [ ] **P5 建 `cards/`**：五段结构 + 状态三档。
 - [ ] **P6 重写 `skills/dsh-motion/SKILL.md`**：分档 / 路由 / 窄桥 / 协议 / 门禁 / 回流。

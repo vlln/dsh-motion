@@ -2,7 +2,7 @@
 
 > 场景代码与可编辑数据彻底分离：**改字改色不碰代码，改构图不碰数据**。
 > 这份文档是场景作者（人或 agent）与内核之间的接口；实现见 `src/kernel.mjs`，
-> 校验实现见 `src/validate.mjs`。原语清单见 [primitives.md](primitives.md)，
+> 校验实现见 `src/validate.mjs`。
 > 栈选择与理由见 [decisions.md](decisions.md)。
 
 ---
@@ -155,7 +155,7 @@ ctx.frame('clipA', t, { x, y, w, h, fit: 'cover' });
 
 ### 2.1 `ctx.drawText`（P1，已完成）
 
-文字绘制、换行、登记元素、暴露槽身份合并成一个原语，见 [primitives.md](primitives.md#文字p1)。
+文字绘制、换行、登记元素、暴露槽身份合并在 `ctx.drawText` 一个调用里（`src/kernel.mjs`）。
 在此之前，场景用 `ctx.text(slot)` + `fillText`，换行由场景自己负责（**已知缺陷：中文不换行**）。
 
 ---

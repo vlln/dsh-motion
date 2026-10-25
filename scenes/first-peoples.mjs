@@ -1,4 +1,4 @@
-import { makeHistoryScene } from './history.mjs';
+import { makeHistoryScene } from './_history.mjs';
 
 const scene = makeHistoryScene({
   id: 'first-peoples',

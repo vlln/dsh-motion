@@ -9,10 +9,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateTimeline } from '../src/validate.mjs';
 import { snapshot } from '../src/snapshots.mjs';
-import { modules } from '../src/scenes/all.mjs';
+import { modules } from '../src/project.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PROJECT = path.resolve(process.env.DSH_MOTION_PROJECT ?? ROOT);
+const mods = await modules(PROJECT);
 const file = path.join(PROJECT, 'timeline.json');
 const argv = process.argv.slice(2);
 const cmd = argv[0];
@@ -30,7 +31,7 @@ if (!sceneId || !slot) {
   process.exit(1);
 }
 
-const mod = modules.find((m) => m.id === sceneId);
+const mod = mods.find((m) => m.id === sceneId);
 if (!mod) {
   console.error(`unknown scene "${sceneId}"`);
   process.exit(1);
@@ -54,7 +55,7 @@ if (cmd === 'get') {
   timeline.texts[sceneId] ??= {};
   timeline.texts[sceneId][slot] = value;
 
-  const { ok, errors } = validateTimeline(timeline, modules);
+  const { ok, errors } = validateTimeline(timeline, mods);
   if (!ok) {
     console.error(`rejected:\n${errors.map((e) => `  - ${e}`).join('\n')}`);
     process.exit(1);

@@ -19,8 +19,10 @@ const { check, finish } = createGate();
 // --- write layer against a throwaway root ---
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-assets-'));
 fs.copyFileSync(path.join(ROOT, 'fixtures/timeline-media.json'), path.join(tmp, 'timeline.json'));
-// Asset paths are package-relative, so the throwaway root needs the fixtures too.
+// Asset paths are package-relative, so the throwaway root needs the fixtures too,
+// and it needs the scenes the timeline names — the package ships none now.
 fs.cpSync(path.join(ROOT, 'out/fixtures'), path.join(tmp, 'out/fixtures'), { recursive: true });
+fs.cpSync(path.join(ROOT, 'scenes'), path.join(tmp, 'scenes'), { recursive: true });
 fs.mkdirSync(path.join(tmp, 'scripts'), { recursive: true });
 fs.copyFileSync(path.join(ROOT, 'scripts/assets.mjs'), path.join(tmp, 'scripts/assets.mjs'));
 const attempt = async (fn) => {

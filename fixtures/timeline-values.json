@@ -15,11 +15,7 @@
   },
   "overrides": {},
   "texts": {},
-  "values": {
-    "data-lab": {
-      "speed": 100
-    }
-  },
+  "values": {},
   "scenes": [
     {
       "id": "data-lab",

@@ -33,6 +33,8 @@ check('compact shortens thousands', formatValue(12500, { format: 'compact' }) ==
 // --- write layer, against a throwaway project root ---
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-values-'));
 fs.copyFileSync(path.join(ROOT, 'fixtures/timeline-values.json'), path.join(tmp, 'timeline.json'));
+// a throwaway project still needs the scenes it names
+fs.cpSync(path.join(ROOT, 'scenes'), path.join(tmp, 'scenes'), { recursive: true });
 try {
   const saved = await setProjectValue(tmp, 'data-lab', 'speed', 100);
   const written = JSON.parse(fs.readFileSync(path.join(tmp, 'timeline.json'), 'utf8'));

@@ -6,11 +6,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateTimeline } from '../src/validate.mjs';
-import { modules } from '../src/scenes/all.mjs';
+import { modules } from '../src/project.mjs';
 import { createGate } from './lib/gate.mjs';
 import { sceneTime } from '../src/clock.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const mods = await modules(ROOT);
 const base = JSON.parse(fs.readFileSync(path.join(ROOT, 'timeline.json'), 'utf8'));
 const clone = () => JSON.parse(JSON.stringify(base));
 
@@ -19,14 +20,14 @@ const { check, finish } = createGate();
 const expectError = (name, mutate, needle) => {
   const timeline = clone();
   mutate(timeline);
-  const { ok, errors } = validateTimeline(timeline, modules);
+  const { ok, errors } = validateTimeline(timeline, mods);
   const hit = errors.some((e) => e.includes(needle));
   check(name, !ok && hit, ok ? 'accepted (should reject)' : errors[0]);
 };
 
 // 1. the real timeline must pass
 {
-  const { ok, errors } = validateTimeline(clone(), modules);
+  const { ok, errors } = validateTimeline(clone(), mods);
   check('valid timeline accepted', ok, errors.join('; '));
 }
 

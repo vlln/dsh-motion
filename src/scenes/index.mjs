@@ -1,35 +1,22 @@
-// Built-in scenes the engine ships for its own demo film. A project brings its
-// own: anything the timeline names that is not listed here is imported from
-// scenes/<id>.mjs in the project.
-
-import * as firstPeoples from './first-peoples.mjs';
-import * as coldWar from './cold-war.mjs';
-import * as textLab from './text-lab.mjs';
-import * as mediaLab from './media-lab.mjs';
-import * as dataLab from './data-lab.mjs';
-
-const STATIC = [firstPeoples, coldWar, textLab, mediaLab, dataLab];
+// Loading the scenes a timeline names.
+//
+// There are no built-in scenes. A film brings its own code in scenes/<id>.mjs
+// and this imports it at run time — which is what lets the agent write a shot
+// and see it without rebuilding anything.
 
 /**
- * Load the scenes a timeline names. Built-ins come from this bundle; anything
- * else is the film's own code, imported at run time from the same directory the
- * panel was mounted at. That is what lets the agent write a scene inside the
- * workspace and see it without rebuilding anything.
+ * @param {string[]} sceneIds
+ * @param {string} base  where the film keeps its scenes
  */
-export async function loadModules(sceneIds, base = './scenes') {
+export async function loadModules(sceneIds, base = "./scenes") {
   const wanted = [...new Set(sceneIds)];
   const modules = [];
   for (const id of wanted) {
-    const builtin = STATIC.find((m) => m.id === id);
-    if (builtin) {
-      modules.push(builtin);
-      continue;
-    }
     let mod;
     try {
       mod = await import(`${base}/${encodeURIComponent(id)}.mjs`);
     } catch (cause) {
-      throw new Error(`scene "${id}" is neither built in nor found at scenes/${id}.mjs`, { cause });
+      throw new Error(`scene "${id}" has no module at scenes/${id}.mjs`, { cause });
     }
     if (mod.id !== id) throw new Error(`scene module scenes/${id}.mjs declares id "${mod.id}"`);
     modules.push(mod);

@@ -58,7 +58,7 @@ try {
   check('a data change raises no banner', await page.locator('#stale').isHidden());
 
   // --- a scene-code change raises the banner instead of silently doing nothing ---
-  fs.utimesSync(path.join(ROOT, 'src/scenes/text-lab.mjs'), new Date(), new Date());
+  fs.utimesSync(path.join(ROOT, 'scenes/text-lab.mjs'), new Date(), new Date());
   const banner = await until(async () => page.locator('#stale').isVisible(), 8000);
   check('a code change raises a refresh banner', banner);
 

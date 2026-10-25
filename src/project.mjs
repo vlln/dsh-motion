@@ -31,11 +31,10 @@ const projectModules = new Map();
  * mtime moves, so an edit is visible without restarting the plugin.
  */
 export async function modules(root) {
-  cached ??= (await import('./scenes/all.mjs')).modules;
-  if (!root) return cached;
+  if (!root) throw new Error('modules(root): a film directory is required — scenes are the film code, not the package code');
   const dir = path.join(root, 'scenes');
-  if (!fs.existsSync(dir)) return cached;
-  const list = [...cached];
+  const list = [];
+  if (!fs.existsSync(dir)) return list;
   // `_name.mjs` (and anything under scenes/lib/) is a shared module, not a
   // scene: it has no mount/render and the film never lists it in `scenes`.
   for (const name of fs.readdirSync(dir).filter((f) => f.endsWith('.mjs') && !f.startsWith('_')).sort()) {
@@ -328,7 +327,11 @@ export function revision(root, file = 'timeline.json') {
       else if (/\.(mjs|js|css|html)$/.test(name)) parts.push(`${path.relative(root, abs)}:${stat.mtimeMs}:${stat.size}`);
     }
   };
+  // The film code (scenes/) and the engine code (src/) both need a reload when
+  // they change; the timeline does not, because the panel edits it in place.
   walk(path.join(root, 'src'));
+  walk(path.join(root, 'scenes'));
+  walk(path.join(root, 'kit'));
   for (const name of ['lib/app.js', 'lib/app.css', 'lib/app.html']) {
     const abs = path.join(root, name);
     if (!fs.existsSync(abs)) continue;

@@ -1362,17 +1362,44 @@ export function flatten(g, w, h, palette) {
     LUT.noise = n;
   }
 
-  const { rgb, dark, light, noise } = LUT;
+  const { rgb, dark, light } = LUT;
+
+  // 低频斑：20–60px 的块状明暗，像颜料在灰泥上吸得厚薄不匀。
+  // 之前那版是每像素 ±4 的哈希噪声，盲评的原话是"高频噪点叠层"——方向就错了。
+  if (!LUT.blobs) {
+    const N = 24, BL = 48;
+    const field = new Float32Array(N * N);
+    let seed = 11;
+    for (let i = 0; i < field.length; i++) {
+      seed = (seed * 1664525 + 1013904223) | 0;
+      field[i] = (seed >>> 8) / 0x1000000;
+    }
+    LUT.blobs = { N, BL, field };
+  }
+  const { N, BL, field } = LUT.blobs;
+  // 双线性取样，得到 20–60px 的平滑斑块
+  const blob = (x, y) => {
+    const fx = x / BL, fy = y / BL;
+    const x0 = Math.floor(fx) % N, y0 = Math.floor(fy) % N;
+    const x1 = (x0 + 1) % N, y1 = (y0 + 1) % N;
+    const tx = fx - Math.floor(fx), ty = fy - Math.floor(fy);
+    const a0 = field[y0 * N + x0], a1 = field[y0 * N + x1];
+    const b0 = field[y1 * N + x0], b1 = field[y1 * N + x1];
+    return (a0 * (1 - tx) + a1 * tx) * (1 - ty) + (b0 * (1 - tx) + b1 * tx) * ty;
+  };
+
   for (let y = 0; y < h; y++) {
-    const nrow = (y & 63) << 6;
     for (let x = 0; x < w; x++) {
       const i = (y * w + x) << 2;
       const r = d[i];
       const gg = d[i + 1];
       const b = d[i + 2];
       const key = ((r >> 3) << 10) | ((gg >> 3) << 5) | (b >> 3);
-      const q = rgb[(luma(r, gg, b) < 110 ? dark : light)[key]];
-      const dv = noise[nrow + (x & 63)];
+      const dark_ = luma(r, gg, b) < 110;
+      const q = rgb[(dark_ ? dark : light)[key]];
+
+      const dv = (blob(x, y) - 0.5) * 16;        // ±8 的低频浓淡
+
       d[i] = q[0] + dv;
       d[i + 1] = q[1] + dv;
       d[i + 2] = q[2] + dv * 0.8;

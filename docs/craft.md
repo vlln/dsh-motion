@@ -71,7 +71,7 @@ Agent 的水平上限是它读过的东西。库里全是单镜头的循环样�
 
 | 腿 | 已经有的 | 还缺的 |
 |---|---|---|
-| 能力 | `ctx.paint.space`（透视）、`ctx.paint.sprite`（像素角色）、`ctx.medium`（broken/charcoal/silk/print 四个硬边 + **mist 软边** + film 镜头）、`ctx.still`（画一次）、`init` 默认从 `plate` 起手 | 材料通道没有"刻刀/软笔/水痕"的分档，只有两档（硬笔触、软雾） |
+| 能力 | `ctx.paint.strokes`（逐帧笔触层 + `swatch` 色板）、`ctx.paint.space`（透视）、`ctx.paint.sprite`（像素角色）、`ctx.medium`（四个硬边 + mist 软边 + film）、`ctx.still`（画一次）、`init` 默认从 `plate` 起手 | 笔触层只有一种笔形（直线段）；没有"点彩 / 刮刀 / 干笔"这类笔形分档 |
 | 标杆 | `plate`（拿来的画 + 演员）、`guide`（纸上印刷）、`tree`（绢本水墨）、`street`（代码画 + 画一次上材料）、`night`（一张画三个窗口）、`pond`（**底图 + 笔触层**，solid 0.07 / texture 25.3），各带拆解 | 多镜头只有一条且偏暗；"底图 + 笔触层"只有一条样板 |
 | 判据 | `check` 末尾的 look 行（solid / texture / contrast）、`out/look/vs-ref.jpg`、`--strict` 只拦空画面 | 一个标量判不了"像不像画"：实测里一条画出来的夜街（7.5）和一张扁平的日景（7.7）撞在一起。判据只在"和参考比"时可靠 |
 

@@ -152,6 +152,19 @@ function drawBase(g) {
     g.stroke();
   }
 
+  // 中左：矮供桌 + 面包（填空白，也是密度）
+  g.save();
+  g.translate(560, BANK);
+  ink(g, (g2) => poly(g2, [[-64, 0], [64, 0], [70, -10], [-70, -10]]), C.gold, { lw: 2.8 });
+  ink(g, (g2) => poly(g2, [[-52, -10], [52, -10], [40, -34], [-40, -34]]), C.cream, { lw: 2.8 });
+  for (let i = -1; i <= 1; i++) {
+    ink(g, (g2) => {
+      g2.beginPath();
+      g2.ellipse(i * 26, -40, 13, 8, 0, Math.PI, Math.PI * 2);
+    }, C.gold, { lw: 2.4 });
+  }
+  g.restore();
+
   // 右：供桌（静态）
   g.save();
   g.translate(1560, BANK);
@@ -164,6 +177,20 @@ function drawBase(g) {
     }, i % 2 ? C.gold : C.green, { lw: 2 });
   }
   g.restore();
+
+  // 右下：再来一排小罐，密度要一直铺到边上
+  for (let i = 0; i < 3; i++) {
+    const x = 1120 + i * 58;
+    ink(g, (g2) => {
+      g2.beginPath();
+      g2.moveTo(x - 10, BANK - 58);
+      g2.lineTo(x + 10, BANK - 58);
+      g2.quadraticCurveTo(x + 24, BANK - 28, x + 16, BANK);
+      g2.lineTo(x - 16, BANK);
+      g2.quadraticCurveTo(x - 24, BANK - 28, x - 10, BANK - 58);
+      g2.closePath();
+    }, i % 2 ? C.turq : C.gold, { lw: 2.4 });
+  }
 
   // 底部水带与脚带
   g.strokeStyle = C.line;

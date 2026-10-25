@@ -1,0 +1,28 @@
+{
+  "layers": [
+    {
+      "kind": "roomtone",
+      "gain": 0.12
+    },
+    {
+      "kind": "wind",
+      "gain": 0.34,
+      "rate": 0.18
+    },
+    {
+      "kind": "page",
+      "at": 1.15
+    },
+    {
+      "kind": "wheel",
+      "at": 7.0
+    },
+    {
+      "kind": "bell",
+      "at": 8.98,
+      "freq": 740,
+      "decay": 0.55,
+      "gain": 0.55
+    }
+  ]
+}

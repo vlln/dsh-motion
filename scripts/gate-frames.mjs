@@ -16,6 +16,9 @@ const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-motion-frames-'));
 try {
   execFileSync(process.execPath, [BIN, 'init', '--title', 'gate'], { cwd: tmp });
   check('init made a film', fs.existsSync(path.join(tmp, 'motion/timeline.json')));
+  // init 答应给的三样：时间轴、镜头表、kit 的拷贝。少一样就是打包坏了。
+  check('init brings the storyboard', fs.existsSync(path.join(tmp, 'motion/镜头表.md')));
+  check('init brings the kit', fs.existsSync(path.join(tmp, 'motion/kit/README.md')));
 
   // Two solid seconds with a hard cut at 1.0s.
   execFileSync(

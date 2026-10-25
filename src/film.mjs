@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 const PKG_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const KIT = path.join(PKG_ROOT, 'kit');
-const STORYBOARD = path.join(PKG_ROOT, 'protocol', '镜头表.md');
+const STORYBOARD = path.join(PKG_ROOT, 'howto', '镜头表.md');
 
 const PALETTE = {
   bg: '#0b1426',
@@ -71,7 +71,12 @@ export function scaffoldFilm(root, { title = 'Untitled' } = {}) {
 
   // Samples, not API: the film keeps its own copy and may delete every file.
   if (fs.existsSync(KIT)) fs.cpSync(KIT, path.join(dir, 'kit'), { recursive: true });
-  if (fs.existsSync(STORYBOARD)) fs.copyFileSync(STORYBOARD, path.join(dir, '镜头表.md'));
+  // 少了镜头表是打包错误，不是"这次不用给"——以前的 existsSync 守卫把这种缺失吞掉了：
+  // 目录改名之后 init 静默地不再生成镜头表，只有真正的 agent 用的时候才发现。
+  if (!fs.existsSync(STORYBOARD)) {
+    throw new Error(`the storyboard template is missing from the package: ${path.relative(PKG_ROOT, STORYBOARD)}`);
+  }
+  fs.copyFileSync(STORYBOARD, path.join(dir, '镜头表.md'));
 
   return { dir, timeline, film };
 }

@@ -259,7 +259,7 @@ node skills/dsh-motion/scripts/make-audio.mjs --write   # 渲染并写回 timeli
 
 | kind | 是什么 | 参数 |
 |---|---|---|
-| `rain` `roomtone` `wind` `pad` | 铺底 | `gain`；`pad` 还有 `bpm`（每分钟拍数）、`root`（**频率，Hz**，不是音名）、`chord`（**频率倍数数组**，不是和弦名） |
+| `rain` `roomtone` `wind` `pad` | 铺底。**带 `at` 就是从那一秒铺到片尾，停不下来**；要「中途才出现、之后消失」的层，现在的音频层做不到，改用事件 | `gain`；`pad` 还有 `bpm`（每分钟拍数）、`root`（**频率，Hz**，不是音名）、`chord`（**频率倍数数组**，不是和弦名） |
 | `score` | **配乐**：段落、和声、动机 | `bpm`、`key`、`chords`、`motif`、`sections` |
 | `clock` | 铺底，秒针 | `every`（默认 1 秒一响） |
 | `page` `bell` `wheel` `click` | 事件 | `at`、`gain`；`bell` 还有 `freq` `decay` |
@@ -315,7 +315,7 @@ node skills/dsh-motion/scripts/make-audio.mjs --use ~/Downloads/music.mp3 --loop
 ```jsonc
 {
   "width": 1920, "height": 1080, "fps": 60,
-  "duration": 10,                      // 所有场景时长之和
+  "duration": 10,                      // 不小于最后一个场景的结束时间；大于总和 = 片尾多一段静止
   "scenes": [
     { "id": "blank", "name": "开场", "start": 0, "length": 6, "palette": "main", "speed": 1 }
   ],
@@ -330,6 +330,7 @@ node skills/dsh-motion/scripts/make-audio.mjs --use ~/Downloads/music.mp3 --loop
 ```
 
 - `start` 必须连续、从 0 开始；改一幕的 `length` 后要顺延后面的 `start` 并更新 `duration`。
+  `duration` 小于最后一场的结束会被校验拒绝；**大于**则合法，但那一段是静止——想留尾黑就明说。
 - `texts` 里的值优先于场景里 `slots` 的默认值。
 
 ## 一个场景
@@ -394,7 +395,7 @@ export function render(t) {
 | `ctx.rng(key)` | 可复现的随机 |
 | `ctx.sceneStart` | 本幕在整条片子里的起始秒 |
 | `ctx.beats` / `ctx.bpm` | 节拍网格（`audio.json` 里有 `pad` 时自动写上） |
-| `ctx.still(draw, {scale})` | 画一次存起来，每帧贴回；`scale > 1` 画得更大，推近不糊 |
+| `ctx.still(draw, {scale})` | 画一次存起来，每帧贴回；`scale > 1` 画得更大，推近不糊。**回调里按片子自己的坐标系画（1920×1080），不要用传进来的宽高**——那是放大后的像素尺寸 |
 | `ctx.image(name, opts)` / `ctx.frame(name, at, opts)` | 素材（先在 `timeline.assets` 声明，再在场景 `assets` 里列出） |
 
 `drawText` 的常用项：`x y w size weight family lineHeight maxLines align color alpha`。

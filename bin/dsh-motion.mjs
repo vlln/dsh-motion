@@ -206,6 +206,12 @@ async function render() {
     await run('capture.mjs', ['--video', ...(out ? ['--out', out] : []), ...(opt('fps') ? ['--fps', opt('fps')] : [])], FILM);
     return;
   }
+  // 一张全分辨率静帧（--still）和一张拼图（--stills）是两件事，都要转发
+  if (opt('still') !== undefined) {
+    await run('capture.mjs', ['--still', String(opt('still')), '--out', out ?? 'out/frame.png'], FILM);
+    console.log(`full-resolution frame → ${out ?? 'out/frame.png'}`);
+    return;
+  }
   const stills = opt('stills', '0,3,6');
   await run('capture.mjs', ['--stills', stills, '--cols', String(opt('cols', 3)), '--out', out ?? 'out/sheet.png'], FILM);
 }

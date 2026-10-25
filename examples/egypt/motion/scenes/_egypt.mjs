@@ -425,6 +425,16 @@ export function figure(g, { x, y, h = 210, face = 1, skin = C.skin, cloth = C.wh
   // 远侧腿（暗一档，错后半步）
   ink(g, (q) => poly(q, [[-22, -76], [-6, -76], [-4 - stride * 12, -9], [-20 - stride * 12, -9]]), C.skinDk, { lw: 2.6 });
 
+  // 远侧的脚：之前漏了，一条腿悬空收口，视觉上就是"少一只脚"
+  ink(g, (q) => {
+    q.beginPath();
+    q.moveTo(-21 - stride * 10, -8);
+    q.bezierCurveTo(-21 - stride * 10, -3, -16 - stride * 10, -1, -6 - stride * 10, -1);
+    q.lineTo(2 - stride * 10, -2);
+    q.bezierCurveTo(-2 - stride * 10, -6, -8 - stride * 10, -9, -14 - stride * 10, -9);
+    q.closePath();
+  }, C.skinDk, { lw: 2.4 });
+
   // 近侧腿 + 脚：脚跟、脚背、脚趾，长度够撑住重量
   ink(g, (q) => poly(q, [[2, -76], [18, -76], [21 + stride * 12, -10], [6 + stride * 12, -10]]), skin, { lw: 2.6 });
   ink(g, (q) => {
@@ -556,36 +566,72 @@ export function figure(g, { x, y, h = 210, face = 1, skin = C.skin, cloth = C.wh
  * 深色和浅色分开找最近色：不分开的话，2.5px 的描边有一半像素会被判成墙色，
  * 线就断了——这是压色板最容易犯的错。
  */
+const LUT = {};
+
 export function flatten(g, w, h, palette) {
   const img = g.getImageData(0, 0, w, h);
   const d = img.data;
-  const rgb = palette.map((hex) => {
-    const n = parseInt(hex.replace('#', ''), 16);
-    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-  });
-  const luma = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
-  const dark = rgb.filter((c) => luma(c) < 110);
-  const light = rgb.filter((c) => luma(c) >= 110);
-  const near = (r, gg, b, set) => {
-    let best = set[0];
-    let dist = Infinity;
-    for (const c of set) {
-      const dd = (r - c[0]) ** 2 + (gg - c[1]) ** 2 + (b - c[2]) ** 2;
-      if (dd < dist) {
-        dist = dd;
-        best = c;
+  const luma = (r, gg, b) => 0.2126 * r + 0.7152 * gg + 0.0722 * b;
+
+  // 一次性建两张 32k 查找表（5 bit/通道）。15 色的最近色不逐像素算——
+  // 逐像素算的话 1920×1080 要 65ms，查表是 30ms 的零头。
+  if (!LUT.rgb) {
+    const rgb = palette.map((hex) => {
+      const n = parseInt(hex.replace("#", ""), 16);
+      return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    });
+    const entries = rgb.map((c, idx) => ({ c, idx }));
+    const darkSet = entries.filter((e) => luma(...e.c) < 110);
+    const lightSet = entries.filter((e) => luma(...e.c) >= 110);
+    const build = (set) => {
+      const t = new Uint8Array(32768);
+      for (let i = 0; i < 32768; i++) {
+        const r = ((i >> 10) & 31) * 8 + 4;
+        const gg = ((i >> 5) & 31) * 8 + 4;
+        const b = (i & 31) * 8 + 4;
+        let best = set[0].idx;
+        let dist = Infinity;
+        for (const e of set) {
+          const dd = (r - e.c[0]) ** 2 + (gg - e.c[1]) ** 2 + (b - e.c[2]) ** 2;
+          if (dd < dist) {
+            dist = dd;
+            best = e.idx;
+          }
+        }
+        t[i] = best;
       }
+      return t;
+    };
+    // 深色和浅色分开找：不分开的话，3px 描边有一半像素被判成墙色，线会断。
+    LUT.rgb = rgb;
+    LUT.dark = build(darkSet.length ? darkSet : entries);
+    LUT.light = build(lightSet.length ? lightSet : entries);
+
+    // 颜料浓淡：一张 64×64 噪声贴片循环用。
+    const n = new Float32Array(64 * 64);
+    let seed = 7;
+    for (let i = 0; i < n.length; i++) {
+      seed = (seed * 1664525 + 1013904223) | 0;
+      n[i] = ((seed >>> 8) / 0x1000000 - 0.5) * 9;
     }
-    return best;
-  };
-  for (let i = 0; i < d.length; i += 4) {
-    const r = d[i];
-    const gg = d[i + 1];
-    const b = d[i + 2];
-    const q = luma([r, gg, b]) < 110 && dark.length ? near(r, gg, b, dark) : near(r, gg, b, light);
-    d[i] = q[0];
-    d[i + 1] = q[1];
-    d[i + 2] = q[2];
+    LUT.noise = n;
+  }
+
+  const { rgb, dark, light, noise } = LUT;
+  for (let y = 0; y < h; y++) {
+    const nrow = (y & 63) << 6;
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) << 2;
+      const r = d[i];
+      const gg = d[i + 1];
+      const b = d[i + 2];
+      const key = ((r >> 3) << 10) | ((gg >> 3) << 5) | (b >> 3);
+      const q = rgb[(luma(r, gg, b) < 110 ? dark : light)[key]];
+      const dv = noise[nrow + (x & 63)];
+      d[i] = q[0] + dv;
+      d[i + 1] = q[1] + dv;
+      d[i + 2] = q[2] + dv * 0.8;
+    }
   }
   g.putImageData(img, 0, 0);
 }

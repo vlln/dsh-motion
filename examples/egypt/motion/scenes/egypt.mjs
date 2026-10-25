@@ -12,7 +12,8 @@
 
 import {
   C, rng, ink, poly, beadBand, toothBand, column, drawGlyph, water, fish, fowl, papyrus,
-  figure, egyptian, capsule, cast, jar, flatten, PALETTE,
+  figure, egyptian, capsule, cast, jar,
+  wallTexture, frescoSurface, specks,
 } from './_egypt.mjs';
 
 export const id = 'egypt';
@@ -36,6 +37,8 @@ const BANK = 640;                      // 岸线：水带的上沿，人和陈�
 
 let ctx;
 let base = null;
+let surface = null;
+let speck = null;
 let cols = [];
 let poolFish = [];
 let bandFish = [];
@@ -77,6 +80,8 @@ export function mount(context) {
   ];
 
   base = ctx.still(drawBase, { scale: 1 });
+  surface = frescoSurface(W, H);
+  speck = specks(W, H);
 }
 
 function drawGlyphRows(g) {
@@ -93,8 +98,8 @@ function drawGlyphRows(g) {
 }
 
 function drawBase(g) {
-  g.fillStyle = C.wall;
-  g.fillRect(0, 0, W, H);
+  // 墙就是一张 fBm 纹理，不是平涂（照参考：P.texture）
+  g.drawImage(wallTexture(W, H, { base: C.wall, dark: C.wallDk, seed: 1 }), 0, 0);
 
   beadBand(g, 0, TOP.y, W, TOP.h, 46);
   g.strokeStyle = C.line;
@@ -124,9 +129,9 @@ function drawBase(g) {
   }
 
   // 岸上：三只大雁，大小不一，站在岸线上
-  fowl(g, 470, BANK - 8, 2.2, 0);
-  fowl(g, 700, BANK - 4, 1.75, 0);
-  fowl(g, 1330, BANK - 6, 1.9, 0);
+  fowl(g, 470, BANK + 10, 1.5, 0);
+  fowl(g, 700, BANK + 12, 1.15, 0);
+  fowl(g, 1330, BANK + 8, 1.35, 0);
   // 两端纸莎草大扇形
   papyrus(g, 96, BANK - 8, 7, 210, 91);
   papyrus(g, 1830, BANK - 8, 7, 230, 92);
@@ -342,6 +347,11 @@ export function render(t) {
   g.lineWidth = 3.5;
   g.strokeRect(0, BOTTOM.y, W, BOTTOM.h);
 
-  // 最后一道：压到闭合色板。边缘变硬，整幅读成"画上去的"。
-  flatten(g, W, H, PALETTE);
+  // 表面：一张 fBm multiply 层（含发丝裂纹）+ 一层稀疏颗粒。
+  // 这一步是"壁画"和"矢量图"的分界，照参考 02_egypt.js 的 surface()/specks()。
+  g.save();
+  g.globalCompositeOperation = "multiply";
+  g.drawImage(surface, 0, 0);
+  g.restore();
+  g.drawImage(speck, 0, 0);
 }

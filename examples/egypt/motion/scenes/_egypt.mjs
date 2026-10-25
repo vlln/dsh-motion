@@ -1452,3 +1452,130 @@ export function plaster(g, w, h, seed = 7) {
   g.drawImage(c, 0, 0);
   g.restore();
 }
+
+// ---- 墙面：照参考的实现（lib/paint.js 的 P.texture / surface / grain）----
+//
+// 关键差别：他们的墙不是平涂 + 后期噪点，而是**画的时候就带 fBm 纹理**，
+// 再乘一张全幅 surface（两层 fBm），最后撒一层 grain。
+// 之前的 flatten(15 色) 恰好把这些全压平了——那就是"矢量感"的来源。
+
+const fade = (t) => t * t * (3 - 2 * t);
+const perm = (() => {
+  const p = new Uint8Array(512);
+  const r = rng(11);
+  for (let i = 0; i < 256; i++) p[i] = i;
+  for (let i = 255; i > 0; i--) {
+    const j = (r() * (i + 1)) | 0;
+    [p[i], p[j]] = [p[j], p[i]];
+  }
+  for (let i = 0; i < 256; i++) p[256 + i] = p[i];
+  return p;
+})();
+const grad = (h, x, y) => {
+  const g = h & 7;
+  const u = g < 4 ? x : y;
+  const v = g < 4 ? y : x;
+  return ((g & 1) ? -u : u) + ((g & 2) ? -2 * v : 2 * v);
+};
+export const noise2 = (x, y) => {
+  const X = Math.floor(x) & 255, Y = Math.floor(y) & 255;
+  x -= Math.floor(x); y -= Math.floor(y);
+  const u = fade(x), v = fade(y);
+  const a = perm[X] + Y, b = perm[X + 1] + Y;
+  return (
+    (1 - v) * ((1 - u) * grad(perm[a], x, y) + u * grad(perm[b], x - 1, y)) +
+    v * ((1 - u) * grad(perm[a + 1], x, y - 1) + u * grad(perm[b + 1], x - 1, y - 1))
+  ) / 1.5;
+};
+export const fbm = (x, y, oct = 4) => {
+  let s = 0, a = 0.5, f = 1;
+  for (let i = 0; i < oct; i++) { s += a * noise2(x * f, y * f); a *= 0.5; f *= 2; }
+  return s;
+};
+
+const hexRgb = (h) => {
+  const n = parseInt(h.replace('#', ''), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+};
+const mixRgb = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+
+/** 一张带 fBm 斑驳的墙：底色 + 多八度噪声 + 细颗粒，可选压向 dark。 */
+export function wallTexture(w, h, { base = C.wall, dark = C.wallDk, scale = 0.004, amt = 26, grain = 14, seed = 1 } = {}) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  const img = g.createImageData(w, h), d = img.data;
+  const b = hexRgb(base), dk = hexRgb(dark), r = rng(seed);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const n = fbm(x * scale + seed, y * scale, 5);
+      const gr = (r() - 0.5) * grain;
+      const i = (y * w + x) * 4;
+      const c2 = mixRgb(b, dk, Math.min(1, Math.max(0, n * 1.2 + 0.25)));
+      d[i] = c2[0] + n * amt + gr;
+      d[i + 1] = c2[1] + n * amt + gr;
+      d[i + 2] = c2[2] + n * amt * 0.8 + gr;
+      d[i + 3] = 255;
+    }
+  }
+  g.putImageData(img, 0, 0);
+  return c;
+}
+
+/**
+ * 全幅表面层：两层 fBm 的明度场（2×2 像素一块写，所以是"纹理"不是"噪点"），
+ * 外加六条随机游走的发丝裂纹。用 multiply 盖在整幅上——包括人物。
+ */
+export function frescoSurface(w, h, { seed = 99 } = {}) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  const img = g.createImageData(w, h), d = img.data, r = rng(seed);
+  for (let y = 0; y < h; y += 2) {
+    for (let x = 0; x < w; x += 2) {
+      const n = fbm(x * 0.006 + 40, y * 0.006, 4);
+      const m = fbm(x * 0.03, y * 0.03 + 9, 2);
+      const v = 243 + n * 30 + m * 12 + (r() - 0.5) * 18;
+      for (const [dx, dy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) {
+        if (x + dx >= w || y + dy >= h) continue;
+        const i = ((y + dy) * w + x + dx) * 4;
+        d[i] = v; d[i + 1] = v - 6; d[i + 2] = v - 16; d[i + 3] = 255;
+      }
+    }
+  }
+  g.putImageData(img, 0, 0);
+  // 发丝裂纹：从画外某点随机游走，跨过整幅（包括人物）——那是墙老了，不是画脏了
+  const rr = rng(5);
+  const starts = [[0, h * 0.56, 0.1], [w * 0.36, 0, 1.3], [w * 0.63, 0, 1.1], [w * 0.78, h, -0.9], [w * 0.2, h, -1.2], [w, h * 0.39, 2.9]];
+  for (let [x, y, a] of starts) {
+    g.strokeStyle = 'rgba(90,70,50,0.55)';
+    g.lineWidth = 1.1;
+    g.beginPath();
+    g.moveTo(x, y);
+    for (let s = 0; s < 34; s++) {
+      a += (rr() - 0.5) * 0.7;
+      x += Math.cos(a) * 14;
+      y += Math.sin(a) * 14;
+      g.lineTo(x, y);
+      if (rr() < 0.08) g.moveTo(x, y);
+    }
+    g.stroke();
+  }
+  return c;
+}
+
+/** 颗粒：稀疏的深色点，叠在表面层之上。 */
+export function specks(w, h, { density = 0.018, color = [70, 50, 30], alpha = 0.4, seed = 3 } = {}) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  const img = g.createImageData(w, h), d = img.data, r = rng(seed);
+  for (let i = 0; i < w * h; i++) {
+    if (r() < density) {
+      d[i * 4] = color[0]; d[i * 4 + 1] = color[1]; d[i * 4 + 2] = color[2];
+      d[i * 4 + 3] = 255 * alpha * (0.4 + r() * 0.6);
+    }
+  }
+  g.putImageData(img, 0, 0);
+  return c;
+}

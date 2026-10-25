@@ -29,11 +29,10 @@ const TOP = { y: 0, h: 54 };
 const UPPER = { y: 66, h: 500 };       // 神界：象形字 + 池塘 + 日轮
 const MID = { y: 578, h: 24 };         // 齿带
 const LOWER = { y: 612, h: 300 };      // 人间：走路的少女 + 供桌
-const BOTTOM = { y: 924, h: 100 };     // 水带
+const BOTTOM = { y: 648, h: 356 };     // 水带：通栏，不是画框
 const FOOT = { y: 1032, h: 48 };
 
-const POOL = { x: 430, y: 120, w: 1000, h: 330 };
-const BANK = LOWER.y + 286;            // 人走的地面线（把人和陈设压在下栏里）
+const BANK = 640;                      // 岸线：水带的上沿，人和陈设都站在这条线上
 
 let ctx;
 let base = null;
@@ -57,8 +56,8 @@ export function mount(context) {
   poolFish = [];
   for (let i = 0; i < 12; i++) {
     poolFish.push({
-      x: POOL.x + 40 + rand() * (POOL.w - 80),
-      y: POOL.y + 70 + rand() * (POOL.h - 130),
+      x: 60 + rand() * (W - 120),
+      y: BOTTOM.y + 70 + rand() * (BOTTOM.h - 140),
       s: 1.05 + rand() * 0.95,
       dir: rand() < 0.5 ? 1 : -1,
       speed: 16 + rand() * 34,
@@ -72,10 +71,9 @@ export function mount(context) {
     { x: 1580, y: 982, s: 0.8, dir: -1, speed: 34, col: C.gold },
   ];
   lilies = [
-    { x: POOL.x + 90, y: POOL.y + POOL.h - 34, s: 1.6 },
-    { x: POOL.x + POOL.w - 110, y: POOL.y + POOL.h - 40, s: 1.4 },
-    { x: POOL.x + POOL.w * 0.45, y: POOL.y + POOL.h - 26, s: 1.2 },
-    { x: POOL.x + POOL.w * 0.7, y: POOL.y + 60, s: 1.1 },
+    { x: 240, y: BOTTOM.y + 70, s: 1.5 },
+    { x: 960, y: BOTTOM.y + 96, s: 1.3 },
+    { x: 1640, y: BOTTOM.y + 62, s: 1.4 },
   ];
 
   base = ctx.still(drawBase, { scale: 1 });
@@ -105,74 +103,43 @@ function drawBase(g) {
 
   drawGlyphRows(g);
 
-  // 池岸：先铺一圈砖岸，池子才是园池，不是挂在墙上的画框
+  // 岸带：一条通栏的砖砌岸，水在它下面，人和陈设都站在这条线上
   g.fillStyle = C.wallDk;
-  g.fillRect(POOL.x - 46, POOL.y - 42, POOL.w + 92, POOL.h + 92);
+  g.fillRect(0, BANK - 26, W, 26);
   g.strokeStyle = C.line;
   g.lineWidth = 2.6;
-  g.strokeRect(POOL.x - 46, POOL.y - 42, POOL.w + 92, POOL.h + 92);
-  // 岸砖：一排短竖线，密一点，读成砌筑
+  g.beginPath();
+  g.moveTo(0, BANK - 26);
+  g.lineTo(W, BANK - 26);
+  g.moveTo(0, BANK);
+  g.lineTo(W, BANK);
+  g.stroke();
   g.strokeStyle = C.line;
   g.lineWidth = 1.6;
-  for (let x = POOL.x - 40; x < POOL.x + POOL.w + 44; x += 34) {
+  for (let x = 8; x < W; x += 34) {
     g.beginPath();
-    g.moveTo(x, POOL.y - 42);
-    g.lineTo(x, POOL.y - 18);
-    g.moveTo(x + 17, POOL.y + POOL.h + 18);
-    g.lineTo(x + 17, POOL.y + POOL.h + 46);
+    g.moveTo(x, BANK - 26);
+    g.lineTo(x, BANK);
     g.stroke();
   }
-  // 池塘：深色边框 + 水底。水面每帧画
-  g.fillStyle = C.line;
-  g.fillRect(POOL.x - 16, POOL.y - 16, POOL.w + 32, POOL.h + 32);
-  g.fillStyle = C.blueDk;
-  g.fillRect(POOL.x, POOL.y, POOL.w, POOL.h);
-  g.strokeStyle = C.gold;
-  g.lineWidth = 3;
-  g.strokeRect(POOL.x - 16, POOL.y - 16, POOL.w + 32, POOL.h + 32);
 
-  // 带翼日轮：上栏正中，两条翅膀 + 日盘
-  (() => {
-    const cx = W / 2, cy = UPPER.y + 22;
-    g.beginPath();
-    g.arc(cx, cy, 26, 0, Math.PI * 2);
-    g.fillStyle = C.redBr;
-    g.fill();
-    g.strokeStyle = C.line;
-    g.lineWidth = 3;
-    g.stroke();
-    for (const sgn of [-1, 1]) {
-      for (let i = 0; i < 3; i++) {
-        const len = 250 - i * 46;
-        const yTop = cy - 16 + i * 15;
-        g.beginPath();
-        g.moveTo(cx + sgn * 28, yTop);
-        g.bezierCurveTo(cx + sgn * (28 + len * 0.5), yTop - 12, cx + sgn * (28 + len * 0.9), yTop - 4, cx + sgn * (28 + len), yTop + 6);
-        g.lineTo(cx + sgn * (28 + len * 0.92), yTop + 16);
-        g.bezierCurveTo(cx + sgn * (28 + len * 0.5), yTop + 6, cx + sgn * 40, yTop + 8, cx + sgn * 28, yTop + 10);
-        g.closePath();
-        g.fillStyle = i % 2 ? C.blue : C.green;
-        g.fill();
-        g.strokeStyle = C.line;
-        g.lineWidth = 2.6;
-        g.stroke();
-      }
-    }
-  })();
-
-  // 池岸两侧：水鸟与纸莎草，把上栏的空白填掉
-  fowl(g, 396, 500, 1.18, 0);
-  fowl(g, 1428, 512, 1.02, 0);
-  papyrus(g, 360, 520, 4, 110, 91);
-  papyrus(g, 1560, 520, 4, 120, 92);
-
-  // 莲叶（静态底座）
-  for (const l of lilies) {
-    ink(g, (g2) => {
-      g2.beginPath();
-      g2.ellipse(l.x, l.y + 16, 26 * l.s, 8 * l.s, 0, 0, Math.PI * 2);
-    }, C.green, { lw: 2 });
+  // 岸上：三只大雁，大小不一，站在岸线上
+  fowl(g, 470, BANK - 8, 2.2, 0);
+  fowl(g, 700, BANK - 4, 1.75, 0);
+  fowl(g, 1330, BANK - 6, 1.9, 0);
+  // 两端纸莎草大扇形
+  papyrus(g, 96, BANK - 8, 7, 210, 91);
+  papyrus(g, 1830, BANK - 8, 7, 230, 92);
+  // 上栏空中：四只飞鸟，把大片空白填掉
+  for (const [bx, by, bs] of [[560, 250, 0.9], [690, 205, 0.7], [1240, 240, 0.8], [1370, 190, 0.65]]) {
+    ink(g, (q) => {
+      q.beginPath();
+      q.moveTo(bx - 26 * bs, by);
+      q.quadraticCurveTo(bx - 10 * bs, by - 16 * bs, bx, by);
+      q.quadraticCurveTo(bx + 10 * bs, by - 16 * bs, bx + 26 * bs, by);
+    }, null, { lw: 2.6 });
   }
+
 
   toothBand(g, 0, MID.y, W, MID.h);
 
@@ -208,10 +175,6 @@ function drawBase(g) {
   fowl(g, 1352, BANK - 22, 0.44, 0);
 
   // 右下：圣甲虫推日轮（Khepri）——一个真能读出来的东西
-  // 底部水带与脚带  // 底部水带与脚带
-  g.strokeStyle = C.line;
-  g.lineWidth = 3.5;
-  g.strokeRect(0, BOTTOM.y, W, BOTTOM.h);
   beadBand(g, 0, FOOT.y, W, FOOT.h, 40);
 }
 
@@ -332,51 +295,28 @@ export function render(t) {
   const g = ctx.canvas.getContext('2d', { willReadFrequently: true });
   g.drawImage(base, 0, 0);
 
-  // 池塘：水 + 鱼
-  g.save();
-  g.beginPath();
-  g.rect(POOL.x, POOL.y + 10, POOL.w, POOL.h - 10);
-  g.clip();
-  waterLine(g, { x: POOL.x, y: POOL.y, w: POOL.w, h: POOL.h }, lt, 0);
+  // 水带：通栏，上沿就是岸线
+  waterLine(g, { x: 0, y: BOTTOM.y, w: W, h: BOTTOM.h }, lt, 0);
   for (const f of poolFish) {
-    const span = POOL.w + 120;
-    const x = POOL.x - 60 + (((f.x - POOL.x + 60 + lt * f.speed) % span) + span) % span;
+    const span = W + 160;
+    const x = -80 + (((f.x + lt * f.speed) % span) + span) % span;
     fish(g, x, f.y + Math.sin(lt * 2 + f.x) * 3, f.s, f.dir, f.col);
   }
-  g.restore();
-
-  // 水面上浮着的三只水鸟：跟着水一起动
-  for (let i = 0; i < 3; i++) {
-    const dx = POOL.x + 160 + i * 300 + Math.sin(lt * 0.6 + i) * 24;
-    fowl(g, dx, POOL.y + POOL.h - 26 + Math.sin(lt * 1.5 + i * 2) * 2, 0.62, 0);
-  }
-
-  // 池心莲花：花瓣缓慢开合
   for (const l of lilies) {
     const sway = Math.sin(lt * 1.6 + l.x) * 0.12;
-    ink(g, (g2) => {
+    ink(g, (q) => {
       const petals = 5;
       for (let i = 0; i < petals; i++) {
-        const a = -Math.PI / 2 + (i - (petals - 1) / 2) * 0.42 + sway;
+        const ang = -Math.PI / 2 + (i - (petals - 1) / 2) * 0.42 + sway;
         const len = 26 * l.s;
-        const bx = l.x + Math.cos(a) * len;
-        const by = l.y + 12 + Math.sin(a) * len;
-        g2.moveTo(l.x, l.y + 14);
-        g2.quadraticCurveTo(l.x + Math.cos(a - 0.2) * len * 0.6, l.y + 12 + Math.sin(a - 0.2) * len * 0.6, bx, by);
-        g2.quadraticCurveTo(l.x + Math.cos(a + 0.2) * len * 0.6, l.y + 12 + Math.sin(a + 0.2) * len * 0.6, l.x, l.y + 14);
+        const bx = l.x + Math.cos(ang) * len;
+        const by = l.y + Math.sin(ang) * len;
+        q.moveTo(l.x, l.y + 6);
+        q.quadraticCurveTo(l.x + Math.cos(ang - 0.2) * len * 0.6, l.y + Math.sin(ang - 0.2) * len * 0.6, bx, by);
+        q.quadraticCurveTo(l.x + Math.cos(ang + 0.2) * len * 0.6, l.y + Math.sin(ang + 0.2) * len * 0.6, l.x, l.y + 6);
       }
-    }, null, { lw: 2.2 });
-    g.fillStyle = C.blue;
-    g.beginPath();
-    g.arc(l.x, l.y + 10, 5 * l.s, 0, 7);
-    g.fill();
-    g.strokeStyle = C.line;
-    g.lineWidth = 1.6;
-    g.stroke();
+    }, null, { lw: 2.4 });
   }
-  g.strokeStyle = C.line;
-  g.lineWidth = 3;
-  g.strokeRect(POOL.x, POOL.y, POOL.w, POOL.h);
 
   // 会动的水纹字
   const wp = Math.floor(lt * 12) * 0.5;
@@ -387,15 +327,6 @@ export function render(t) {
   // 走路的少女：白帽子是"穿越"的那一个
   const walkX = 900 + lt * 26;
   // 生图给的主角：底边踩在地面线上，按 3:4 的框放进去
-  // 接触影：和其他器物同一条规则（不是 UI 的 drop shadow，是颜料积在地上）
-  g.save();
-  g.globalAlpha = 0.22;
-  g.fillStyle = C.line;
-  g.beginPath();
-  g.ellipse(walkX + 6, BANK + 4, 76, 13, 0, 0, Math.PI * 2);
-  g.fill();
-  g.restore();
-
   const kidH = 300;
   const kidW = kidH * 0.833;
   ctx.image('kid', { x: walkX - kidW * 0.32, y: BANK - kidH * 0.94, w: kidW, h: kidH, fit: 'contain' });

@@ -33,7 +33,7 @@ export const rng = (seed) => {
 };
 
 /** 给一个路径铺平涂 + 等宽深棕描边。埃及壁画里每个形都是这两步。 */
-export function ink(g, draw, fill, { lw = 3.1, stroke = C.line } = {}) {
+export function ink(g, draw, fill, { lw = 5.6, stroke = C.line } = {}) {
   draw(g);
   if (fill) {
     g.fillStyle = fill;
@@ -291,7 +291,7 @@ export function drawGlyph(g, q, ph = 0) {
   g.scale(q.s, q.s);
   g.strokeStyle = q.col;
   g.fillStyle = q.col;
-  g.lineWidth = 3.1;
+  g.lineWidth = 4.6;
   g.lineCap = 'round';
   g.lineJoin = 'round';
   GLYPH[q.name](g, ph);
@@ -307,8 +307,8 @@ export function water(g, x, y, w, h, phase = 0, { row = 26, amp = 7, color = C.b
   g.fillStyle = deep;
   g.fillRect(x, y, w, h);
   g.strokeStyle = color;
-  g.lineWidth = 3;
   for (let r = 0; r * row < h + row; r++) {
+    g.lineWidth = 3.4 + ((r * 37) % 7) * 0.22;
     g.beginPath();
     const yy = y + r * row;
     for (let i = 0; i <= w / 12 + 1; i++) {
@@ -452,11 +452,9 @@ export function jar(g, { x, y, h = 110, w = 48, fill = C.gold, band = C.turq, ki
   g.lineJoin = 'round';
   g.stroke();
 
-  // 罐口：一圈椭圆，像个真的口，不是一条线
-  g.beginPath();
-  g.ellipse(x, y - h, R * 0.26, Math.max(2.2, R * 0.10), 0, 0, Math.PI * 2);
+  // 罐口：**不画椭圆**。俯视口是透视残留，这个语言里罐口就是一条封口的横带
   g.fillStyle = C.line;
-  g.fill();
+  g.fillRect(x - rad(1) * R, y - h - 1, rad(1) * R * 2, Math.max(3, h * 0.02));
 
   // 肩上的彩带：跟着罐子的弧度弯，不是一条直杠
   const bandAt = (t0, col, width) => {

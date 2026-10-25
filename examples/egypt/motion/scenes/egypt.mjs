@@ -61,7 +61,7 @@ export function mount(context) {
     poolFish.push({
       x: 60 + rand() * (W - 120),
       y: BOTTOM.y + 70 + rand() * (BOTTOM.h - 140),
-      s: 1.05 + rand() * 0.95,
+      s: 2.1 + rand() * 1.0,
       dir: rand() < 0.5 ? 1 : -1,
       speed: 16 + rand() * 34,
       col: COLS[(rand() * COLS.length) | 0],

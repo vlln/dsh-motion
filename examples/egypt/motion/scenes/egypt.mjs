@@ -131,6 +131,35 @@ function drawBase(g) {
   g.lineWidth = 3;
   g.strokeRect(POOL.x - 16, POOL.y - 16, POOL.w + 32, POOL.h + 32);
 
+  // 带翼日轮：上栏正中，两条翅膀 + 日盘
+  (() => {
+    const cx = W / 2, cy = UPPER.y + 22;
+    g.beginPath();
+    g.arc(cx, cy, 26, 0, Math.PI * 2);
+    g.fillStyle = C.redBr;
+    g.fill();
+    g.strokeStyle = C.line;
+    g.lineWidth = 3;
+    g.stroke();
+    for (const sgn of [-1, 1]) {
+      for (let i = 0; i < 3; i++) {
+        const len = 250 - i * 46;
+        const yTop = cy - 16 + i * 15;
+        g.beginPath();
+        g.moveTo(cx + sgn * 28, yTop);
+        g.bezierCurveTo(cx + sgn * (28 + len * 0.5), yTop - 12, cx + sgn * (28 + len * 0.9), yTop - 4, cx + sgn * (28 + len), yTop + 6);
+        g.lineTo(cx + sgn * (28 + len * 0.92), yTop + 16);
+        g.bezierCurveTo(cx + sgn * (28 + len * 0.5), yTop + 6, cx + sgn * 40, yTop + 8, cx + sgn * 28, yTop + 10);
+        g.closePath();
+        g.fillStyle = i % 2 ? C.blue : C.green;
+        g.fill();
+        g.strokeStyle = C.line;
+        g.lineWidth = 2.6;
+        g.stroke();
+      }
+    }
+  })();
+
   // 池岸两侧：水鸟与纸莎草，把上栏的空白填掉
   fowl(g, 396, 500, 1.18, 0);
   fowl(g, 1428, 512, 1.02, 0);
@@ -358,6 +387,15 @@ export function render(t) {
   // 走路的少女：白帽子是"穿越"的那一个
   const walkX = 900 + lt * 26;
   // 生图给的主角：底边踩在地面线上，按 3:4 的框放进去
+  // 接触影：和其他器物同一条规则（不是 UI 的 drop shadow，是颜料积在地上）
+  g.save();
+  g.globalAlpha = 0.22;
+  g.fillStyle = C.line;
+  g.beginPath();
+  g.ellipse(walkX + 6, BANK + 4, 76, 13, 0, 0, Math.PI * 2);
+  g.fill();
+  g.restore();
+
   const kidH = 300;
   const kidW = kidH * 0.833;
   ctx.image('kid', { x: walkX - kidW * 0.32, y: BANK - kidH * 0.94, w: kidW, h: kidH, fit: 'contain' });

@@ -12,7 +12,7 @@ export const id = 'pond';
 export const slots = {};
 export const textUsage = {};
 
-const BOIL = 6;
+const BOIL = 0; // 整幅不沸腾。全屏每 1/6 秒重随机 = 逐帧跳变，看着头晕。
 const CELL = 9;
 
 let ctx;
@@ -66,7 +66,7 @@ function drawBase(g, w, h) {
   g.fillRect(0, 0, w, HORIZON + 40);
 
   // 远树线：一团团椭圆叠出来的边，没有一条直线
-  for (let i = 0; i < 90; i++) {
+  for (let i = 0; i < 140; i++) {
     const x = (i * 173) % (w + 200) - 100;
     const r = 40 + ((i * 37) % 70);
     g.fillStyle = i % 3 ? '#2f3b34' : '#26332f';
@@ -235,12 +235,14 @@ function getLayer(t) {
 
 /** ③ 会动的东西：画在笔触层之上，用画面坐标。 */
 function drawLife(g, w, h, t) {
-  const camX = (t / 12) * w * 0.04;
+  // 机位：极慢的推近（缓入缓出），不是匀速平移。平移交给元素自己的漂。
+  const push = 1 + 0.055 * (0.5 - 0.5 * Math.cos((Math.PI * t) / 12));
+  const camX = 0;
 
   // 睡莲：不是椭圆——沿叶缘和叶面画短笔，和整幅一个质感
   for (const p of PADS) {
-    const x = p.x - camX + Math.sin(t * 0.8 + p.ph) * 6;
-    const y = p.y + Math.sin(t * 1.1 + p.ph * 1.4) * 3;
+    const x = p.x - camX + Math.sin(t * 0.8 + p.ph) * 18;
+    const y = p.y + Math.sin(t * 1.1 + p.ph * 1.4) * 8;
     const wob = Math.sin(t * 0.7 + p.ph) * 0.05;
     g.save();
     g.translate(x, y);
@@ -283,23 +285,48 @@ function drawLife(g, w, h, t) {
     g.restore();
   }
 
-  // 水光：一串短横笔，10fps 换位置（和参考实现一样）
-  const st = Math.floor(t * 10);
+  // 水面在流：几道宽而软的亮带，各自速度不同，连续滑动（不是逐帧换位置）。
+  // 这是"水在动"和一帧一帧跳的分界：位移是连续的，只有高光是离散的。
+  g.save();
+  g.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 5; i++) {
+    const depth = (i + 1) / 6;
+    const y = HORIZON + (h - HORIZON) * depth;
+    const speed = 10 + depth * 40;
+    const x0 = ((t * speed) % (w + 600)) - 300;
+    const ry = 26 + depth * 70;
+    const grd = g.createLinearGradient(x0 - 420, 0, x0 + 420, 0);
+    grd.addColorStop(0, 'rgba(255,230,190,0)');
+    grd.addColorStop(0.45, `rgba(255,226,186,${0.10 + depth * 0.12})`);
+    grd.addColorStop(0.55, `rgba(255,238,210,${0.08 + depth * 0.10})`);
+    grd.addColorStop(1, 'rgba(255,230,190,0)');
+    g.fillStyle = grd;
+    g.beginPath();
+    g.ellipse(x0, y, 420, ry, 0, 0, Math.PI * 2);
+    g.fill();
+  }
+  g.restore();
+
+  // 水光：每一道都有自己的流速和呼吸，**连续地走**，不换位置。
+  // 离散换位置是"跳"，连续滑动是"流"——这两者在 24fps 下看起来完全不同。
   g.save();
   g.lineCap = 'round';
-  for (let i = 0; i < 90; i++) {
+  for (let i = 0; i < 200; i++) {
     const r1 = Math.abs(Math.sin(i * 37.7));
     const r2 = Math.abs(Math.sin(i * 91.3));
-    if (r1 < 0.45) continue;
-    const x = ((Math.sin(i * 13 + st * 7.7) * 0.5 + 0.5) * w + Math.sin(t * 2 + i) * 6) - camX;
-    const y = HORIZON + 30 + r2 * (h - HORIZON - 70);
-    const a = 0.25 + 0.5 * Math.abs(Math.sin(t * (2 + r2 * 3) + i));
-    g.strokeStyle = i % 3 ? '#ffe9c8' : '#f8d0d8';
-    g.globalAlpha = 0.28 * a;
-    g.lineWidth = 3 + r2 * 4;
+    const r3 = Math.abs(Math.sin(i * 17.3));
+    const depth = r2;
+    const speed = 9 + depth * 26; // 近处快、远处慢：水面的视差
+    const x = ((r1 * w + t * speed) % (w + 140)) - 70;
+    const y = HORIZON + 24 + depth * (h - HORIZON - 52);
+    const breathe = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t * (1.1 + r3 * 1.8) + i * 1.7));
+    g.strokeStyle = i % 4 === 0 ? '#ffe0d0' : i % 4 === 1 ? '#fff4dc' : '#cfe0f8';
+    g.globalAlpha = 0.16 + 0.34 * breathe;
+    g.lineWidth = 3 + depth * 6;
+    const len = 18 + r1 * 46;
     g.beginPath();
     g.moveTo(x, y);
-    g.lineTo(x + 16 + r1 * 34, y + (r2 - 0.5) * 3);
+    g.lineTo(x + len, y + Math.sin(i + t * 0.8) * 1.5);
     g.stroke();
   }
   g.restore();
@@ -313,7 +340,7 @@ function drawLife(g, w, h, t) {
       const q = (t * 0.5 + j / 3 + k * 0.2) % 1;
       const rx = 20 + q * 120;
       const ry = rx * 0.2;
-      const alpha = 0.30 * (1 - q);
+      const alpha = 0.5 * (1 - q);
       g.strokeStyle = '#e8f0f8';
       g.lineWidth = 2.5;
       // 一圈由 18 段短弧拼成，段与段之间留缝
@@ -341,10 +368,16 @@ export function render(t) {
   const w = ctx.width;
   const h = ctx.height;
   const plate = getLayer(t);
-  g.drawImage(plate, 0, 0, w, h);
+  // 一层推就是全部推：底板和元素用同一个变换，才不会互相漂移
+  const push = 1 + 0.055 * (0.5 - 0.5 * Math.cos((Math.PI * t) / 12));
+  const pw = w * push;
+  const ph = h * push;
+  const ox = -(pw - w) * 0.5;
+  const oy = -(ph - h) * 0.55;
+  g.drawImage(plate, ox, oy, pw, ph);
 
   g.save();
-  g.setTransform(w / plate.width, 0, 0, h / plate.height, 0, 0);
-  drawLife(g, w, h, t);
+  g.setTransform((pw / plate.width), 0, 0, (ph / plate.height), ox, oy);
+  drawLife(g, plate.width, plate.height, t);
   g.restore();
 }

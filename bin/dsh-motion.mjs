@@ -14,6 +14,7 @@ import { validateTimeline } from '../src/validate.mjs';
 import { modules } from '../src/project.mjs';
 import { createVersion, listVersions, useVersion } from '../src/versions.mjs';
 import { scaffoldFilm } from '../src/film.mjs';
+import { pathToFileURL } from 'node:url';
 import { sheetFor } from '../src/audio.mjs';
 
 const PKG = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -73,6 +74,10 @@ async function init() {
   console.log("next: 填镜头表 → 写 scenes/<id>.mjs（导出 mount/render）→ dsh-motion check");
 }
 async function check() {
+  if (flag('deliver')) {
+    await validate();
+    return deliver();
+  }
   if (flag('perf')) {
     await run('perf.mjs', ['--budget', String(opt('budget', 33)), ...(flag('strict') ? ['--strict'] : [])], FILM);
     return;
@@ -93,6 +98,60 @@ async function check() {
   } catch {
     if (flag('strict')) process.exit(1);
   }
+}
+
+/**
+ * The delivery check: facts about the rendered file.
+ *
+ * Everything asserted here can be proved without taste — there is a picture, a
+ * sound, they are the film's length, the screen is never empty for long, the
+ * picture is no slideshow, and it is not one blue-violet haze. Whether the film
+ * is any good is the review step, not this.
+ */
+async function deliver() {
+  const dir = path.join(FILM, 'out');
+  const files = fs.existsSync(dir)
+    ? fs
+        .readdirSync(dir)
+        .filter((n) => n.endsWith('.mp4'))
+        .map((n) => path.join(dir, n))
+        .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs)
+    : [];
+  const file = opt('file') ?? files[0];
+  if (!file) fail('no film rendered yet — run: dsh-motion render --video');
+
+  const timeline = JSON.parse(fs.readFileSync(path.join(FILM, 'timeline.json'), 'utf8'));
+  const { inspect } = await import(pathToFileURL(path.join(PKG, 'scripts/film-gate.mjs')).href);
+  const r = inspect(file);
+  const red = [];
+  const say = (ok, label, detail) => console.log(`${ok ? 'ok  ' : 'RED '} ${label}${detail ? `  — ${detail}` : ''}`);
+
+  say(r.hasVideo, 'there is a picture', `${r.width}x${r.height} @ ${r.fps}`);
+  if (!r.hasVideo) red.push('no video stream');
+
+  say(r.hasAudio, 'there is a sound', r.audio ? `${r.audio.codec} ${r.audio.rate}Hz ${r.audio.channels}ch` : 'MISSING — no score: write motion/audio.json and run make-audio.mjs --write (protocol/交付.md)');
+  if (!r.hasAudio) red.push('no audio stream');
+
+  const drift = Math.abs(r.duration - timeline.duration);
+  say(drift < 0.5, 'it matches the timeline length', `${r.duration.toFixed(2)}s vs ${timeline.duration}s`);
+  if (drift >= 0.5) red.push('duration does not match the timeline');
+
+  say(r.blankRun <= 0.3, 'nothing goes blank for long', `longest empty run ${r.blankRun.toFixed(2)}s`);
+  if (r.blankRun > 0.3) red.push('an empty screen for more than 0.3s');
+
+  say(r.moved > 0.5, 'the picture moves', `${(r.moved * 100).toFixed(0)}% of frames differ`);
+  if (r.moved <= 0.5) red.push('the film is a slideshow');
+  if (r.frozenRun > 3) console.log(`note nothing moves for ${r.frozenRun.toFixed(1)}s — fine for a painted hold, not for a shot`);
+
+  if (r.purpleShare > 0.3 && !flag('allow-blue-purple')) {
+    say(false, 'not one blue-violet haze', `${(r.purpleShare * 100).toFixed(0)}% of pixels`);
+    red.push('blue-violet covers more than 30% of the film — pass --allow-blue-purple "reason" if the subject needs it');
+  } else {
+    say(true, 'not one blue-violet haze', `${(r.purpleShare * 100).toFixed(0)}% of pixels`);
+  }
+
+  if (red.length) fail(`not deliverable:\n  - ${red.join('\n  - ')}`);
+  console.log(`ok · deliverable · ${path.relative(FILM, file)}`);
 }
 
 async function validate() {
@@ -457,6 +516,7 @@ if (!cmd || !commands[cmd]) {
   console.error('  init      [--title "…"]                      empty timeline + 镜头表 + kit');
   console.error('  reference <video> [--fps 2] [--cols 4]           frames, cuts, shot list into out/ref');
   console.error('  check [--fast] [--strict] [--budget 33]               the timeline, then each scene\'s frame cost');
+  console.error('  check --deliver [file]                                facts about the rendered file');
   console.error('  render    [--stills 0,3,6] | [--video] [--export] [--out path] [--cols 3]');
   console.error('  version   -m "what changed" | version list | version use v3');
   process.exit(cmd ? 1 : 0);

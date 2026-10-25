@@ -38,12 +38,17 @@
       ⑥ 也已完成：六个 demo 场景搬到项目自己的 `scenes/`，`src/scenes/` 只剩 `index.mjs`（一个动态 import 循环）。
 - [x] **P3 建 `kit/`**：六个样例模块（brush / medium / pixel / perspective / figure / grade），
       引擎双向不 import，门禁 `gate:kit` 看着这条线。
-- [ ] **P4 建 `protocol/`**：六步、打分表（80 门槛 / 两轮 / 两否决）、六种做坏方式、镜头表模板。
-- [ ] **P5 建 `cards/`**：五段结构 + 状态三档。
+- [x] **P4 建 `protocol/`**：六步、打分表（80 门槛 / 两轮 / 两否决）、六种做坏方式、镜头表模板。
+- [x] **P5 建 `cards/`**：五段结构 + 状态三档。
 - [ ] **P6 重写 `skills/dsh-motion/SKILL.md`**：分档 / 路由 / 窄桥 / 协议 / 门禁 / 回流。
 - [ ] **P7 第一张真卡**：埃及墓室壁画，走完六步，并排 + 打分 ≥80。
 - [ ] **P8 冷启动重测**：≥3 次从 `init` 开始，必须交完整 MP4 + 音轨；`check` 必须能报出缺音轨／缺片。
 - [ ] **P9 门禁重建**：留下的每一条只测载具或契约。
+
+P4/P5 已完成：`protocol/` 四份（新风格六步 / 六种做坏方式 / 交付三道 / 打分表）＋ `cards/`
+（README 五段结构 + 状态三档 + INDEX）。同时把交付门禁变成真的能跑的东西：
+`scripts/film-gate.mjs` 量画面/声音/长度/空画面/幻灯片/蓝紫，`check --deliver` 调它，
+`gate:deliver` 用合成片验证它抓得住「没音轨」和「幻灯片」。
 
 ## 判断标准
 

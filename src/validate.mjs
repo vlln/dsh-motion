@@ -20,9 +20,12 @@ export function validateTimeline(timeline, modules = null) {
     return { ok: false, errors: ['timeline: not an object'], warnings };
   }
 
-  for (const key of ['width', 'height', 'duration']) {
+  for (const key of ['width', 'height']) {
     if (!isNum(timeline[key]) || timeline[key] <= 0) err(key, `must be a positive number (got ${timeline[key]})`);
   }
+  // A scaffolded film has no shots and therefore no length; that state is
+  // reported once, below, with what to do about it.
+  if (!isNum(timeline.duration) || timeline.duration < 0) err('duration', `must be a number (got ${timeline.duration})`);
   if (timeline.fps !== undefined && (!isNum(timeline.fps) || timeline.fps < 1 || timeline.fps > 120)) {
     err('fps', `must be 1..120 (got ${timeline.fps})`);
   }

@@ -2,7 +2,7 @@
   "width": 1920,
   "height": 1080,
   "fps": 60,
-  "duration": 19,
+  "duration": 15,
   "palettes": {
     "main": {
       "bg": "#0b1426",
@@ -37,14 +37,6 @@
       "start": 8,
       "length": 7,
       "palette": "cold",
-      "speed": 1
-    },
-    {
-      "id": "cards3d",
-      "name": "Cards",
-      "start": 15,
-      "length": 4,
-      "palette": "main",
       "speed": 1
     }
   ],

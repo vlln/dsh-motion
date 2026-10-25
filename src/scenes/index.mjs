@@ -1,5 +1,6 @@
-// Browser entry: 2D scenes are always bundled; the WebGL scene is a lazy chunk so
-// projects without 3D never download three.
+// Built-in scenes the engine ships for its own demo film. A project brings its
+// own: anything the timeline names that is not listed here is imported from
+// scenes/<id>.mjs in the project.
 
 import * as firstPeoples from './first-peoples.mjs';
 import * as coldWar from './cold-war.mjs';
@@ -8,16 +9,6 @@ import * as mediaLab from './media-lab.mjs';
 import * as dataLab from './data-lab.mjs';
 
 const STATIC = [firstPeoples, coldWar, textLab, mediaLab, dataLab];
-
-const LAZY = {
-  orbit: () => import('./orbit.mjs'),
-  cards3d: () => import('./cards3d.mjs'),
-  desk: () => import('./desk.mjs'),
-  guide: () => import('./guide.mjs'),
-  board: () => import('./board.mjs'),
-  tree: () => import('./tree.mjs'),
-  prism: () => import('./prism.mjs'),
-};
 
 /**
  * Load the scenes a timeline names. Built-ins come from this bundle; anything
@@ -32,10 +23,6 @@ export async function loadModules(sceneIds, base = './scenes') {
     const builtin = STATIC.find((m) => m.id === id);
     if (builtin) {
       modules.push(builtin);
-      continue;
-    }
-    if (LAZY[id]) {
-      modules.push(await LAZY[id]());
       continue;
     }
     let mod;

@@ -50,8 +50,9 @@ check('a click on the strip seeks to the pointer', Math.abs(tHalf - totalAt * 0.
 const shown = await tc();
 const [mm, ss] = shown.split(':').map(Number);
 check('timecode follows the strip', Math.abs(mm * 60 + ss - tHalf) < 0.02, `${shown} vs ${tHalf.toFixed(2)}s`);
-const active = await page.getAttribute('[data-scene="cold-war"]', 'aria-current');
-check('active chip highlighted', active === 'true');
+const activeScene = await page.evaluate((x) => window.__PREVIEW__.scenes().find((sc) => x >= sc.start && x < sc.start + sc.length)?.id, tHalf);
+const active = await page.getAttribute(`[data-scene="${activeScene}"]`, 'aria-current');
+check('active chip highlighted', active === 'true', activeScene);
 
 // --- the strip is the scrubber (there is no separate progress bar) ---
 check('no separate scrub bar exists', (await page.locator('#scrub').count()) === 0);
@@ -83,7 +84,7 @@ check('hovering the strip shows a peek', await page.locator('#hoverFrame').isVis
 await page.mouse.move(strip.x + strip.width * 0.5, strip.y - 80);
 await page.waitForTimeout(150);
 const headLeft = await page.evaluate(() => parseFloat(document.getElementById('playhead').style.left));
-const expectedLeft = ((await time()) / 19) * 100;
+const expectedLeft = ((await time()) / total) * 100;
 check('playhead position tracks time', Math.abs(headLeft - expectedLeft) < 0.05, `${headLeft}% vs ${expectedLeft.toFixed(3)}%`);
 
 // --- picking an element outlines it (no numbers in the rail) ---

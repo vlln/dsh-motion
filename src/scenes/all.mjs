@@ -2,15 +2,8 @@
 // imports this: see index.mjs for the lazy split.
 import * as firstPeoples from './first-peoples.mjs';
 import * as coldWar from './cold-war.mjs';
-import * as orbit from './orbit.mjs';
-import * as cards3d from './cards3d.mjs';
-import * as desk from './desk.mjs';
-import * as guide from './guide.mjs';
-import * as board from './board.mjs';
-import * as tree from './tree.mjs';
-import * as prism from './prism.mjs';
 import * as textLab from './text-lab.mjs';
 import * as mediaLab from './media-lab.mjs';
 import * as dataLab from './data-lab.mjs';
 
-export const modules = [firstPeoples, coldWar, textLab, mediaLab, dataLab, orbit, cards3d, desk, guide, board, tree, prism];
+export const modules = [firstPeoples, coldWar, textLab, mediaLab, dataLab];

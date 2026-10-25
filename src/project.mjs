@@ -20,7 +20,7 @@ const timelineFile = (root, file = 'timeline.json') => {
   return abs;
 };
 
-// The node-side module list pulls three in (orbit.mjs). Loading it lazily keeps
+// The node-side module list is imported eagerly; the browser loads project
 // `dsh` boot free of that cost: only an edit or a panel open ever pays it.
 let cached = null;
 const projectModules = new Map();

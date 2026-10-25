@@ -7,8 +7,6 @@ import { checkParam, describeParams, resolveParam } from './params.mjs';
 import { checkValue, describeValues, formatValue, resolveValue } from './values.mjs';
 import { layoutText } from './text.mjs';
 import { sceneTime } from './clock.mjs';
-import { paint } from './paint.mjs';
-import { medium } from './medium.mjs';
 import { fitRect, frameAt, frameRect } from './media.mjs';
 
 import { fontStack, resolveFont } from './fonts.mjs';
@@ -50,10 +48,6 @@ export function createKernel({ timeline, modules }) {
     if (!mod) throw new Error(`scene module "${scene.id}" is not registered`);
 
     const media = { images: new Map(), clips: new Map() };
-    // Drawing verbs a scene may use, or ignore: space, smoothPath, capsule,
-    // wash, strokeOutline, grain. Pure functions, so render(t) stays pure.
-    const verbs = paint;
-
     /** Shared text painter: drawText and drawValue differ only in where the string comes from. */
     const paintText = (value, opts = {}) => {
       const g = active;
@@ -117,10 +111,6 @@ export function createKernel({ timeline, modules }) {
     };
 
     return {
-      /** Drawing verbs: space, smoothPath, capsule, wash, strokeOutline, grain, sprite. */
-      paint: verbs,
-      /** Material passes: repaint an image as strokes, charcoal, ink, halftone or glass. */
-      medium,
       /**
        * Draw once, into a canvas of the render's own size and coordinate space.
        *
@@ -383,7 +373,6 @@ export function createKernel({ timeline, modules }) {
   }
 
   return {
-    timeline,
     mountAll,
     get surface() {
       return surface;

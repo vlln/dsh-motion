@@ -56,7 +56,8 @@ try {
 
   const timeline = read();
   check('later scenes move up', Math.abs(timeline.scenes[1].start - 6) < 0.001, `scene 2 starts at ${timeline.scenes[1].start}`);
-  check('the duration follows', Math.abs(timeline.duration - 17) < 0.001, `${timeline.duration}s`);
+  const endsAt = Math.max(...timeline.scenes.map((sc) => sc.start + sc.length));
+  check('the duration follows the scenes', Math.abs(timeline.duration - endsAt) < 0.001, `${timeline.duration}s vs ${endsAt}s`);
 
   const created = listSnapshots(ROOT).filter((s) => !snapsBefore.has(s.id));
   check('the previous timeline is kept', created.some((s) => s.reason === 'scene-first-peoples'), created.map((s) => s.reason).join(', ') || 'none');
@@ -90,7 +91,9 @@ try {
   await page.locator('#chipDelete').click();
   const gone = await until(() => read().scenes.length === beforeDelete - 1);
   check('a scene can be deleted from its chip menu', gone, `${read().scenes.length} left`);
-  check('the survivors close the gap', read().scenes[0].start === 0 && read().scenes[1].start === read().scenes[0].length, JSON.stringify(read().scenes.map((s) => s.start)));
+  const survivors = read().scenes;
+  const contiguous = survivors.every((sc, i) => sc.start === (i === 0 ? 0 : survivors[i - 1].start + survivors[i - 1].length));
+  check('the survivors close the gap', contiguous, JSON.stringify(survivors.map((s) => s.start)));
   check('the deletion leaves no orphan text', !read().texts?.[doomed], JSON.stringify(Object.keys(read().texts ?? {})));
   const chipGone = await until(async () => (await page.locator(`.chip[data-scene="${doomed}"]`).count()) === 0, 3000);
   check('the chip is gone', chipGone);

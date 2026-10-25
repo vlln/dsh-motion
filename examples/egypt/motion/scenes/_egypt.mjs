@@ -8,21 +8,22 @@
 // 所以这个文件里没有笔触、没有渐变、没有混色。要的就是干净。
 
 export const C = {
-  wall: '#e9dcbe',
-  wallDk: '#d8c69c',
-  line: '#24180f',
-  red: '#b03a2e',
-  redBr: '#c8372b',
-  blue: '#2b57a8',
-  blueDk: '#1d3a7a',
-  turq: '#3f9a94',
-  green: '#35794a',
-  gold: '#d9a63a',
-  goldLt: '#efce7a',
-  cream: '#f4ecd8',
-  skin: '#d99a63',
-  skinDk: '#b5763f',
-  white: '#f7f1e2',
+  // 矿物色：埃及蓝是发灰的，赭石是闷的。饱和的"糖果三原色"是数码味的第一来源。
+  wall: '#e4d5b4',
+  wallDk: '#cdb992',
+  line: '#5a2f1e',
+  red: '#9c4030',
+  redBr: '#a8552f',
+  blue: '#3a5a8c',
+  blueDk: '#2a4066',
+  turq: '#4f8f88',
+  green: '#4a6f45',
+  gold: '#c19a4e',
+  goldLt: '#dcc189',
+  cream: '#ece1c8',
+  skin: '#c98b5e',
+  skinDk: '#a06a42',
+  white: '#efe6d2',
 };
 
 /** 可复现的随机；render(t) 必须是纯函数。 */

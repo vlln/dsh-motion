@@ -40,9 +40,9 @@ export function mount(context) {
 
   cols = [
     ...column({ x: 74, y: 96, w: 126, h: 440, seed: 1350 }),
-    ...column({ x: 214, y: 96, w: 126, h: 300, seed: 1351 }),
+    ...column({ x: 214, y: 96, w: 126, h: 440, seed: 1351 }),
     ...column({ x: 1720, y: 96, w: 126, h: 440, seed: 1352 }),
-    ...column({ x: 1580, y: 96, w: 126, h: 300, seed: 1353 }),
+    ...column({ x: 1580, y: 96, w: 126, h: 440, seed: 1353 }),
   ];
 
   const rand = rng(4242);
@@ -98,6 +98,23 @@ function drawBase(g) {
 
   drawGlyphRows(g);
 
+  // 池岸：先铺一圈砖岸，池子才是园池，不是挂在墙上的画框
+  g.fillStyle = C.wallDk;
+  g.fillRect(POOL.x - 46, POOL.y - 42, POOL.w + 92, POOL.h + 92);
+  g.strokeStyle = C.line;
+  g.lineWidth = 2.6;
+  g.strokeRect(POOL.x - 46, POOL.y - 42, POOL.w + 92, POOL.h + 92);
+  // 岸砖：一排短竖线，密一点，读成砌筑
+  g.strokeStyle = C.line;
+  g.lineWidth = 1.6;
+  for (let x = POOL.x - 40; x < POOL.x + POOL.w + 44; x += 34) {
+    g.beginPath();
+    g.moveTo(x, POOL.y - 42);
+    g.lineTo(x, POOL.y - 18);
+    g.moveTo(x + 17, POOL.y + POOL.h + 18);
+    g.lineTo(x + 17, POOL.y + POOL.h + 46);
+    g.stroke();
+  }
   // 池塘：深色边框 + 水底。水面每帧画
   g.fillStyle = C.line;
   g.fillRect(POOL.x - 16, POOL.y - 16, POOL.w + 32, POOL.h + 32);

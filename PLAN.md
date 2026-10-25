@@ -24,10 +24,15 @@
 
 - [x] **P0 删除无争议的错误**：`experiments/`、`docs/primitives.md`、`docs/exemplars/`、
       只测画法的六个门禁（paint / medium / plate / look / exemplars / templates）及其 check 接线。
-- [ ] **P1 引擎手术**：删 `src/starters.mjs`(1432) / `src/medium.mjs`(552) / `src/look.mjs`(207) /
+- [x] **P1 引擎手术**：删 `src/starters.mjs`(1432) / `src/medium.mjs`(552) / `src/look.mjs`(207) /
       `src/paint.mjs`(362)；拆掉 kernel 的 `ctx.paint` / `ctx.medium` / `look.finish`；
-      preview 的空画廊改成「怎么开始」。
+      preview 的空画廊改成「怎么开始」。门禁 477 → 321。
 - [ ] **P2 删模板**：`templates/` 十二个全部删除；`init` 只给骨架 + `kit/` + 空镜头表。
+      顺序：① `src/film.mjs` 去掉 `createFilmFromTemplate` 与 `TEMPLATE(S)`；② `src/project.mjs`
+      去掉 `TEMPLATES` 与 `createProject`；③ `src/params-http.mjs` 去掉 `/api/template`；
+      ④ `src/preview.mjs` 去掉 `from=template` 的封面逻辑；⑤ `bin/dsh-motion.mjs` 的 `init` 改写；
+      ⑥ `src/scenes/` 里剩下的 five 个 demo 场景搬到 `fixtures/`（引擎不再带片子）；
+      ⑦ 用 `fixtures/` 的片跑门禁，根 `timeline.json` 只剩一个「引擎自检片」。
 - [ ] **P3 建 `kit/`**：从零写（不从旧代码搬），六个模块，引擎不 import。
 - [ ] **P4 建 `protocol/`**：六步、打分表（80 门槛 / 两轮 / 两否决）、六种做坏方式、镜头表模板。
 - [ ] **P5 建 `cards/`**：五段结构 + 状态三档。

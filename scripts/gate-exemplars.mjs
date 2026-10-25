@@ -14,7 +14,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BIN = path.join(ROOT, 'bin/dsh-motion.mjs');
 const { check, finish } = createGate();
 
-const EXEMPLARS = ['plate', 'guide', 'tree', 'street', 'night'];
+const EXEMPLARS = ['plate', 'guide', 'tree', 'street', 'night', 'pond'];
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-motion-exemplars-'));
 try {

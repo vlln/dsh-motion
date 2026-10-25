@@ -1,0 +1,24 @@
+{
+  "width": 1920,
+  "height": 1080,
+  "fps": 24,
+  "duration": 12,
+  "palettes": {
+    "main": {
+      "bg": "#1b2a33",
+      "fg": "#efe4cf",
+      "accent": "#e8a05a",
+      "muted": "#7b8a90",
+      "grid": "#1a2427",
+      "panel": "#10181b"
+    }
+  },
+  "overrides": {},
+  "texts": {},
+  "values": {},
+  "assets": {},
+  "scenes": [
+    { "id": "pond", "name": "黄昏的池塘", "start": 0, "length": 12, "palette": "main", "speed": 1 }
+  ],
+  "poster": 6
+}

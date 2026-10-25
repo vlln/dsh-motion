@@ -99,9 +99,18 @@ if (stageStack && 'ResizeObserver' in window) {
  * manifest is missing — an installed package ships no examples — there is
  * nothing to show, and nothing is shown.
  */
-function showEmptyFilm() {
+function showEmptyFilm({ building: isBuilding = false } = {}) {
   document.querySelector('.app')?.remove();
   document.querySelector('.timeline')?.remove();
+  // "Being built" is not an error state: the gallery stays, with one quiet mark
+  // so nobody thinks the samples are the film they are waiting for.
+  document.body.dataset.building = String(isBuilding);
+  if (isBuilding) {
+    const chip = document.createElement('div');
+    chip.className = 'building-chip';
+    chip.textContent = '正在制作';
+    document.body.append(chip);
+  }
 
   const empty = document.createElement('div');
   empty.className = 'explore';
@@ -290,20 +299,18 @@ function showEmptyFilm() {
     }, 2000);
   });
 
-  // The film can appear while this page is open — the agent is often still
-  // working when the column is opened. Watch for it instead of waiting for a
-  // manual refresh.
+  // A published film can appear while this page is open — the agent is often
+  // still working when the column is opened. Watch for a *version*, not for a
+  // file: a file appearing mid-write is exactly what must not be mounted.
   const timer = setInterval(async () => {
-    try {
-      const res = await fetch('./timeline.json', { cache: 'no-store' });
-      if (res.ok) {
-        clearInterval(timer);
-        location.reload();
-      }
-    } catch {
-      /* the host may be restarting; try again next tick */
+    const next = await filmStatus();
+    if (!next?.version) return;
+    if (next.version.id !== mountedVersion) {
+      clearInterval(timer);
+      location.reload();
     }
   }, 2000);
+
 }
 
 /** Size a canvas to its CSS box, once. */
@@ -554,16 +561,67 @@ async function previewScale() {
   }
 }
 
+/**
+ * What to show is a question about the *published* film, not about whether a
+ * file exists on disk. While an agent is writing, the working tree is a
+ * half-built thing: a timeline that does not parse, scenes that are not there.
+ * Mounting it means a user watching a film gets a reload, a blank frame, or a
+ * render error mid-playback.
+ *
+ * So: ask the host. `ready` / `building` both carry a version to mount;
+ * `building` additionally says the working tree has moved past it.
+ */
+async function filmStatus() {
+  try {
+    const res = await fetch('./api/film/status', { cache: 'no-store' });
+    if (res.ok) return await res.json();
+  } catch {
+    /* a static host has no API: fall back to the file probe below */
+  }
+  return null;
+}
+
+const status = await filmStatus();
+let building = status?.state === 'building' && !status.stale;
+let mountedVersion = status?.version?.id ?? null;
+
+if (status && !status.version && status.state !== 'ready') {
+  // No film to mount: either the workspace is empty, or a film with no published
+  // version is still being built. An *unpublished* film (state ready, no version)
+  // mounts as-is — dev and capture never publish, and demanding a version there
+  // would make the working tree unviewable.
+  showEmptyFilm({ building: status.state === 'building' });
+  await new Promise(() => {});
+}
+
 let mounted;
 try {
-  mounted = await mountMotion({ canvas, dpr, scale: await previewScale() });
+  mounted = await mountMotion({
+    canvas,
+    dpr,
+    scale: await previewScale(),
+    base: mountedVersion ? `./api/version/${mountedVersion}/` : null,
+  });
 } catch (error) {
   if (error?.code !== 'NO_FILM') throw error;
-  showEmptyFilm();
+  showEmptyFilm({ building });
   // Stop this module here: everything below expects a film to exist.
   await new Promise(() => {});
 }
+
 const { kernel } = mounted;
+
+// A published version can be older than what the agent is writing right now.
+// Say so on the picture, and make the editing surfaces read-only: their writes
+// go to the working tree, which is not what is on screen.
+if (building) {
+  document.body.dataset.building = "true";
+  const chip = document.createElement("div");
+  chip.className = "building-chip";
+  chip.textContent = "制作中 · 显示 v" + (mountedVersion ?? "").replace("v", "");
+  chip.title = "Agent 正在改工作区；这里放的是上一次发布的版本，只读";
+  document.body.append(chip);
+}
 let timeline = mounted.timeline;
 
 let total = timeline.duration;

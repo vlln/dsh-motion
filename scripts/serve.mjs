@@ -9,6 +9,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { listVersions, isDirty, currentVersion, versionRecord, filmMtime } from '../src/versions.mjs';
 import { commentsHandlers } from '../src/comments-http.mjs';
 import { paramsHandlers } from '../src/params-http.mjs';
 
@@ -36,6 +37,51 @@ const json = (res, code, data) => {
 
 const post = (req) => (req.method ?? 'GET').toUpperCase() === 'POST';
 
+const BUILDING_WINDOW_MS = 2 * 60 * 60 * 1000;
+
+/**
+ * What the panel should show, which is not the same question as "does a file
+ * exist". A film is published by `version`; a working tree newer than the newest
+ * version is being built, and must not be mounted.
+ */
+function filmStatus(root) {
+  const versions = listVersions(root);
+  const newest = versions[0] ?? null;
+  // A film that has never been published is not "being changed" — it is simply
+  // unpublished, and the panel may mount it. Only a working tree that has moved
+  // past a published version is off limits.
+  const dirty = versions.length ? isDirty(root) : false;
+  const hasFilm = fs.existsSync(path.join(root, 'timeline.json'));
+  const state = !newest ? (hasFilm ? 'ready' : 'none') : dirty ? 'building' : 'ready';
+  return {
+    state,
+    version: newest
+      ? { id: newest.id, title: newest.title, at: newest.at, current: currentVersion(root) }
+      : null,
+    versions: versions.length,
+    dirty,
+    // A write older than the window is debris, not an agent at work.
+    stale: dirty && Date.now() - filmMtime(root) > BUILDING_WINDOW_MS,
+  };
+}
+
+/**
+ * A published version's own timeline and scenes. Anything else under the same
+ * prefix (assets/, kit/) falls through to the working tree: those rarely change
+ * and do not belong in a version record.
+ */
+function versionFile(root, id, rel) {
+  const record = versionRecord(root, id);
+  if (!record) return null;
+  const clean = rel.replace(/^\/+/, '');
+  if (clean === 'timeline.json') {
+    return { body: JSON.stringify(record.timeline), type: 'application/json; charset=utf-8' };
+  }
+  const scene = record.scenes?.[clean.startsWith('scenes/') ? clean.slice(7) : clean];
+  if (scene !== undefined) return { body: scene, type: 'text/javascript; charset=utf-8' };
+  return null;
+}
+
 function api(req, res, url, project) {
   const API = commentsHandlers(project);
   const PARAMS = paramsHandlers(project);
@@ -56,6 +102,29 @@ function api(req, res, url, project) {
   if (!write && url.pathname === '/api/revision') return PARAMS.revision(req, res);
   if (url.pathname === '/api/history') return write ? PARAMS.restore(req, res) : PARAMS.history(req, res);
   if (write && url.pathname === '/api/history/restore') return PARAMS.restore(req, res);
+  if (url.pathname === '/api/film/status') {
+    res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+    return res.end(JSON.stringify(filmStatus(project)));
+  }
+  // /api/version/v3/scenes/x.mjs — a published version, read-only. Unknown paths
+  // under the same prefix fall through to the working tree (assets, kit).
+  const vm = /^\/api\/version\/(v[0-9]+)\/(.+)$/.exec(url.pathname);
+  if (vm) {
+    const hit = versionFile(project, vm[1], decodeURIComponent(vm[2]));
+    if (hit) {
+      res.writeHead(200, { 'content-type': hit.type, 'cache-control': 'no-store' });
+      return res.end(hit.body);
+    }
+    const fallback = path.join(project, decodeURIComponent(vm[2]));
+    if (fs.existsSync(fallback)) {
+      return fs.readFile(fallback, (err, buf) => {
+        if (err) return res.writeHead(404).end('not found');
+        res.writeHead(200, { 'content-type': TYPES[path.extname(fallback).toLowerCase()] ?? 'application/octet-stream' });
+        res.end(buf);
+      });
+    }
+    return json(res, 404, { error: 'no such file in this version' });
+  }
   if (url.pathname === '/api/projects') return PARAMS.projects(req, res);
   return json(res, 404, { error: 'unknown api route' });
 }

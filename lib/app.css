@@ -2413,3 +2413,34 @@ body[data-empty='film'] .topbar {
   letter-spacing: 0.04em;
   text-align: center;
 }
+
+
+/* A published version on screen while the agent edits the working tree.
+   The chip states the fact; the surfaces that would write into the working
+   tree are inert, because what is on screen is not that tree. */
+.building-chip {
+  position: fixed;
+  top: 10px;
+  right: 12px;
+  z-index: 60;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font: 500 11px/1.4 var(--font);
+  color: var(--fg);
+  background: color-mix(in srgb, var(--panel, var(--bg)) 82%, transparent);
+  border: 0.5px solid var(--line-strong);
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+}
+
+body[data-building="true"] .params,
+body[data-building="true"] .comments,
+body[data-building="true"] .comment-tools,
+body[data-building="true"] #params,
+body[data-building="true"] #comments {
+  pointer-events: none;
+  opacity: 0.55;
+}

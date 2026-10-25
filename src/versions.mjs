@@ -138,3 +138,15 @@ export function useVersion(root, id) {
   saveIndex(root, versions, id);
   return { restored: id, title: record.title };
 }
+
+/** One version's stored timeline + scenes, or null if the id is unknown. */
+export function versionRecord(root, id) {
+  if (!/^v[0-9]+$/.test(String(id))) return null;
+  const file = path.join(dir(root), `${id}.json`);
+  if (!fs.existsSync(file)) return null;
+  return JSON.parse(fs.readFileSync(file, "utf8"));
+}
+
+export function versionsDir(root) {
+  return dir(root);
+}

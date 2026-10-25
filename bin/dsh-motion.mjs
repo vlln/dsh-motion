@@ -134,7 +134,7 @@ async function deliver() {
   say(r.hasVideo, 'there is a picture', `${r.width}x${r.height} @ ${r.fps}`);
   if (!r.hasVideo) red.push('no video stream');
 
-  say(r.hasAudio, 'there is a sound', r.audio ? `${r.audio.codec} ${r.audio.rate}Hz ${r.audio.channels}ch` : 'MISSING — no score: write motion/audio.json and run make-audio.mjs --write (protocol/交付.md)');
+  say(r.hasAudio, 'there is a sound', r.audio ? `${r.audio.codec} ${r.audio.rate}Hz ${r.audio.channels}ch` : 'MISSING — no score: write motion/audio.json and run make-audio.mjs --write (howto/交付.md)');
   if (!r.hasAudio) red.push('no audio stream');
 
   const drift = Math.abs(r.duration - timeline.duration);

@@ -98,7 +98,7 @@ function showEmptyFilm() {
         <li><b>写镜头表</b>：每镜一个具体的物和它的动作；写不出物的那一行先别做。</li>
         <li><b>写一镜</b>：<code>scenes/&lt;id&gt;.mjs</code> 导出 <code>mount()</code> 和 <code>render(t)</code>，画法自己写，<code>kit/</code> 里是可抄的样例。</li>
       </ol>
-      <p class="start-foot">新风格照 <code>protocol/新风格.md</code> 走六步，做完写一张 <code>cards/</code> 卡。</p>
+      <p class="start-foot">新风格照 <code>howto/新风格.md</code> 走六步，做完写一张 <code>cards/</code> 卡。</p>
     </div>`;
   document.body.append(empty);
   document.body.dataset.empty = 'film';

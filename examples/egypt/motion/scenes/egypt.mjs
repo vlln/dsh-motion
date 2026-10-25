@@ -19,7 +19,7 @@ import {
 export const id = 'egypt';
 export const kind = 'canvas2d';
 export const slots = {};
-// 主角由生图给（见 protocol/角色.md），墙和器物仍由代码画。
+// 主角由生图给（见 howto/角色.md），墙和器物仍由代码画。
 export const assets = ['kid'];
 
 const W = 1920;

@@ -268,7 +268,7 @@ export function column({ x, y, w, h, seed = 1, scale = 1 }) {
       name = GLYPH_NAMES[(rand() * GLYPH_NAMES.length) | 0];
     } while ((name === prev || (name === 'scarab' && rand() < 0.6)) && guard++ < 12);
     prev = name;
-    const s = (0.86 + rand() * 0.2) * scale;
+    const s = (0.78 + rand() * 0.16) * scale;
     const glyphH = 54 * s;
     if (cy + glyphH > y + h - 8) break;
     out.push({
@@ -279,7 +279,7 @@ export function column({ x, y, w, h, seed = 1, scale = 1 }) {
       col: COLS[(rand() * COLS.length) | 0],
       ph: (rand() * 4) | 0,
     });
-    cy += glyphH + 3 + rand() * 5;
+    cy += glyphH + 1 + rand() * 4;
   }
   return out;
 }
@@ -407,8 +407,12 @@ export function papyrus(g, x, y, n, h, seed = 3) {
 /**
  * 埃及程式的人：侧脸、正面眼、正面肩、平涂、等宽线。
  *
- * 所有尺寸以 210 为单位，调用时按 h 缩放。返回近侧手的位置——
- * 拿东西的那一方自己往那儿挂，别在函数里写死。
+ * 尺寸以 210 为单位，按 h 缩放。返回近侧手的位置，拿东西的往那儿挂。
+ *
+ * 三处容易画错、这一版是照参考改过的：
+ *   · 宽领项圈是**贴着脖子的一圈同心半椭圆**，外圈盖过肩宽，不是横过胸口的一条带子；
+ *   · 近侧手臂画在躯干**之上**、轮廓**之外**，否则会被胸挡住；
+ *   · 侧面用两段贝塞尔，不用折线——折线远看是鸟喙。
  */
 export function figure(g, { x, y, h = 210, face = 1, skin = C.skin, cloth = C.white, hat = null, stride = 0 }) {
   const s = h / 210;
@@ -418,33 +422,46 @@ export function figure(g, { x, y, h = 210, face = 1, skin = C.skin, cloth = C.wh
   g.scale(s * face, s);
 
   // 远侧腿（暗一档，错后半步）
-  ink(g, (q) => poly(q, [[-22, -76], [-6, -76], [-4 - stride * 12, -8], [-20 - stride * 12, -8]]), C.skinDk, { lw: 2.6 });
-  // 近侧腿
-  ink(g, (q) => poly(q, [[2, -76], [18, -76], [22 + stride * 12, -8], [6 + stride * 12, -8]]), skin, { lw: 2.6 });
-  // 脚：脚背 + 脚趾
-  ink(g, (q) => poly(q, [[4 + stride * 12, -8], [22 + stride * 12, -8], [32 + stride * 12, -2], [2 + stride * 12, -2]]), skin, { lw: 2.4 });
+  ink(g, (q) => poly(q, [[-22, -76], [-6, -76], [-4 - stride * 12, -9], [-20 - stride * 12, -9]]), C.skinDk, { lw: 2.6 });
 
-  // 裙：上窄下宽 + 一条褶线
-  ink(g, (q) => poly(q, [[-17, -106], [19, -106], [25, -72], [-23, -72]]), cloth, { lw: 2.8 });
+  // 近侧腿 + 脚：脚跟、脚背、脚趾，长度够撑住重量
+  ink(g, (q) => poly(q, [[2, -76], [18, -76], [21 + stride * 12, -10], [6 + stride * 12, -10]]), skin, { lw: 2.6 });
+  ink(g, (q) => {
+    q.beginPath();
+    q.moveTo(3 + stride * 12, -8);
+    q.bezierCurveTo(3 + stride * 12, -2, 10 + stride * 12, 0, 22 + stride * 12, 0);
+    q.lineTo(34 + stride * 12, -1);
+    q.bezierCurveTo(30 + stride * 12, -6, 24 + stride * 12, -9, 18 + stride * 12, -9);
+    q.closePath();
+  }, skin, { lw: 2.4 });
   g.strokeStyle = L;
-  g.lineWidth = 1.8;
+  g.lineWidth = 1.3;
   g.beginPath();
-  g.moveTo(-4, -100);
-  g.lineTo(-6, -74);
+  g.moveTo(30 + stride * 12, -1);
+  g.lineTo(31 + stride * 12, -5);
   g.stroke();
 
-  // 躯干：肩比腰宽，腰上有带
-  ink(g, (q) => poly(q, [[-25, -158], [27, -158], [18, -104], [-16, -104]]), cloth, { lw: 2.9 });
+  // 裙：上窄下宽 + 一条褶
+  ink(g, (q) => poly(q, [[-17, -108], [19, -108], [26, -72], [-24, -72]]), cloth, { lw: 2.8 });
+  g.strokeStyle = L;
+  g.lineWidth = 1.7;
+  g.beginPath();
+  g.moveTo(-5, -102);
+  g.lineTo(-7, -74);
+  g.stroke();
+
+  // 躯干：肩比腰宽；腰上一条红带
+  ink(g, (q) => poly(q, [[-27, -158], [29, -158], [19, -106], [-16, -106]]), cloth, { lw: 2.9 });
   g.strokeStyle = C.red;
-  g.lineWidth = 5;
+  g.lineWidth = 5.5;
   g.beginPath();
-  g.moveTo(-16, -112);
-  g.lineTo(18, -112);
+  g.moveTo(-15, -116);
+  g.lineTo(19, -116);
   g.stroke();
 
-  // 宽领项圈：三条同心色带，压在肩上
-  const cc = [1, -158];
-  const bands = [[C.blue, 27, 10], [C.red, 32, 13], [C.gold, 37, 16]];
+  // 宽领项圈：外圈盖过肩，内圈贴脖子
+  const cc = [2, -166];
+  const bands = [[C.blue, 20, 8], [C.red, 27, 12], [C.gold, 33, 16], [C.blue, 39, 20]];
   for (let i = bands.length - 1; i >= 0; i--) {
     const [col, rx, ry] = bands[i];
     g.beginPath();
@@ -453,79 +470,80 @@ export function figure(g, { x, y, h = 210, face = 1, skin = C.skin, cloth = C.wh
     g.fill();
   }
   g.strokeStyle = L;
-  g.lineWidth = 1.8;
+  g.lineWidth = 2;
   g.beginPath();
-  g.ellipse(cc[0], cc[1], 37, 16, 0, 0, Math.PI);
+  g.ellipse(cc[0], cc[1], 39, 20, 0, 0, Math.PI);
   g.stroke();
 
   // 颈
-  ink(g, (q) => poly(q, [[-6, -178], [9, -178], [8, -156], [-5, -156]]), skin, { lw: 2.2 });
+  ink(g, (q) => poly(q, [[-6, -180], [9, -180], [8, -164], [-5, -164]]), skin, { lw: 2.2 });
 
-  // 头：颅骨 + 侧面鼻梁下巴（一条折线）
+  // 头：颅骨大一号；侧脸两段贝塞尔（鼻梁 → 鼻尖 → 人中 → 下巴）
   ink(g, (q) => {
     q.beginPath();
-    q.ellipse(3, -199, 16, 18, 0, 0, Math.PI * 2);
+    q.ellipse(3, -198, 17, 19, 0, 0, Math.PI * 2);
   }, skin, { lw: 2.6 });
   ink(g, (q) => {
     q.beginPath();
-    q.moveTo(15, -210);
-    q.lineTo(24, -202);
-    q.lineTo(20, -197);
-    q.lineTo(23, -192);
-    q.lineTo(9, -183);
-    q.lineTo(0, -185);
+    q.moveTo(15, -213);
+    q.bezierCurveTo(26, -210, 31, -204, 30, -198);
+    q.lineTo(26, -194);
+    q.bezierCurveTo(26, -188, 18, -183, 7, -181);
+    q.lineTo(-2, -183);
   }, skin, { lw: 2.2 });
 
-  // 正面眼 + 拖到太阳穴的眼线
+  // 正面眼 + 拖到太阳穴的眼线 + 眉
   g.fillStyle = C.white;
   g.beginPath();
-  g.ellipse(9, -201, 7, 3.8, -0.08, 0, Math.PI * 2);
+  g.ellipse(11, -201, 5.6, 3.2, -0.08, 0, Math.PI * 2);
   g.fill();
   g.fillStyle = L;
   g.beginPath();
-  g.arc(9, -201, 2.8, 0, 7);
+  g.arc(11, -201, 2.4, 0, 7);
   g.fill();
   g.strokeStyle = L;
-  g.lineWidth = 2.6;
+  g.lineWidth = 2.7;
   g.beginPath();
-  g.moveTo(1, -202);
-  g.quadraticCurveTo(9, -207, 18, -202);
-  g.lineTo(29, -203);
+  g.moveTo(4, -202);
+  g.bezierCurveTo(11, -206, 17, -203, 19, -201);
+  g.lineTo(30, -202);
   g.stroke();
   g.lineWidth = 2.2;
   g.beginPath();
-  g.moveTo(0, -209);
-  g.quadraticCurveTo(10, -213, 20, -208);
+  g.moveTo(0, -208);
+  g.bezierCurveTo(9, -213, 18, -210, 22, -206);
   g.stroke();
 
-  // 近侧手臂：肩 → 肘 → 手，锥形
-  ink(g, (q) => poly(q, [[19, -155], [31, -152], [30 - stride * 3, -128], [19 - stride * 3, -130]]), skin, { lw: 2.6 });
-  ink(g, (q) => poly(q, [[19 - stride * 3, -130], [30 - stride * 3, -128], [27 - stride * 4, -104], [17 - stride * 4, -106]]), skin, { lw: 2.6 });
-  // 手
+  // 远侧手臂：只露肩下一小条
+  ink(g, (q) => poly(q, [[-27, -157], [-20, -156], [-19, -122], [-26, -123]]), C.skinDk, { lw: 2.2 });
+
+  // 近侧手臂：在躯干之上、轮廓之外；肩 → 肘 → 手
+  ink(g, (q) => poly(q, [[21, -156], [33, -153], [31 - stride * 3, -130], [20 - stride * 3, -132]]), skin, { lw: 2.6 });
+  ink(g, (q) => poly(q, [[21 - stride * 3, -132], [32 - stride * 3, -130], [28 - stride * 4, -106], [18 - stride * 4, -108]]), skin, { lw: 2.6 });
   ink(g, (q) => {
     q.beginPath();
-    q.ellipse(22 - stride * 4, -100, 8.5, 7.5, 0.2, 0, Math.PI * 2);
+    q.ellipse(23 - stride * 4, -102, 9, 8, 0.2, 0, Math.PI * 2);
   }, skin, { lw: 2.4 });
   g.strokeStyle = L;
-  g.lineWidth = 1.4;
+  g.lineWidth = 1.3;
   for (const d of [-4, 0, 4]) {
     g.beginPath();
-    g.moveTo(18 - stride * 4 + d, -104);
-    g.lineTo(19 - stride * 4 + d, -97);
+    g.moveTo(19 - stride * 4 + d, -106);
+    g.lineTo(20 - stride * 4 + d, -99);
     g.stroke();
   }
 
-  // 帽子：白色宽檐，压在颅骨上
+  // 帽子：白色宽檐压在颅骨上
   if (hat) {
-    ink(g, (q) => poly(q, [[-25, -214], [31, -214], [35, -209], [-29, -209]]), hat, { lw: 2.3 });
+    ink(g, (q) => poly(q, [[-25, -214], [32, -214], [36, -209], [-29, -209]]), hat, { lw: 2.3 });
     ink(g, (q) => {
       q.beginPath();
-      q.ellipse(4, -215, 17, 12, 0, Math.PI, Math.PI * 2);
+      q.ellipse(4, -215, 18, 12, 0, Math.PI, Math.PI * 2);
     }, hat, { lw: 2.3 });
   }
 
   g.restore();
-  return { hand: [x + face * s * 22, y - s * 100] };
+  return { hand: [x + face * s * 23, y - s * 102] };
 }
 
 /**

@@ -178,6 +178,10 @@ function drawBase(g) {
   }
   g.restore();
 
+  // 右中：纸莎草与两只小鸟，把人物右边的空墙填掉
+  papyrus(g, 1180, BANK, 5, 120, 131);
+  fowl(g, 1280, BANK - 26, 0.5, 0);
+
   // 右下：再来一排小罐，密度要一直铺到边上
   for (let i = 0; i < 3; i++) {
     const x = 1120 + i * 58;
@@ -313,7 +317,7 @@ export function render(t) {
   const walkX = 900 + lt * 26;
   const hands = figure(g, { x: walkX, y: BANK, h: 300, face: 1, hat: C.white, stride });
   g.save();
-  g.translate(hands.hand[0] + 6, hands.hand[1] + 14);
+  g.translate(hands.hand[0] + 10, hands.hand[1] + 22);
   ink(g, (g2) => {
     g2.beginPath();
     g2.moveTo(-30, -6);

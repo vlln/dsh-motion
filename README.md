@@ -4,7 +4,34 @@ Motion 渲染内核的最小实现：**timeline + 文本槽 + 调色板 + 参数
 契约见 [docs/kernel-contract.md](docs/kernel-contract.md)，重做计划见 [PLAN.md](PLAN.md)，
 技术栈的取舍与「什么会让我们改主意」见 [docs/decisions.md](docs/decisions.md)。
 
-## 跑起来
+## 装
+
+```bash
+# 作为 dsh 插件
+dsh plugin --profile web add @vlln/dsh-motion
+
+# 或者只当命令行用
+npx @vlln/dsh-motion init
+```
+
+运行时只依赖 Playwright（它找本机缓存的 Chrome for Testing，不额外下浏览器）。
+
+## 三步做出第一条片子
+
+```bash
+mkdir my-film && cd my-film
+dsh-motion init          # 时间轴 + 镜头表 + kit 样例，一次给齐
+# 填 motion/镜头表.md，写 motion/scenes/<id>.mjs（导出 mount 和 render）
+dsh-motion check --deliver out/film.mp4
+```
+
+`init` 只给容器，不给风格：**画什么由场景自己决定**，引擎里没有一行画画的代码。
+写不出「这是什么物、它在干什么」的那一行，先别做——它还不是一个镜头。
+
+遇到不懂的先看 [`skills/dsh-motion/SKILL.md`](skills/dsh-motion/SKILL.md)，
+手册在 [`howto/`](howto/)，风格知识在 [`cards/`](cards/)。
+
+## 开发（本仓库自己）
 
 ```bash
 npm install          # 只装 playwright（浏览器用本机缓存的 Chrome for Testing）

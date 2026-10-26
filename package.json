@@ -1,7 +1,6 @@
 {
   "name": "@vlln/dsh-motion",
-  "version": "0.1.0",
-  "private": true,
+  "version": "0.2.0",
   "type": "module",
   "description": "Motion render kernel as a dsh plugin: timeline + text slots + palette + comments -> frame-accurate MP4",
   "scripts": {
@@ -48,8 +47,7 @@
     "gate:bundle": "node scripts/gate-bundle.mjs"
   },
   "devDependencies": {
-    "esbuild": "^0.28.2",
-    "playwright": "1.64.1"
+    "esbuild": "^0.28.2"
   },
   "main": "./lib/index.mjs",
   "exports": {
@@ -72,11 +70,13 @@
     "lib",
     "cordis.patch.yml",
     "icon.svg",
-    "timeline.json",
+    "index.html",
     "src",
     "scripts",
+    "kit",
+    "howto",
+    "cards",
     "README.md",
-    "docs",
     "LICENSE"
   ],
   "license": "MIT",
@@ -85,5 +85,8 @@
   },
   "bin": {
     "dsh-motion": "./bin/dsh-motion.mjs"
+  },
+  "dependencies": {
+    "playwright": "1.64.1"
   }
 }

@@ -18,7 +18,8 @@
 >
 > 复核全文：`motion/审片/`。
 
-样例：`examples/egypt/`（8 秒，1920×1080，带音轨）。并排图：`out/look/vs-ref.jpg`。
+证据：`examples/egypt/out/ref/target.png`（对照帧）与 `out/look/vs-ref.jpg`（并排图）。
+片子本身已不入库——要重做请从 `init` 开始；结论在这张卡里，不在目录里。
 
 ## 管线
 

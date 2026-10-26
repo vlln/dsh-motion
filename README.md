@@ -3,6 +3,7 @@
 Motion 渲染内核的最小实现：**timeline + 文本槽 + 调色板 + 参数 → 逐帧捕获 → MP4**。
 契约见 [docs/kernel-contract.md](docs/kernel-contract.md)，重做计划见 [PLAN.md](PLAN.md)，
 技术栈的取舍与「什么会让我们改主意」见 [docs/decisions.md](docs/decisions.md)。
+来源与致谢见[文末](#来源与致谢)——这套做法源自 [huashu-art-motion](https://github.com/alchaincyf/huashu-art-motion/tree/main)。
 
 ## 装
 
@@ -371,3 +372,26 @@ motion    0+8 段 0.001 | 8+7 段 0.001 | 15+4 段 0.038
 - 回退只有整份快照，没有逐字段 diff，也不能撤回一次回退（可以再点一次回到 pre-restore）
 - 字体只用系统族，未入库
 - WebGL 确定性只在本机（Apple GPU + Chrome for Testing）验证过；换机器/驱动需重跑 G4
+
+## 来源与致谢
+
+这套东西不是凭空设计的。它来自把 **[alchaincyf/huashu-art-motion](https://github.com/alchaincyf/huashu-art-motion/tree/main)**（花叔 · 花生，MIT）读一遍、再推倒重做一遍。
+
+**从那里取的**（都是做法，不是代码）：
+
+- **六步做一种新风格**的流程，以及「先钉死对照物再动手」这条纪律；
+- **「人用 AI 生帧，代码负责合成」**——这张卡上的角色通道直接来自它的窄桥；
+- **壁画的表面做法**：墙是现画的 fBm 纹理，表面是一整幅 multiply 层（2×2 像素一块写），
+  发丝裂纹画进同一层所以会跨过人物。照抄之后媒介分从 7 涨到 9，单帧从 10.1ms 降到 0.18ms
+  （[`howto/从参考里取.md`](howto/从参考里取.md)）；
+- **空工作区给画廊**，不给一段说明。
+
+**这里和它的分界**：
+
+- 它的引擎里带着画法（`brush` / `medium` / `finish`），这里**一行都没有**；
+- 风格知识被拆成 `kit/`（可删样例）、`cards/`（一个风格一张卡）、`howto/`（规程）、
+  `showcase/`（用户向样板）；引擎永不 import 其中任何一个；
+- 交付门禁只断言事实（有画面 / 有声音 / 长度对 / 不是静止），像不像**交给并排图和独立盲评**。
+
+两边的代码都是 MIT。取自那边的部分如需追溯，见其仓库与上方各文件的头注释。
+

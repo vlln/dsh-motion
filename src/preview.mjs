@@ -325,62 +325,8 @@ function fitCanvas(canvas) {
   return { g, w: rect.width, h: rect.height };
 }
 
-let threeModule;
-const loadThree = () => (threeModule ??= import('three'));
-
-/**
- * A WebGL tile: the sample brings its own scene builder, the gallery brings the
- * renderer and the clock. Same three chunk the 3D film scenes load.
- */
-async function makeGL(canvas, sample) {
-  const THREE = await loadThree();
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-  // Tiles size the canvas with CSS; the sheet has no frame height of its own,
-  // so there the drawing buffer defines the box. Either way: measure first.
-  const measure = () => {
-    const r = canvas.getBoundingClientRect();
-    return { w: Math.max(1, r.width), h: Math.max(1, r.height) };
-  };
-  let { w, h } = measure();
-  const player = sample.build({ THREE, renderer, width: w, height: h });
-  player.resize(w, h);
-  return {
-    render(t) {
-      const now = measure();
-      if (now.w > 1 && now.h > 1 && (Math.abs(now.w - w) > 0.5 || Math.abs(now.h - h) > 0.5)) {
-        w = now.w;
-        h = now.h;
-        player.resize(w, h);
-      }
-      player.render(t);
-    },
-  };
-}
-
 /** One sample, one canvas, one clock — used by the detail sheet. */
 function playOne(canvas, sample) {
-  if (sample.engine === 'webgl') {
-    let raf = 0;
-    let start = performance.now();
-    let gl = null;
-    makeGL(canvas, sample).then((player) => {
-      gl = player;
-      const tick = (now) => {
-        gl.render(((now - start) / 1000) % LOOP_SECONDS);
-        raf = requestAnimationFrame(tick);
-      };
-      raf = requestAnimationFrame(tick);
-    });
-    return {
-      stop() {
-        cancelAnimationFrame(raf);
-      },
-      seek() {},
-      resize() {},
-    };
-  }
-
   let raf = 0;
   let start = performance.now();
   let paused = false;
@@ -442,18 +388,9 @@ function playTiles(root, tiles) {
     on: true,
   }));
 
-  // The 3D study loads three (~1.6 MB) — only when its tile is actually seen.
-  const wake = (item) => {
-    if (item.sample.engine !== 'webgl' || item.gl || item.waking) return;
-    item.waking = true;
-    makeGL(item.canvas, item.sample).then((player) => {
-      item.gl = player;
-    });
-  };
 
   const measure = () => {
     for (const item of items) {
-      if (item.sample.engine === 'webgl') continue;
       const rect = item.canvas.getBoundingClientRect();
       if (!rect.width || !rect.height) continue;
       const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -469,10 +406,6 @@ function playTiles(root, tiles) {
   const frame = (t) => {
     for (const item of items) {
       if (!item.on || item.tile.hidden) continue;
-      if (item.gl) {
-        item.gl.render(t);
-        continue;
-      }
       if (!item.w) continue;
       item.g.clearRect(0, 0, item.w, item.h);
       item.sample.draw(item.g, item.w, item.h, t);
@@ -481,7 +414,6 @@ function playTiles(root, tiles) {
   };
 
   measure();
-  if (!('IntersectionObserver' in window)) for (const item of items) wake(item);
   const start = performance.now();
 
   if ('ResizeObserver' in window) {
@@ -504,7 +436,6 @@ function playTiles(root, tiles) {
           const item = items.find((c) => c.canvas === entry.target);
           if (item) {
             item.on = entry.isIntersecting;
-            if (entry.isIntersecting) wake(item);
           }
         }
       },

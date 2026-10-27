@@ -77,9 +77,11 @@
     "howto",
     "cards",
     "README.md",
-    "LICENSE",
     "CHANGELOG.md",
-    "docs"
+    "LICENSE",
+    "docs/*.md",
+    "docs/demo/*.gif",
+    "docs/*.jpg"
   ],
   "license": "MIT",
   "engines": {

@@ -78,7 +78,8 @@
     "cards",
     "README.md",
     "LICENSE",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "docs"
   ],
   "license": "MIT",
   "engines": {

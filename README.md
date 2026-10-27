@@ -9,8 +9,13 @@
   <img src="docs/demo/platform.gif" width="720" alt="地铁进站时的一阵风：一个 Agent 照一句话题目做的 11 秒短片">
 </p>
 
-<p align="center"><sub>「地铁进站时的一阵风」· 11 秒 · 1920×1080 · 带音轨 · 一个没参与过本仓库的 Agent 从 <code>init</code> 开始做的<br>
-  完整 11 秒（带声音）<a href="https://github.com/vlln/dsh-motion/blob/main/docs/demo/platform.mp4">点这里</a></sub></p>
+<p align="center"><sub>「地铁进站时的一阵风」· 11 秒 · 1920×1080 · 带音轨 · 一个没参与过本仓库的 Agent 从 <code>init</code> 开始做的 · <a href="docs/demo/platform.mp4">完整片子（带声音）</a></sub></p>
+
+<p align="center">
+  <img src="docs/demo/ui.gif" width="760" alt="同一个片子，在面板里改：画面上的字、时间、镜头都能直接改">
+</p>
+
+<p align="center"><sub>同一个片子，在面板里改。改完就是代码里的那一行。</sub></p>
 
 ---
 
@@ -46,31 +51,6 @@ dsh plugin --profile web add @vlln/dsh-motion
 
 **装不上时**：多半是 profile 树外解析不到官方包——把包装进 profile（上面的命令就是），
 不要在任意目录 `npm i` 后手改路径。
-
-## 面板怎么用
-
-<p align="center">
-  <img src="docs/demo/ui.gif" width="760" alt="面板操作：播放、拖动时间条跳到别的镜头、点镜头签回到开头">
-</p>
-
-上面这段是实际操作录屏，四件事连着做：
-
-1. **点画面上的站台号，直接改字**——「3」改成「7」，画布当场变，右边「这一镜的文字」同步；
-2. **播放**，时间码往下走；
-3. **拖时间条**跳到隧道口那一镜，右上角跟着换成那一镜的名字；
-4. **点镜头签**回到别的镜。
-
-指针是白色的圈。所有改动都落到 `timeline.json` 和场景代码里，Agent 下一步读到的就是你改过的版本。
-
-| 你在这做什么 | 它会带回什么 |
-|---|---|
-| 拖时间条 | 任意时刻都能停；拖到哪一镜，右上角就换成那一镜的名字 |
-| 点底部镜头签 | 跳到该镜开头；签上的 `⋯` 能改镜长、改文案 |
-| 点画面上的字直接改 | 写进文本槽，场景代码不用重编译 |
-| 在画面上画个框写批注 | 落到 `motion/comments/`，Agent 下一步照着改 |
-| 右上角看版本 | 面板显示的是**已发布的版本**，Agent 边写边改不会打断你的播放 |
-
-空工作区打开是画廊，七格能播的样板；点开能看做法，也能一句话丢给 Agent 复刻。
 
 ## 三步做第一条
 

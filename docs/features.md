@@ -52,9 +52,9 @@ npm run preview   # http://127.0.0.1:4173/preview.html
 
 播放 / 暂停、拖播放头、点场景条跳转、点画面里的元素看它的几何（只读检视器）。
 
-![面板](docs/ui-panel.png)
+![面板](docs/ui-panel.jpg)
 
-![选中元素](docs/ui-selection.png)
+![选中元素](docs/ui-selection.jpg)
 
 检视器里的 `x / y`、`w × h` 与场景实际绘制用的是**同一份布局函数**，不是估出来的。
 
@@ -75,7 +75,7 @@ npm run preview   # http://127.0.0.1:4173/preview.html
 先发，再存：消息送不出去，钉子就不会留下。所以系统里没有"草稿"这种状态，也没有"重发"按钮。
 **没有会话就没有批注入口**——独立打开预览时不显示批注区、不能拖框，只有命令行能看。
 
-![批注列表](docs/ui-comments.png)
+![批注列表](docs/ui-comments.jpg)
 
 工具契约（agent 这一侧只看锚点和状态）：
 
@@ -135,22 +135,22 @@ dsh plugin --profile web add <repo 路径>   # 本地目录安装（先 npm run 
 - **主题**：面板只消费 dsh 的语义 token（`--dsw-alias-*` / `--dsw-specific-*`），
   亮暗色跟随宿主；iframe 不继承变量，所以 client half 在加载时把 token 抄进去
 
-![右侧预览标签](docs/ui-tab.png)
+![右侧预览标签](docs/ui-tab.jpg)
 
-![对话里的渲染卡片](docs/ui-card.png)
+![对话里的渲染卡片](docs/ui-card.jpg)
 
 渲染进度不是猜的：`motion_render` 把 capture 的 `
 帧/总帧` 镜像到 `out/render-state.json`，
 卡片轮询 `/api/render` 显示，所以“agent 正在做动画”在对话里是看得见的。
 
-![亮色](docs/ui-sidebar.png)
+![亮色](docs/ui-sidebar.jpg)
 
 面板里可以直接改这一帧的文字与数值：聚焦某个字段时，画面上会框出它对应的区域，
 分区可以折叠，场景条可以拖动定位。
 
-![聚焦](docs/ui-focus.png)
+![聚焦](docs/ui-focus.jpg)
 
-![暗色](docs/ui-sidebar-dark.png)
+![暗色](docs/ui-sidebar-dark.jpg)
 
 `npm run gate:plugin` 验证安装与启动；`npm run gate:client` 在隔离工作区里验证面板挂到 `/p/<会话>/`、时间轴与场景来自工作区、写回工作区、
 场景条跳转、片子栏从 guide 打开、带着会话身份、对话不被替换；`npm run gate:card` 让真实会话
@@ -158,7 +158,7 @@ dsh plugin --profile web add <repo 路径>   # 本地目录安装（先 npm run 
 落进对话（需要本机凭据，缺失时跳过）；
 `npm run gate:tools` 用真实会话调一次工具，并跑一次“写错 inject”的负控（需要本机凭据，缺失时跳过）。
 
-![Plugins 页](docs/plugins-page.png)
+![Plugins 页](docs/plugins-page.jpg)
 
 ### 能力面
 
@@ -196,7 +196,7 @@ dsh-motion render --export [--gif] [--out out/export.mp4]
 可调的是数值（画面比例或秒数），不是颜色或文案：颜色走 `motion_palette`，文案走 `motion_texts`，
 三者共用同一条「校验 → 快照 → 写」的路径（`src/project.mjs`）。
 
-![参数面板](docs/ui-params.png)
+![参数面板](docs/ui-params.jpg)
 
 ### 参考摄取
 

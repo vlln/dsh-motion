@@ -46,14 +46,14 @@ dsh-motion check --deliver out/film.mp4
 
 在 dsh 里打开，右边是参数和批注，右上角标着这次显示的是哪个版本：
 
-![面板](docs/img/panel.png)
+![面板](docs/img/panel.jpg)
 
 改一个参数、点一下画面上的字、写一句批注，落到 `timeline.json` 和场景代码里——
 Agent 下一步看到的就是你改过的样子。
 
 空工作区打开是画廊，七格能播的样板，点开看做法，也可以直接丢给 Agent 复刻：
 
-![画廊](docs/img/gallery.png)
+![画廊](docs/img/gallery.jpg)
 
 ## 它现在能做成什么样
 

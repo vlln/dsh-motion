@@ -8,7 +8,7 @@ import crypto from 'node:crypto';
 
 const FILE = 'out/comments.json';
 
-export function storePath(root) {
+function storePath(root) {
   return path.join(root, FILE);
 }
 

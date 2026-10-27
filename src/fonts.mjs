@@ -29,10 +29,6 @@ export function fontStack(key = 'sans') {
   return font ? font.stack : FONTS.sans.stack;
 }
 
-export function listFonts() {
-  return FONT_KEYS.map((key) => ({ key, ...FONTS[key] }));
-}
-
 /** A film may override a role: { fonts: { display: { family, src } } }. */
 export function resolveFont(timeline, role = 'sans') {
   const override = timeline?.fonts?.[role];
@@ -43,10 +39,6 @@ export function resolveFont(timeline, role = 'sans') {
 }
 
 /** Every role the film can name: the four built-ins plus whatever it declared. */
-export function roleNames(timeline) {
-  return [...new Set([...FONT_KEYS, ...Object.keys(timeline?.fonts ?? {})])];
-}
-
 export function filmFontOverrides(timeline) {
   // No shape filter: validate.mjs already refuses a malformed entry, so a bad
   // one here is a bug worth seeing, not a row worth hiding.

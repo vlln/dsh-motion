@@ -146,7 +146,3 @@ export function versionRecord(root, id) {
   if (!fs.existsSync(file)) return null;
   return JSON.parse(fs.readFileSync(file, "utf8"));
 }
-
-export function versionsDir(root) {
-  return dir(root);
-}

@@ -75,7 +75,7 @@ export function noteHz(name) {
 }
 
 /** "D3" or "Bb" -> 0-11, the letter's pitch class without the octave. */
-export function pitchClass(name) {
+function pitchClass(name) {
   const hit = /^([A-G])([#b]?)/.exec(String(name));
   if (!hit) throw new Error(`not a note: "${name}" (write D3, F#4, Bb2)`);
   return (NAMES[hit[1]] + (hit[2] === '#' ? 1 : hit[2] === 'b' ? -1 : 0) + 12) % 12;
@@ -392,7 +392,7 @@ export const KINDS = {
 };
 
 /** Shape only — no samples. `check` calls this so a bad sheet fails before render. */
-export function checkSheet(sheet) {
+function checkSheet(sheet) {
   const length = Number(sheet?.length);
   if (!Number.isFinite(length) || length <= 0) throw new Error('sheet.length must be a positive number of seconds');
   const layers = sheet.layers ?? [];

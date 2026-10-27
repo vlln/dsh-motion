@@ -59,7 +59,7 @@ export async function modules(root) {
   return list;
 }
 
-export function readTimeline(root, file = 'timeline.json') {
+function readTimeline(root, file = 'timeline.json') {
   return JSON.parse(fs.readFileSync(timelineFile(root, file), 'utf8'));
 }
 
@@ -69,7 +69,7 @@ function assertValid(timeline, mods) {
 }
 
 /** Validate, keep the previous file, then write. `reason` ends up in the snapshot id. */
-export async function writeTimeline(root, timeline, reason = 'edit', file = 'timeline.json') {
+async function writeTimeline(root, timeline, reason = 'edit', file = 'timeline.json') {
   const mods = await modules(root);
   assertValid(timeline, mods);
   const snap = snapshot(root, reason, undefined, file);

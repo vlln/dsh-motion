@@ -29,9 +29,3 @@ export function patchPalettes(timeline, patch) {
 }
 
 /** #rrggbb -> [r,g,b] */
-export function toRgb(hex) {
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
-  if (!m) throw new Error(`bad color: ${hex}`);
-  const n = parseInt(m[1], 16);
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-}

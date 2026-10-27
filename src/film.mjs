@@ -30,13 +30,6 @@ export function hasFilm(root) {
 }
 
 /** Throw the sentence the agent will actually read. */
-export function requireFilm(root) {
-  if (!hasFilm(root)) {
-    throw new Error('this workspace has no film yet — run `dsh-motion init` (it writes motion/timeline.json, motion/镜头表.md and copies kit/)');
-  }
-  return filmDir(root);
-}
-
 /**
  * Start a film: a timeline with no shots, an empty storyboard, and a copy of
  * the kit.
@@ -82,16 +75,3 @@ export function scaffoldFilm(root, { title = 'Untitled' } = {}) {
 }
 
 /** A short account for tools and the panel's empty state. */
-export function describeFilm(root) {
-  const dir = filmDir(root);
-  if (!hasFilm(root)) return { exists: false, dir };
-  const film = JSON.parse(fs.readFileSync(path.join(dir, 'timeline.json'), 'utf8'));
-  return {
-    exists: true,
-    dir,
-    duration: film.duration,
-    fps: film.fps,
-    scenes: film.scenes?.length ?? 0,
-    sceneIds: (film.scenes ?? []).map((s) => s.id),
-  };
-}

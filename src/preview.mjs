@@ -1,3 +1,7 @@
+/** Film data is text from a file (or from the panel), never markup. */
+const escapeHtml = (value) =>
+  String(value).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+
 // Standalone preview: player + scene strip + annotation overlay.
 // Same kernel the capture script uses — if it looks right here, it exports right.
 
@@ -621,7 +625,7 @@ function buildChips(scenes) {
     chips.forEach(({ el }, i) => {
       const scene = scenes[i];
       el.style.flexGrow = String(scene.length);
-      el.querySelector('.chip-label').innerHTML = `${scene.name} <span class="len">· ${scene.length.toFixed(1)}s</span>`;
+      el.querySelector('.chip-label').innerHTML = `${escapeHtml(scene.name)} <span class="len">· ${scene.length.toFixed(1)}s</span>`;
       el.dataset.scene = scene.id;
       chips[i].scene = scene;
     });
@@ -638,7 +642,7 @@ function buildChips(scenes) {
     el.setAttribute('tabindex', '0');
     el.style.flexGrow = String(scene.length);
     el.style.flexBasis = '0';
-    el.innerHTML = `<span class="chip-label">${scene.name} <span class="len">· ${scene.length.toFixed(1)}s</span></span>
+    el.innerHTML = `<span class="chip-label">${escapeHtml(scene.name)} <span class="len">· ${scene.length.toFixed(1)}s</span></span>
       <button class="chip-more" aria-label="这一段的操作" title="这一段的操作">⋯</button>`;
     el.addEventListener('click', (e) => {
       if (e.target.closest('.chip-more')) return;
@@ -739,7 +743,7 @@ function openChipMenu(scene, chipEl) {
   hoverFrame.hidden = true;
   hoverAt = -1;
   chipMenu.innerHTML = `
-    <p class="chip-menu-name">${scene.name}</p>
+    <p class="chip-menu-name">${escapeHtml(scene.name)}</p>
     <button id="chipPoster" type="button">用当前帧作封面 · ${fmt(t)}</button>
     <button id="chipDelete" type="button">删除这一段</button>`;
   chipMenu.hidden = false;
@@ -1295,8 +1299,6 @@ try {
 }
 
 const allComments = $('allComments');
-const escapeHtml = (value) =>
-  String(value).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
 /** The 批注 page: every note, grouped by the section it was made in. */
 async function loadAllComments() {
@@ -1413,8 +1415,8 @@ function renderPaletteEditor(name) {
       ({ token, value }) => `
       <div class="token-row" data-token="${token}">
         <span class="token-name">${token}</span>
-        <input class="token-hex" data-token="${token}" value="${value}" maxlength="7" spellcheck="false" />
-        <input class="token-color" data-token="${token}" type="color" value="${value}" />
+        <input class="token-hex" data-token="${token}" value="${escapeHtml(value)}" maxlength="7" spellcheck="false" />
+        <input class="token-color" data-token="${token}" type="color" value="${escapeHtml(value)}" />
       </div>`,
     )
     .join('');

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Build the self-contained panel bundle (three inlined) and its HTML shell.
-// The shell is preview.html with the import map removed and asset paths rewritten.
+// The shell is preview.html with asset paths rewritten for the bundle.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -35,7 +35,6 @@ export async function buildClient({ outdir = LIB, shell = true } = {}) {
 
   const html = fs
     .readFileSync(path.join(ROOT, 'preview.html'), 'utf8')
-    .replace(/\s*<script type="importmap">[\s\S]*?<\/script>/, '')
     .replace('./src/preview.css', './app.css')
     .replace('./src/preview.mjs', './app.js');
 

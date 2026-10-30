@@ -52,21 +52,21 @@ npx playwright@1.64.1 install chromium
 
 ### 2. 安装插件
 
-在 dsh 的 **Plugins → 添加插件** 中输入 Git 源：
+在 dsh 的 **Plugins → 添加插件** 中输入：
 
 ```text
-github:vlln/dsh-motion
+@vlln/dsh-motion
 ```
 
 或使用 CLI：
 
 ```bash
-dsh plugin --profile web add github:vlln/dsh-motion
+dsh plugin --profile web add @vlln/dsh-motion
 ```
 
 安装后，在会话的**右侧栏**选择 **动画**。若没有出现，先刷新页面；仍未出现时重启 dsh，并到 Plugins 页确认插件已启用。
 
-> 当前安装说明使用 Git 源，不依赖 npm 上的同名包。插件会向 Agent 注册 `dsh-motion` skill，并把命令加入 dsh 进程的 `PATH`；这不等于在你的外部终端全局安装了命令。
+> 想跟最新提交而不是发布版：`dsh plugin --profile web add github:vlln/dsh-motion`。插件会向 Agent 注册 `dsh-motion` skill，并把命令加入 dsh 进程的 `PATH`；这不等于在你的外部终端全局安装了命令。
 
 ## 做第一条动画
 
@@ -105,7 +105,7 @@ dsh plugin --profile web add github:vlln/dsh-motion
 不使用 dsh 面板，也可以把它作为本地渲染工具安装：
 
 ```bash
-npm install -g github:vlln/dsh-motion
+npm install -g @vlln/dsh-motion
 mkdir my-film && cd my-film
 dsh-motion init --title "我的第一条动画"
 ```

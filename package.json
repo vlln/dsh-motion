@@ -93,5 +93,25 @@
   },
   "dependencies": {
     "playwright": "1.64.1"
-  }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "author": "vlln",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vlln/dsh-motion.git"
+  },
+  "homepage": "https://github.com/vlln/dsh-motion#readme",
+  "bugs": {
+    "url": "https://github.com/vlln/dsh-motion/issues"
+  },
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "dsh-plugin",
+    "motion",
+    "animation",
+    "mp4"
+  ]
 }

@@ -11,9 +11,9 @@
 <p align="center">描述想法 → 确认分镜 → 预览与批注 → 导出 MP4</p>
 
 <p align="center">
-  <video src="https://github.com/user-attachments/assets/40c3cafc-f9aa-4352-8895-ed7c0333c663" width="720" autoplay loop muted playsinline></video>
+  <img src="docs/demo/launch.gif" width="720" alt="dsh-motion 发布短片：真实面板录屏与截图组成的 3D 场景，演示安装、改字、拖时间轴、批注">
 </p>
-<p align="center"><sub>用 dsh-motion 制作的发布短片 · 12 秒 · 画面里是真实的安装页、面板录屏与批注截图 · <a href="docs/demo/launch.mp4">仓库内的高清版</a></sub></p>
+<p align="center"><sub>用 dsh-motion 制作的发布短片 · 12 秒 · 画面里是真实的安装页、面板录屏与批注截图 · <a href="https://github.com/user-attachments/assets/40c3cafc-f9aa-4352-8895-ed7c0333c663">观看带声音的视频</a>（需能访问 GitHub 视频源；也可看<a href="docs/demo/launch.mp4">仓库内的 MP4</a>）</sub></p>
 
 **dsh-motion 是 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的动画制作插件。** Agent 在你的工作区里编写场景、组织时间轴并渲染视频；你在对话旁边预览，直接调整文字和参数，或框出画面告诉它哪里需要改。
 

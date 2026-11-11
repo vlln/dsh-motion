@@ -86,7 +86,8 @@
   ],
   "license": "MIT",
   "engines": {
-    "node": ">=22"
+    "node": ">=24.9.0",
+    "dsh": ">=0.2.2-rc.1 <0.3.0-0"
   },
   "bin": {
     "dsh-motion": "./bin/dsh-motion.mjs"
